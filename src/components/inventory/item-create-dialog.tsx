@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Gem, Layers, Plus, Calculator } from 'lucide-react';
 
 // ========== Item Creation Dialog ==========
-function ItemCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void }) {
+function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defaultBatchInfo }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void; defaultBatchId?: number; defaultBatchInfo?: { materialId?: number; supplierId?: number; purchaseDate?: string; typeId?: number } }) {
   const [mode, setMode] = useState<'high_value' | 'batch'>('high_value');
   const [materials, setMaterials] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
@@ -52,8 +52,18 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; on
       dictsApi.getTags().then(setTags).catch(() => {});
       suppliersApi.getSuppliers().then((s: any) => setSuppliers(s?.items || s || [])).catch(() => {});
       batchesApi.getBatches({ size: 100 }).then((d: any) => setBatches(d?.items || [])).catch(() => {});
+
+      // Pre-configure for batch mode if defaultBatchId is provided
+      if (defaultBatchId) {
+        setMode('batch');
+        setBatchForm(f => ({
+          ...f,
+          batchId: String(defaultBatchId),
+          ...(defaultBatchInfo?.typeId ? { typeId: String(defaultBatchInfo.typeId) } : {}),
+        }));
+      }
     }
-  }, [open]);
+  }, [open, defaultBatchId, defaultBatchInfo]);
 
   // 根据大类筛选材质
   const filteredMaterials = materials.filter((m: any) => {

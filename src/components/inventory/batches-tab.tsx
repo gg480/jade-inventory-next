@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import {
-  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown,
+  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList,
 } from 'lucide-react';
 
 // ========== Batches Tab ==========
@@ -50,7 +50,7 @@ function BatchesTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="relative overflow-hidden border-l-4 border-l-sky-500 hover:shadow-md transition-shadow">
           <CardContent className="p-4">
             <div className="absolute -right-1 -bottom-1 opacity-10"><Layers className="h-16 w-16 text-sky-500" /></div>
@@ -75,6 +75,12 @@ function BatchesTab() {
             <p className="text-sm text-muted-foreground">总投入</p><p className="text-2xl font-bold">{formatPrice(totalCost)}</p>
           </CardContent>
         </Card>
+        <Card className="relative overflow-hidden border-l-4 border-l-orange-500 hover:shadow-md transition-shadow">
+          <CardContent className="p-4">
+            <div className="absolute -right-1 -bottom-1 opacity-10"><ClipboardList className="h-16 w-16 text-orange-500" /></div>
+            <p className="text-sm text-muted-foreground">待录入</p><p className="text-2xl font-bold text-orange-600">{batches.filter(b => (b.itemsCount || 0) < (b.quantity || 0)).length}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Actions */}
@@ -95,7 +101,7 @@ function BatchesTab() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>批次编号</TableHead><TableHead>材质</TableHead><TableHead className="text-right">总成本</TableHead>
-                    <TableHead className="text-right">数量</TableHead><TableHead>分摊方式</TableHead><TableHead className="text-right">已售</TableHead>
+                    <TableHead className="text-right">数量</TableHead><TableHead className="text-right">已录入</TableHead><TableHead>分摊方式</TableHead><TableHead className="text-right">已售</TableHead>
                     <TableHead className="text-right">已回款</TableHead><TableHead>回本进度</TableHead><TableHead>状态</TableHead>
                     <TableHead className="text-right">操作</TableHead>
                   </TableRow>
@@ -103,10 +109,24 @@ function BatchesTab() {
                 <TableBody>
                   {batches.map(b => (
                     <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setDetailBatchId(b.id)}>
-                      <TableCell className="font-mono text-sm">{b.batchCode}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        <div className="flex items-center gap-1.5">
+                          {b.batchCode}
+                          {(b.itemsCount || 0) > 0 ? (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">已关联货品</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">未录入</Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{b.materialName}</TableCell>
                       <TableCell className="text-right">{formatPrice(b.totalCost)}</TableCell>
                       <TableCell className="text-right">{b.quantity}</TableCell>
+                      <TableCell className="text-right">
+                        <span className={(b.itemsCount || 0) >= (b.quantity || 0) ? 'text-emerald-600 font-medium' : (b.itemsCount || 0) > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
+                          {b.itemsCount || 0}/{b.quantity}
+                        </span>
+                      </TableCell>
                       <TableCell><Badge variant="outline">{({ equal: '均摊', by_weight: '按克重', by_price: '按售价' } as any)[b.costAllocMethod] || b.costAllocMethod}</Badge></TableCell>
                       <TableCell className="text-right">{b.soldCount}/{b.quantity}</TableCell>
                       <TableCell className="text-right font-medium">{formatPrice(b.revenue)}</TableCell>

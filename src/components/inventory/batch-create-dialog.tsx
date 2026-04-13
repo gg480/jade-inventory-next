@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { dictsApi, suppliersApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { MATERIAL_CATEGORIES } from './settings-tab';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ function BatchCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; o
   const [types, setTypes] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [materialCategory, setMaterialCategory] = useState('');
   const [form, setForm] = useState({
     batchCode: '', materialId: '', typeId: '', quantity: 1, totalCost: 0,
     costAllocMethod: 'equal', supplierId: '', purchaseDate: '', notes: '',
@@ -29,6 +31,12 @@ function BatchCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; o
       suppliersApi.getSuppliers().then((s: any) => setSuppliers(s?.items || s || [])).catch(() => {});
     }
   }, [open]);
+
+  // 根据大类筛选材质
+  const filteredMaterials = materials.filter((m: any) => {
+    if (!materialCategory) return true;
+    return m.category === materialCategory;
+  });
 
   async function handleSave() {
     setSaving(true);
@@ -49,6 +57,7 @@ function BatchCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; o
       });
       toast.success('批次创建成功！');
       setForm({ batchCode: '', materialId: '', typeId: '', quantity: 1, totalCost: 0, costAllocMethod: 'equal', supplierId: '', purchaseDate: '', notes: '' });
+      setMaterialCategory('');
       onOpenChange(false);
       onSuccess();
     } catch (e: any) {
@@ -64,19 +73,32 @@ function BatchCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; o
         <DialogHeader><DialogTitle>新建批次</DialogTitle><DialogDescription>创建新的通货批次</DialogDescription></DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-1"><Label className="text-xs">批次编号 *</Label><Input value={form.batchCode} onChange={e => setForm(f => ({ ...f, batchCode: e.target.value }))} className="h-9" placeholder="如: HT-20260101-001" /></div>
+          {/* Material Category Cascade */}
           <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1"><Label className="text-xs">材质大类</Label>
+              <Select value={materialCategory} onValueChange={v => {
+                setMaterialCategory(v === '_all' ? '' : v);
+                setForm(f => ({ ...f, materialId: '' }));
+              }}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="全部大类" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_all">全部大类</SelectItem>
+                  {MATERIAL_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1"><Label className="text-xs">材质 *</Label>
               <Select value={form.materialId} onValueChange={v => setForm(f => ({ ...f, materialId: v }))}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="选择材质" /></SelectTrigger>
-                <SelectContent>{materials.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{filteredMaterials.map((m: any) => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1"><Label className="text-xs">器型</Label>
-              <Select value={form.typeId} onValueChange={v => setForm(f => ({ ...f, typeId: v }))}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="选择器型" /></SelectTrigger>
-                <SelectContent>{types.map((t: any) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+          </div>
+          <div className="space-y-1"><Label className="text-xs">器型</Label>
+            <Select value={form.typeId} onValueChange={v => setForm(f => ({ ...f, typeId: v }))}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="选择器型" /></SelectTrigger>
+              <SelectContent>{types.map((t: any) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}</SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1"><Label className="text-xs">数量 *</Label><Input type="number" value={form.quantity} onChange={e => setForm(f => ({ ...f, quantity: parseInt(e.target.value) || 1 }))} className="h-9" min={1} /></div>

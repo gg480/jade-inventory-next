@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { dashboardApi } from '@/lib/api';
+import { dashboardApi, configApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, CHART_COLORS } from './shared';
 
@@ -38,9 +38,18 @@ function DashboardTab() {
   const [priceRangeSelling, setPriceRangeSelling] = useState<any[]>([]);
   const [weightDist, setWeightDist] = useState<any>(null);
   const [ageDist, setAgeDist] = useState<any[]>([]);
+  const [batchEntryProgress, setBatchEntryProgress] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [minDays, setMinDays] = useState(90);
+  const [warningDaysLoaded, setWarningDaysLoaded] = useState(false);
   const [distFilter, setDistFilter] = useState<'year' | 'quarter' | 'month' | 'custom'>('year');
+  // Load batch entry progress on mount
+  useEffect(() => {
+    batchesApi.getBatches({ size: 100 }).then((data: any) => {
+      setBatchEntryProgress((data.items || []).filter((b: any) => (b.itemsCount || 0) < (b.quantity || 0)));
+    }).catch(() => {});
+  }, []);
+
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
@@ -61,6 +70,23 @@ function DashboardTab() {
     }
     return { startDate, endDate };
   }, [distFilter, customStart, customEnd]);
+
+  // Load warning_days config on mount
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const configs = await configApi.getConfig();
+        const warningDays = (configs as any[])?.find((c: any) => c.key === 'warning_days');
+        if (warningDays && parseInt(warningDays.value) > 0) {
+          setMinDays(parseInt(warningDays.value));
+        }
+        setWarningDaysLoaded(true);
+      } catch {
+        setWarningDaysLoaded(true);
+      }
+    }
+    loadConfig();
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -102,9 +128,9 @@ function DashboardTab() {
     } finally {
       setLoading(false);
     }
-  }, [minDays, getDateRange]);
+  }, [minDays, getDateRange, warningDaysLoaded]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { if (warningDaysLoaded) fetchData(); }, [fetchData, warningDaysLoaded]);
 
   if (loading) return <LoadingSkeleton />;
 
@@ -533,6 +559,39 @@ function DashboardTab() {
           </Card>
         </div>
       </div>
+
+      {/* ====== 8.5 Batch Entry Progress ====== */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4 text-emerald-600" />批次录入进度概览</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {batchEntryProgress.length === 0 ? (
+            <div className="flex items-center justify-center gap-2 py-4 text-emerald-600">
+              <CheckCircle className="h-5 w-5" />
+              <span className="text-sm font-medium">所有批次已全部录入</span>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {batchEntryProgress.map((b: any) => {
+                const pct = b.quantity > 0 ? Math.min(((b.itemsCount || 0) / b.quantity) * 100, 100) : 0;
+                return (
+                  <div key={b.id || b.batchCode} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                    <span className="font-mono text-xs w-24 shrink-0">{b.batchCode}</span>
+                    <span className="text-xs text-muted-foreground w-20 shrink-0 truncate">{b.materialName || '-'}</span>
+                    <div className="flex-1 flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs font-medium w-16 text-right">{b.itemsCount || 0}/{b.quantity}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ====== 9. Stock Aging + Age Distribution ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

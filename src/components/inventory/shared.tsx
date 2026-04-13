@@ -3,6 +3,8 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 
 // ========== CSS Keyframes ==========
 const fadeInStyle = typeof document !== 'undefined' && !document.getElementById('fade-in-keyframes')
@@ -79,4 +81,17 @@ function LoadingSkeleton() {
   );
 }
 
-export { fadeInStyle, CHART_COLORS, formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton };
+function InfoTip({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs max-w-48">
+        <p>{text}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export { fadeInStyle, CHART_COLORS, formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, InfoTip };

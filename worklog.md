@@ -2,13 +2,14 @@
 
 ## 项目当前状态描述/判断
 
-### 迁移完成状态：~99%
+### 迁移完成状态：100%
 - **技术栈**: Next.js 16 + React + Prisma(SQLite) + Tailwind CSS + shadcn/ui + recharts
-- **代码规模**: page.tsx ~57行(薄调度器)，17个Prisma表，60+API端点，16个组件文件
-- **测试数据**: 20个货品 + 3个批次 + 5条销售记录 + 3个客户
+- **代码规模**: page.tsx ~57行(薄调度器)，17个Prisma表，60+API端点，18个组件文件
+- **测试数据**: 34个货品(10个关联批次) + 6个批次 + 8条销售记录 + 5个客户
 - **核心功能**: 全部完成（双轨入库/出库/退货/编辑/套装销售/成本分摊/回本看板/操作日志/销售退货）
-- **UI质量**: 高（暗色模式/移动端响应式/过渡动画/图标装饰/卡片视图/VIP徽章/快速统计底栏）
-- **稳定性**: 高（lint通过/所有API正常/浏览器QA通过）
+- **批次关联**: 完整（批次→货品FK关联/库存显示所属批次/批次显示已录入数/批次筛选/录入进度）
+- **UI质量**: 高（暗色模式/移动端响应式/过渡动画/图标装饰/卡片视图/VIP徽章/快速统计底栏/InfoTip提示）
+- **稳定性**: 高（lint通过/所有API正常/agent-browser全7页面QA零错误）
 - **与原项目功能对齐**: 已完成原始Python+Vue项目功能全面对比，所有核心功能均已实现
 
 ### 已完成工作总览
@@ -18,9 +19,9 @@
 - ✅ Zustand 状态管理 (store.ts)
 - ✅ 种子数据脚本 (seed.ts)
 - ✅ Dashboard 看板页（增强版概览卡片+16个recharts图表+时段筛选器+压货预警+库龄分布）
-- ✅ 库存列表页（筛选+表格+分页+扫码出库+销售出库弹窗+删除+编辑+退货+标签打印+移动端卡片视图）
+- ✅ 库存列表页（筛选+批次筛选+表格+所属批次列+扫码出库+销售出库弹窗+删除+编辑+退货+标签打印+移动端卡片视图）
 - ✅ 销售记录页（筛选+表格+分页+套装销售+**销售退货**+**利润趋势迷你图**+**汇总行**）
-- ✅ 批次列表页（统计+表格+分摊按钮+创建弹窗+批次详情弹窗）
+- ✅ 批次列表页（统计+表格+已录入列+待录入卡片+已关联标签+分摊按钮+创建弹窗+批次详情弹窗）
 - ✅ 客户管理页（搜索+卡片+创建弹窗+编辑弹窗+展开详情+购买历史+**VIP等级徽章**+**统计概览卡片**）
 - ✅ 系统设置页（字典管理4Tab+新增/编辑材质+新增器型/标签+贵金属市价+批量调价预览/确认+市价历史+供应商CRUD+系统配置）
 - ✅ 货品编辑对话框（ItemEditDialog）
@@ -439,3 +440,136 @@ Task: 数据导入功能 + 最终验证
 7. ✅ 数据批量导入（CSV 库存/销售 + 模板下载）
 8. ✅ 操作日志前端页面（已验证完善）
 9. ✅ 数据备份/恢复（已验证完善）
+
+---
+Task ID: 2
+Agent: feature-enhancer-2
+Task: UX增强 + 操作日志Tab + 备份优化 + 预警配置 + 批次级联 + 种子数据
+
+### 1. 批次详情UX增强 (batch-detail-dialog.tsx)
+- **录入进度条**: 顶部显示 Progress 组件，显示"已录入 X / 声明 Y 件"进度
+- **快速添加货品按钮**: 当录入数 < 声明数时，显示"快速添加货品"按钮
+- **自动继承批次信息**: 点击快速添加后，ItemCreateDialog 自动切换到通货模式并预选当前批次，继承材质、供应商、采购日期、器型
+- **点击查看货品详情**: 批次内货品列表行可点击查看 ItemDetailDialog，每行还有独立眼睛图标按钮
+- ItemCreateDialog 新增 `defaultBatchId` 和 `defaultBatchInfo` 可选参数
+
+### 2. 操作日志前端Tab (logs-tab.tsx) — 新建
+- 列表展示所有操作日志，含分页
+- 显示: 时间、操作类型、对象类型、对象ID、详情、操作人
+- 操作类型颜色徽章:
+  - 入库=绿色, 编辑=蓝色, 删除=红色, 出库=琥珀色, 退货=橙色, 分摊=紫色
+- 筛选: 按操作类型下拉 + 日期范围
+- 自动刷新: 每10秒自动刷新（可开关）
+- 已集成到 page.tsx 的 `logs` tab（已有 `LogsTab` 导入和 `case 'logs'` 分支）
+
+### 3. 数据备份/恢复前端增强 (settings-tab.tsx)
+- **上次备份时间**: 下载备份后显示"上次备份"时间戳（Clock图标）
+- **恢复确认**: 已有确认对话框（含安全副本自动保存 + 覆盖警告）
+- 备份下载和恢复功能保持不变
+
+### 4. 压货预警天数配置 (settings-tab.tsx + dashboard-tab.tsx)
+- settings-tab.tsx: 压货预警天数配置改用 `warning_days` 键（原 `aging_threshold_days` 保留为兼容）
+- dashboard-tab.tsx: 启动时从 `/api/config` 读取 `warning_days` 值作为初始阈值
+- 前端仍可在看板页手动调整阈值并实时刷新
+- seed.ts 新增 `warning_days` 配置项（默认90天）
+
+### 5. 批次创建对话框 - 材质级联下拉 (batch-create-dialog.tsx)
+- 新增材质大类第一级下拉（玉/贵金属/水晶/文玩/其他）
+- 第二级材质下拉根据大类筛选
+- 切换大类时自动清空已选材质
+- 导入 `MATERIAL_CATEGORIES` 从 settings-tab.tsx
+
+### 6. 种子数据 - 批次关联货品 (seed.ts)
+- 创建3个示例批次: FC-20260101-001(翡翠手镯5件), HTY-20260201-001(和田玉吊坠3件), FJ-20260301-001(粉晶手串10件)
+- 创建14个货品，其中10个关联批次:
+  - FC批次3/5件已录入（2件待录入）
+  - HTY批次2/3件已录入（1件待录入）
+  - FJ批次5/10件已录入（5件待录入）
+- 4个独立高货（无批次关联）
+- 3个示例客户 + 3条销售记录
+- 使用 upsert 避免重复数据冲突
+
+### 验证结果
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ Dev server 运行正常
+- ✅ 数据库同步成功（prisma db push）
+- ✅ 种子数据更新成功（批次+货品+客户+销售）
+- ✅ 所有 API 端点正常（/api/config, /api/logs, /api/backup, /api/batches）
+- ✅ 新增 `warning_days` 配置项已生效
+
+### 关键文件变更
+- `src/components/inventory/batch-detail-dialog.tsx` — 录入进度条 + 快速添加 + 自动继承 + 货品详情
+- `src/components/inventory/item-create-dialog.tsx` — 新增 defaultBatchId/defaultBatchInfo 参数
+- `src/components/inventory/logs-tab.tsx` — 新建，操作日志前端Tab
+- `src/components/inventory/settings-tab.tsx` — warning_days配置 + 备份时间显示
+- `src/components/inventory/dashboard-tab.tsx` — 读取warning_days配置
+- `src/components/inventory/batch-create-dialog.tsx` — 材质级联下拉
+- `prisma/seed.ts` — 批次关联货品 + warning_days配置
+
+---
+Task ID: 4
+Agent: cron-agent
+Task: 批次-库存关联增强 + QA测试 + UI细节优化
+
+### 1. 修复旧版batch创建API (items/batch/route.ts)
+- 添加 `batchId` FK 关联支持（原版只设 batchCode 字符串不设 batchId）
+- 自动解析 batchCode → batchId 双向查找
+- 添加 counter 字段支持和操作日志记录
+
+### 2. 批次管理页面增强 (batches-tab.tsx)
+- **"已录入"列**: 显示 `{itemsCount}/{quantity}`，三色标记（绿=已满/琥珀=部分/灰=未录入）
+- **"待录入"统计卡片**: 第5张卡片显示 itemsCount < quantity 的批次数（ClipboardList图标，橙色）
+- **批次类型标签**: 批次编号旁显示 Badge——"已关联货品"（绿色）或"未录入"（灰色）
+- 统计卡片网格改为 5 列: `grid-cols-2 md:grid-cols-5`
+
+### 3. 库存管理页面增强 (inventory-tab.tsx)
+- **"所属批次"列**: 桌面表格和移动端卡片视图均显示批次 Badge，点击跳转批次Tab
+- **批次筛选器**: 筛选栏新增"全部批次"下拉，选中后只显示该批次的货品
+- 筛选栏改为 7 列: `md:grid-cols-7`
+
+### 4. 批次详情增强 (batch-detail-dialog.tsx)
+- **"库龄"列**: 显示货品入库天数，>90天红色高亮（Clock图标）
+- **成本显示优化**: 有分摊成本显示绿色，无则显示灰色预估成本 + InfoTip 提示
+
+### 5. 通用组件增强 (shared.tsx)
+- **InfoTip 组件**: 可复用的 Tooltip 提示组件（Info图标 + hover显示说明文字）
+
+### 6. Dashboard增强 (dashboard-tab.tsx)
+- **批次录入进度概览**: 看板页新增卡片，显示未录完的批次列表和进度条
+- 全部录完时显示"所有批次已全部录入"（CheckCircle图标）
+
+### 7. 销售页增强 (sales-tab.tsx)
+- **"今日"统计行**: 顶部新增今日销售数/今日营收/今日利润统计
+
+### 8. 移动端卡片增强 (inventory-tab.tsx)
+- 批次 Badge 显示在移动端卡片
+- 预估成本显示（~后缀）与桌面一致
+- >90天库龄红色高亮
+
+### 9. 客户购买历史增强 (customers-tab.tsx)
+- 购买历史中显示所属批次 Badge（琥珀色，区分于渠道标签）
+
+### 验证结果
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ agent-browser 全7页面 QA 测试零错误零警告
+- ✅ 批次→货品 FK 关联数据验证正确（6批次，10件关联货品）
+- ✅ 批次筛选器功能正常（选择批次后库存只显示该批次货品）
+- ✅ 批次录入进度条/快速添加功能正常
+- ✅ Dashboard批次录入进度概览正常显示
+
+### 关键文件变更
+- `src/app/api/items/batch/route.ts` — batchId FK 关联修复
+- `src/components/inventory/batches-tab.tsx` — 已录入列+待录入卡片+已关联标签
+- `src/components/inventory/inventory-tab.tsx` — 所属批次列+批次筛选+移动端增强
+- `src/components/inventory/batch-detail-dialog.tsx` — 库龄列+成本显示优化+InfoTip
+- `src/components/inventory/shared.tsx` — InfoTip 组件
+- `src/components/inventory/dashboard-tab.tsx` — 批次录入进度概览
+- `src/components/inventory/sales-tab.tsx` — 今日统计行
+- `src/components/inventory/customers-tab.tsx` — 购买历史批次显示
+
+### 未解决/待改进
+- 登录认证系统（JWT + 密码修改，单用户NAS场景优先级低）
+- 图片缩略图生成（当前仅保存原图）
+- 批量操作（批量删除/批量修改状态）
+- 同比环比数据对比图表
+- GitHub推送最新代码

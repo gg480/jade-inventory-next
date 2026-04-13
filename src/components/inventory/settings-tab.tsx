@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 // ========== 材质大类选项 ==========
 const MATERIAL_CATEGORIES = [
@@ -110,6 +110,7 @@ function SettingsTab() {
   const [restoring, setRestoring] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [lastBackupTime, setLastBackupTime] = useState<string | null>(null);
 
   // Import states
   const [importType, setImportType] = useState<'items' | 'sales'>('items');
@@ -465,21 +466,21 @@ function SettingsTab() {
             <CardHeader className="pb-2"><CardTitle className="text-base">系统配置</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* Aging threshold special config */}
+                {/* Warning days config */}
                 <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-amber-600" />
                     <div>
                       <p className="font-medium">压货预警天数</p>
-                      <p className="text-xs text-muted-foreground">超过此天数未售出的货品将列入压货预警</p>
+                      <p className="text-xs text-muted-foreground">超过此天数未售出的货品将列入压货预警（看板页面使用）</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Input type="number" value={configs.find(c => c.key === 'aging_threshold_days')?.value || '90'} className="w-20 h-8 text-sm text-center"
+                    <Input type="number" value={configs.find(c => c.key === 'warning_days')?.value || '90'} className="w-20 h-8 text-sm text-center"
                       onBlur={e => {
                         const val = e.target.value;
                         if (val && parseInt(val) > 0) {
-                          updateConfig('aging_threshold_days', val);
+                          updateConfig('warning_days', val);
                         }
                       }}
                       onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
@@ -488,7 +489,7 @@ function SettingsTab() {
                   </div>
                 </div>
                 {/* Other configs */}
-                {configs.filter(c => c.key !== 'aging_threshold_days').map(c => (
+                {configs.filter(c => c.key !== 'warning_days').map(c => (
                   <div key={c.key} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <div><p className="font-medium">{c.description || c.key}</p><p className="text-xs text-muted-foreground font-mono">{c.key}</p></div>
                     <Input type="text" value={c.value} className="w-32 h-8 text-sm"
@@ -508,11 +509,18 @@ function SettingsTab() {
             <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Download className="h-4 w-4 text-emerald-600" />备份数据库</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">下载当前数据库文件（SQLite），可用于数据迁移或定期备份。</p>
-              <Button className="bg-emerald-600 hover:bg-emerald-700" asChild>
-                <a href={backupApi.download()} download>
-                  <Download className="h-4 w-4 mr-2" />下载数据库备份
-                </a>
-              </Button>
+              <div className="flex items-center gap-4">
+                <Button className="bg-emerald-600 hover:bg-emerald-700" asChild onClick={() => setLastBackupTime(new Date().toLocaleString('zh-CN'))}>
+                  <a href={backupApi.download()} download>
+                    <Download className="h-4 w-4 mr-2" />下载数据库备份
+                  </a>
+                </Button>
+                {lastBackupTime && (
+                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />上次备份: {lastBackupTime}
+                  </span>
+                )}
+              </div>
             </CardContent>
           </Card>
 

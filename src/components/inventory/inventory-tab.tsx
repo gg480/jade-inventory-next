@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { itemsApi, salesApi, dictsApi, exportApi } from '@/lib/api';
+import { itemsApi, salesApi, dictsApi, batchesApi, exportApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { useAppStore } from '@/lib/store';
 import { formatPrice, StatusBadge, EmptyState, LoadingSkeleton } from './shared';
 import ItemCreateDialog from './item-create-dialog';
 import ItemDetailDialog from './item-detail-dialog';
@@ -23,16 +24,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
-  Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUpDown, ArrowUp, ArrowDown, Camera,
+  Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUpDown, ArrowUp, ArrowDown, Camera, Layers,
 } from 'lucide-react';
 
 // ========== Inventory Tab ==========
 function InventoryTab() {
+  const { setActiveTab } = useAppStore();
   const [items, setItems] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
+  const [allBatches, setAllBatches] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, size: 20, pages: 0 });
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '' });
+  const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '' });
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -49,6 +52,7 @@ function InventoryTab() {
   const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => { dictsApi.getMaterials().then(setMaterials).catch(() => {}); }, []);
+  useEffect(() => { batchesApi.getBatches({ page: 1, size: 1000 }).then(d => setAllBatches(d.items || [])).catch(() => {}); }, []);
 
   // 根据大类筛选材质
   const filteredMaterials = materials.filter((m: any) => {
@@ -64,6 +68,7 @@ function InventoryTab() {
       if (filters.status) params.status = filters.status;
       if (filters.keyword) params.keyword = filters.keyword;
       if (filters.counter) params.counter = filters.counter;
+      if (filters.batchId) params.batch_id = filters.batchId;
       params.sort_by = sortBy;
       params.sort_order = sortOrder;
       const data = await itemsApi.getItems(params);
@@ -229,7 +234,7 @@ function InventoryTab() {
       {/* Filters + Actions */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
             <div className="space-y-1"><Label className="text-xs">关键词</Label><Input placeholder="SKU/名称/证书" value={filters.keyword} onChange={e => setFilters(f => ({ ...f, keyword: e.target.value }))} className="h-9" /></div>
             <div className="space-y-1"><Label className="text-xs">材质大类</Label>
               <Select value={filters.materialCategory} onValueChange={v => {
@@ -256,9 +261,15 @@ function InventoryTab() {
               </Select>
             </div>
             <div className="space-y-1"><Label className="text-xs">柜台</Label><Input type="number" placeholder="柜台号" value={filters.counter} onChange={e => setFilters(f => ({ ...f, counter: e.target.value }))} className="h-9" /></div>
+            <div className="space-y-1"><Label className="text-xs">批次</Label>
+              <Select value={filters.batchId} onValueChange={v => setFilters(f => ({ ...f, batchId: v }))}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="全部批次" /></SelectTrigger>
+                <SelectContent><SelectItem value="all">全部批次</SelectItem>{allBatches.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.batchCode}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div className="flex items-end gap-2">
               <Button size="sm" onClick={() => { setPagination(p => ({ ...p, page: 1 })); fetchItems(); }} className="h-9"><Search className="h-3 w-3 mr-1" />搜索</Button>
-              <Button size="sm" variant="outline" onClick={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '' })} className="h-9">重置</Button>
+              <Button size="sm" variant="outline" onClick={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '' })} className="h-9">重置</Button>
             </div>
           </div>
           <div className="flex items-center justify-between mt-3">
@@ -299,7 +310,7 @@ function InventoryTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>SKU</TableHead><TableHead>名称</TableHead><TableHead>材质</TableHead><TableHead>器型</TableHead>
+                    <TableHead>SKU</TableHead><TableHead>名称</TableHead><TableHead>材质</TableHead><TableHead>器型</TableHead><TableHead>所属批次</TableHead>
                     <TableHead className="text-right">成本</TableHead><TableHead className="text-right">售价</TableHead>
                     <TableHead>状态</TableHead><TableHead>库龄</TableHead><TableHead className="text-right">操作</TableHead>
                   </TableRow>
@@ -311,6 +322,11 @@ function InventoryTab() {
                       <TableCell>{item.name || item.skuCode}</TableCell>
                       <TableCell>{item.materialName}</TableCell>
                       <TableCell>{item.typeName || '-'}</TableCell>
+                      <TableCell>{item.batchCode ? (
+                        <Badge variant="outline" className="cursor-pointer hover:bg-muted font-mono text-xs" onClick={() => { setActiveTab('batches'); }} title="点击查看批次详情">
+                          <Layers className="h-2.5 w-2.5 mr-1" />{item.batchCode}
+                        </Badge>
+                      ) : <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell className="text-right">{item.allocatedCost ? formatPrice(item.allocatedCost) : item.estimatedCost ? <span className="text-muted-foreground" title="预估成本">{formatPrice(item.estimatedCost)}~</span> : formatPrice(item.costPrice)}</TableCell>
                       <TableCell className="text-right font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</TableCell>
                       <TableCell><StatusBadge status={item.status} /></TableCell>
@@ -345,21 +361,43 @@ function InventoryTab() {
         <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
           {items.map(item => (
             <Card key={item.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
+              <CardContent className="p-4 space-y-3">
+                {/* Header: SKU + Status */}
+                <div className="flex items-center justify-between">
                   <span className="font-mono text-xs text-muted-foreground">{item.skuCode}</span>
                   <StatusBadge status={item.status} />
                 </div>
-                <p className="font-medium text-sm mb-1 truncate">{item.name || item.skuCode}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                {/* Name */}
+                <p className="font-medium text-sm truncate">{item.name || item.skuCode}</p>
+                {/* Material + Type + Batch */}
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
                   <span>{item.materialName}</span>
                   <span>·</span>
                   <span>{item.typeName || '-'}</span>
+                  {item.batchCode && (
+                    <>
+                      <span>·</span>
+                      <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0 cursor-pointer hover:bg-muted" onClick={() => setActiveTab('batches')}>
+                        <Layers className="h-2 w-2 mr-0.5" />{item.batchCode}
+                      </Badge>
+                    </>
+                  )}
                 </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</span>
-                  <span className="text-xs text-muted-foreground">{item.ageDays != null ? `${item.ageDays}天` : '-'}</span>
+                {/* Price row: cost + selling + age */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.allocatedCost
+                        ? formatPrice(item.allocatedCost)
+                        : item.estimatedCost
+                          ? <span className="text-muted-foreground">{formatPrice(item.estimatedCost)}~</span>
+                          : formatPrice(item.costPrice)}
+                    </span>
+                  </div>
+                  <span className={`text-xs ${item.ageDays != null && item.ageDays > 90 ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</span>
                 </div>
+                {/* Action buttons */}
                 <div className="flex items-center gap-1 flex-wrap">
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setDetailItemId(item.id)}><Eye className="h-3 w-3 mr-1" />详情</Button>
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-sky-600" onClick={() => setPrintLabelItem(item)}><Printer className="h-3 w-3 mr-1" />标签</Button>

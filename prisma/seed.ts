@@ -9,17 +9,18 @@ async function main() {
   const configs = [
     { key: 'operating_cost_rate', value: '0.05', description: '经营成本率' },
     { key: 'markup_rate', value: '0.30', description: '零售价上浮比例' },
-    { key: 'aging_threshold_days', value: '90', description: '压货预警天数' },
+    { key: 'aging_threshold_days', value: '90', description: '压货预警天数(旧)' },
+    { key: 'warning_days', value: '90', description: '压货预警天数' },
     { key: 'default_alloc_method', value: 'equal', description: '默认分摊算法' },
   ];
   for (const c of configs) {
     await prisma.sysConfig.upsert({
       where: { key: c.key },
-      update: {},
+      update: { value: c.value, description: c.description },
       create: c,
     });
   }
-  console.log('✅ 系统配置已插入 (4条)');
+  console.log('✅ 系统配置已插入/更新 (5条)');
 
   // 2. 材质 (36种) — 含 category 大类
   const materials = [
@@ -90,7 +91,7 @@ async function main() {
   }
   console.log('✅ 器型已插入/更新 (9种, 新格式)');
 
-  // 4. 标签 (22个, 4组)
+  // 4. 标签 (20个, 4组)
   const tags = [
     // 种水
     { name: '玻璃种', groupName: '种水' },
@@ -144,15 +145,159 @@ async function main() {
   console.log('✅ 贵金属初始市价已插入 (2条)');
 
   // 6. 示例供应商
-  const suppliers = [
-    { name: '云南瑞丽翡翠行', contact: '张经理 13800001111', notes: '长期合作，主供翡翠' },
-    { name: '广州华林银饰批发', contact: '李总 13900002222', notes: '银饰批发' },
-    { name: '东海水晶城', contact: '王姐 13700003333', notes: '水晶手串类' },
-  ];
-  for (const s of suppliers) {
-    await prisma.supplier.create({ data: s });
-  }
+  const supplier1 = await prisma.supplier.create({ data: { name: '云南瑞丽翡翠行', contact: '张经理 13800001111', notes: '长期合作，主供翡翠' } });
+  const supplier2 = await prisma.supplier.create({ data: { name: '广州华林银饰批发', contact: '李总 13900002222', notes: '银饰批发' } });
+  const supplier3 = await prisma.supplier.create({ data: { name: '东海水晶城', contact: '王姐 13700003333', notes: '水晶手串类' } });
   console.log('✅ 示例供应商已插入 (3条)');
+
+  // 7. 示例批次 — 创建3个批次
+  const jadeMat = await prisma.dictMaterial.findUnique({ where: { name: '翡翠' } });
+  const hetianMat = await prisma.dictMaterial.findUnique({ where: { name: '和田玉' } });
+  const pinkCrystalMat = await prisma.dictMaterial.findUnique({ where: { name: '粉晶' } });
+  const braceletType = await prisma.dictType.findUnique({ where: { name: '手镯' } });
+  const pendantType = await prisma.dictType.findUnique({ where: { name: '吊坠' } });
+  const braceletStrandType = await prisma.dictType.findUnique({ where: { name: '手串/手链' } });
+
+  const batch1 = jadeMat ? await prisma.batch.upsert({
+    where: { batchCode: 'FC-20260101-001' },
+    update: {},
+    create: {
+      batchCode: 'FC-20260101-001',
+      materialId: jadeMat.id,
+      typeId: braceletType?.id || null,
+      quantity: 5,
+      totalCost: 50000,
+      costAllocMethod: 'equal',
+      supplierId: supplier1.id,
+      purchaseDate: '2026-01-15',
+      notes: '冰种翡翠手镯，缅甸料',
+    },
+  }) : null;
+
+  const batch2 = hetianMat ? await prisma.batch.upsert({
+    where: { batchCode: 'HTY-20260201-001' },
+    update: {},
+    create: {
+      batchCode: 'HTY-20260201-001',
+      materialId: hetianMat.id,
+      typeId: pendantType?.id || null,
+      quantity: 3,
+      totalCost: 18000,
+      costAllocMethod: 'equal',
+      supplierId: supplier1.id,
+      purchaseDate: '2026-02-10',
+      notes: '和田玉籽料吊坠',
+    },
+  }) : null;
+
+  const batch3 = pinkCrystalMat ? await prisma.batch.upsert({
+    where: { batchCode: 'FJ-20260301-001' },
+    update: {},
+    create: {
+      batchCode: 'FJ-20260301-001',
+      materialId: pinkCrystalMat.id,
+      typeId: braceletStrandType?.id || null,
+      quantity: 10,
+      totalCost: 5000,
+      costAllocMethod: 'equal',
+      supplierId: supplier3.id,
+      purchaseDate: '2026-03-05',
+      notes: '粉晶手串，莫桑比克料',
+    },
+  }) : null;
+
+  console.log('✅ 示例批次已插入 (3条)');
+
+  // 8. 创建货品 — 部分关联批次，部分独立高货
+  const itemsData: any[] = [];
+
+  // Batch 1 items (翡翠手镯, 3/5 entered)
+  if (batch1 && jadeMat) {
+    itemsData.push(
+      { skuCode: 'FC-20260101-001-01', name: '冰种飘花手镯', batchId: batch1.id, batchCode: batch1.batchCode, materialId: jadeMat.id, typeId: braceletType?.id || null, costPrice: 10000, allocatedCost: null, sellingPrice: 18000, counter: 1, purchaseDate: '2026-01-15', status: 'in_stock' },
+      { skuCode: 'FC-20260101-001-02', name: '冰种满绿手镯', batchId: batch1.id, batchCode: batch1.batchCode, materialId: jadeMat.id, typeId: braceletType?.id || null, costPrice: 10000, allocatedCost: null, sellingPrice: 22000, counter: 1, purchaseDate: '2026-01-15', status: 'in_stock' },
+      { skuCode: 'FC-20260101-001-03', name: '糯冰种紫罗兰手镯', batchId: batch1.id, batchCode: batch1.batchCode, materialId: jadeMat.id, typeId: braceletType?.id || null, costPrice: 10000, allocatedCost: null, sellingPrice: 15000, counter: 2, purchaseDate: '2026-01-15', status: 'in_stock' },
+    );
+  }
+
+  // Batch 2 items (和田玉吊坠, 2/3 entered)
+  if (batch2 && hetianMat) {
+    itemsData.push(
+      { skuCode: 'HTY-20260201-001-01', name: '和田玉籽料观音吊坠', batchId: batch2.id, batchCode: batch2.batchCode, materialId: hetianMat.id, typeId: pendantType?.id || null, costPrice: 6000, allocatedCost: null, sellingPrice: 12000, counter: 1, purchaseDate: '2026-02-10', status: 'in_stock' },
+      { skuCode: 'HTY-20260201-001-02', name: '和田玉平安扣吊坠', batchId: batch2.id, batchCode: batch2.batchCode, materialId: hetianMat.id, typeId: pendantType?.id || null, costPrice: 6000, allocatedCost: null, sellingPrice: 9800, counter: 3, purchaseDate: '2026-02-10', status: 'in_stock' },
+    );
+  }
+
+  // Batch 3 items (粉晶手串, 5/10 entered)
+  if (batch3 && pinkCrystalMat) {
+    for (let i = 1; i <= 5; i++) {
+      itemsData.push({
+        skuCode: `FJ-20260301-001-${String(i).padStart(2, '0')}`,
+        name: `粉晶手串 #${i}`,
+        batchId: batch3.id,
+        batchCode: batch3.batchCode,
+        materialId: pinkCrystalMat.id,
+        typeId: braceletStrandType?.id || null,
+        costPrice: 500,
+        allocatedCost: null,
+        sellingPrice: 880 + i * 20,
+        counter: 2,
+        purchaseDate: '2026-03-05',
+        status: 'in_stock' as string,
+      });
+    }
+  }
+
+  // Independent high-value items (no batch)
+  if (jadeMat) {
+    itemsData.push(
+      { skuCode: 'HV-20260101-001', name: '帝王绿翡翠挂件', materialId: jadeMat.id, typeId: pendantType?.id || null, costPrice: 80000, sellingPrice: 150000, counter: 1, purchaseDate: '2025-12-20', status: 'in_stock', origin: '缅甸', certNo: 'NGTC-2026-001' },
+      { skuCode: 'HV-20260101-002', name: '老坑冰种翡翠手镯', materialId: jadeMat.id, typeId: braceletType?.id || null, costPrice: 45000, sellingPrice: 88000, counter: 1, purchaseDate: '2025-12-25', status: 'in_stock', origin: '缅甸' },
+    );
+  }
+  if (hetianMat) {
+    itemsData.push(
+      { skuCode: 'HV-20260101-003', name: '和田玉白玉佛公', materialId: hetianMat.id, typeId: pendantType?.id || null, costPrice: 25000, sellingPrice: 48000, counter: 3, purchaseDate: '2025-11-10', status: 'in_stock' },
+    );
+  }
+  if (gold18k) {
+    itemsData.push(
+      { skuCode: 'GOLD-20260201-001', name: '18K金钻石戒指', materialId: gold18k.id, typeId: (await prisma.dictType.findUnique({ where: { name: '戒指' } }))?.id || null, costPrice: 12000, sellingPrice: 22000, counter: 4, purchaseDate: '2026-02-01', status: 'in_stock' },
+    );
+  }
+
+  for (const itemData of itemsData) {
+    await prisma.item.upsert({
+      where: { skuCode: itemData.skuCode },
+      update: {},
+      create: itemData,
+    });
+  }
+  console.log(`✅ 示例货品已插入 (${itemsData.length}条, 含批次关联)`);
+
+  // 9. 示例客户
+  const customer1 = await prisma.customer.upsert({ where: { customerCode: 'VIP001' }, update: {}, create: { customerCode: 'VIP001', name: '张女士', phone: '13900001001', wechat: 'zhang_vip', notes: '老客户，偏好翡翠' } });
+  const customer2 = await prisma.customer.upsert({ where: { customerCode: 'VIP002' }, update: {}, create: { customerCode: 'VIP002', name: '李先生', phone: '13900001002', wechat: 'li_collector', notes: '收藏家，高端和田玉' } });
+  const customer3 = await prisma.customer.upsert({ where: { customerCode: 'C003' }, update: {}, create: { customerCode: 'C003', name: '王小姐', phone: '13900001003', notes: '年轻客户，喜欢水晶' } });
+  console.log('✅ 示例客户已插入/更新 (3条)');
+
+  // 10. 示例销售记录 — 一些批次中的货品已售出
+  const soldItems = await prisma.item.findMany({ where: { status: 'in_stock' }, take: 3 });
+  for (let i = 0; i < Math.min(soldItems.length, 3); i++) {
+    const item = soldItems[i];
+    await prisma.item.update({ where: { id: item.id }, data: { status: 'sold' } });
+    await prisma.saleRecord.create({
+      data: {
+        saleNo: `SALE-2026-${String(i + 1).padStart(4, '0')}`,
+        itemId: item.id,
+        actualPrice: item.sellingPrice * (0.9 + Math.random() * 0.1),
+        channel: i % 2 === 0 ? 'store' : 'wechat',
+        saleDate: today,
+        customerId: i === 0 ? customer1.id : i === 1 ? customer2.id : customer3.id,
+      },
+    });
+  }
+  console.log('✅ 示例销售记录已插入 (3条)');
 
   console.log('🎉 种子数据完成！');
 }

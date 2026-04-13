@@ -36,6 +36,9 @@ function SalesTab() {
   const [returnDialog, setReturnDialog] = useState<{ open: boolean; sale: any }>({ open: false, sale: null });
   const [returnForm, setReturnForm] = useState({ refundAmount: 0, returnReason: '', returnDate: new Date().toISOString().slice(0, 10) });
 
+  // Today stats
+  const [todayStats, setTodayStats] = useState<{ count: number; revenue: number; profit: number } | null>(null);
+
   // Sparkline data
   const [sparklineData, setSparklineData] = useState<any[]>([]);
   const [sparkLoading, setSparkLoading] = useState(true);
@@ -52,6 +55,23 @@ function SalesTab() {
       setPagination(data.pagination || { total: 0, page: 1, size: 20, pages: 0 });
     } catch { toast.error('加载销售记录失败'); } finally { setLoading(false); }
   }, [pagination.page, pagination.size, filters]);
+
+  // Fetch today's stats separately
+  useEffect(() => {
+    async function fetchTodayStats() {
+      try {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const data = await salesApi.getSales({ start_date: todayStr, end_date: todayStr, size: 1000 });
+        const todayItems = data.items || [];
+        setTodayStats({
+          count: todayItems.length,
+          revenue: todayItems.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0),
+          profit: todayItems.reduce((sum: number, s: any) => sum + (s.grossProfit || 0), 0),
+        });
+      } catch { setTodayStats({ count: 0, revenue: 0, profit: 0 }); }
+    }
+    fetchTodayStats();
+  }, []);
 
   const fetchSparkline = useCallback(async () => {
     setSparkLoading(true);
@@ -114,6 +134,30 @@ function SalesTab() {
 
   return (
     <div className="space-y-6">
+      {/* Today Stats Row */}
+      {todayStats && (
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground">今日销售数</p>
+              <p className="text-xl font-bold">{todayStats.count} <span className="text-xs font-normal text-muted-foreground">件</span></p>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-sky-500">
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground">今日营收</p>
+              <p className="text-xl font-bold text-emerald-600">{formatPrice(todayStats.revenue)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-l-4 border-l-amber-500">
+            <CardContent className="p-3">
+              <p className="text-xs text-muted-foreground">今日利润</p>
+              <p className={`text-xl font-bold ${todayStats.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(todayStats.profit)}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 hover:shadow-md hover:border-emerald-400 transition-all duration-200">

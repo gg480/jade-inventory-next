@@ -207,12 +207,15 @@ function CustomersTab() {
                             <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
                               <p className="text-xs font-medium text-muted-foreground">购买记录</p>
                               {customerDetail.saleRecords.slice(0, 10).map((sr: any) => (
-                                <div key={sr.id} className="flex items-center justify-between text-xs p-1.5 bg-muted/50 rounded hover:bg-muted/80 transition-colors">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-mono">{sr.item?.skuCode || sr.saleNo}</span>
-                                    <Badge variant="outline" className="text-[10px] h-4">{sr.channel === 'store' ? '门店' : '微信'}</Badge>
+                                <div key={sr.id} className="flex items-center justify-between text-xs p-1.5 bg-muted/50 rounded hover:bg-muted/80 transition-colors gap-2">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="font-mono shrink-0">{sr.item?.skuCode || sr.saleNo}</span>
+                                    <Badge variant="outline" className="text-[10px] h-4 shrink-0">{sr.channel === 'store' ? '门店' : '微信'}</Badge>
+                                    {sr.item?.batchCode && (
+                                      <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">{sr.item.batchCode}</Badge>
+                                    )}
                                   </div>
-                                  <span className="font-medium text-emerald-600">{formatPrice(sr.actualPrice)}</span>
+                                  <span className="font-medium text-emerald-600 shrink-0">{formatPrice(sr.actualPrice)}</span>
                                 </div>
                               ))}
                             </div>
