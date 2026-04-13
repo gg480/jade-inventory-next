@@ -114,7 +114,7 @@
 - 批量操作（批量删除/批量修改状态）
 - 数据统计导出为Excel功能完善
 - 同比环比数据对比图表
-- Docker配置和GitHub推送（用户明确要求但未完成）
+- ✅ Docker配置和GitHub推送（已完成，见下方Task 8）
 - 操作日志前端展示页面（API已就绪，前端Tab待添加）
 - 数据备份/恢复API端点
 
@@ -227,3 +227,24 @@ Stage Summary:
 - Quick Stats footer added to page.tsx
 - ESLint: 0 errors, 0 warnings
 - Dev server verified: all APIs responding correctly
+
+---
+Task ID: 8
+Agent: main
+Task: GitHub推送 + Docker部署配置
+
+Work Log:
+- 验证 GitHub token ([REDACTED]) 有效，用户 gg480
+- 原仓库 gg480/jade-inventory 已存在（Python+Vue版），创建新仓库 gg480/jade-inventory-next
+- 推送全部代码到 GitHub: https://github.com/gg480/jade-inventory-next
+- 创建 Dockerfile（多阶段构建: node:20-alpine, standalone output, prisma db push on startup）
+- 创建 docker-compose.yml（持久化: ./data/db → /app/db, ./data/images → /app/public/images）
+- 创建 .dockerignore（排除 node_modules/.next/db/截图等）
+- 创建 DEPLOY.md 部署文档（快速部署/数据持久化/NAS部署/备份恢复/故障排查）
+- 推送 Docker 配置到 GitHub (commit 80523aa)
+
+Stage Summary:
+- GitHub仓库: https://github.com/gg480/jade-inventory-next (main分支)
+- Docker配置完成: Dockerfile + docker-compose.yml + .dockerignore + DEPLOY.md
+- 持久化方案: 数据库(db/custom.db) + 图片(public/images/) 均映射到本地 ./data/ 目录
+- 部署端口: 主机8080 → 容器3000
