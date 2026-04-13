@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { customersApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, EmptyState, LoadingSkeleton } from './shared';
+import Pagination from './pagination';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -234,13 +235,7 @@ function CustomersTab() {
       )}
 
       {/* Pagination */}
-      {pagination.pages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button size="sm" variant="outline" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}>上一页</Button>
-          <span className="text-sm text-muted-foreground">{pagination.page} / {pagination.pages}</span>
-          <Button size="sm" variant="outline" disabled={pagination.page >= pagination.pages} onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}>下一页</Button>
-        </div>
-      )}
+      <Pagination page={pagination.page} pages={pagination.pages} onPageChange={p => setPagination(prev => ({ ...prev, page: p }))} />
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>

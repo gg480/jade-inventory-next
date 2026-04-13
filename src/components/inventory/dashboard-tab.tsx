@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { dashboardApi, configApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, CHART_COLORS } from './shared';
@@ -12,16 +12,21 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 import {
-  Package, ShoppingCart, TrendingUp, DollarSign,
+  Package, ShoppingCart, TrendingUp, DollarSign, ArrowUpRight, ArrowDownRight,
   BarChart3, PieChart, AlertTriangle, CheckCircle, Gem, Layers, Tag, RefreshCw,
+  Activity, Flame, Trophy, Users, CalendarDays, RotateCcw,
 } from 'lucide-react';
 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart as RPieChart, Pie, Cell, Line, Area, AreaChart
+  PieChart as RPieChart, Pie, Cell, Line, Area, AreaChart, ComposedChart
 } from 'recharts';
+
+// ========== Period Selector Types ==========
+type PeriodFilter = 'month' | 'quarter' | 'year' | 'all' | 'custom';
 
 // ========== Dashboard Tab ==========
 function DashboardTab() {
@@ -39,19 +44,27 @@ function DashboardTab() {
   const [weightDist, setWeightDist] = useState<any>(null);
   const [ageDist, setAgeDist] = useState<any[]>([]);
   const [batchEntryProgress, setBatchEntryProgress] = useState<any[]>([]);
+
+  // New data states
+  const [momData, setMomData] = useState<any>(null);
+  const [turnoverData, setTurnoverData] = useState<any[]>([]);
+  const [heatmapData, setHeatmapData] = useState<any>(null);
+  const [topSellers, setTopSellers] = useState<any[]>([]);
+  const [customerFreq, setCustomerFreq] = useState<any>(null);
+
   const [loading, setLoading] = useState(true);
   const [minDays, setMinDays] = useState(90);
   const [warningDaysLoaded, setWarningDaysLoaded] = useState(false);
-  const [distFilter, setDistFilter] = useState<'year' | 'quarter' | 'month' | 'custom'>('year');
+  const [distFilter, setDistFilter] = useState<PeriodFilter>('year');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+
   // Load batch entry progress on mount
   useEffect(() => {
     batchesApi.getBatches({ size: 100 }).then((data: any) => {
       setBatchEntryProgress((data.items || []).filter((b: any) => (b.itemsCount || 0) < (b.quantity || 0)));
     }).catch(() => {});
   }, []);
-
-  const [customStart, setCustomStart] = useState('');
-  const [customEnd, setCustomEnd] = useState('');
 
   const getDateRange = useCallback(() => {
     const now = new Date();
@@ -64,6 +77,8 @@ function DashboardTab() {
       startDate = `${now.getFullYear()}-${String(q * 3 + 1).padStart(2, '0')}-01`;
     } else if (distFilter === 'month') {
       startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    } else if (distFilter === 'all') {
+      startDate = ''; // No start date filter
     } else {
       startDate = customStart;
       endDate = customEnd || endDate;
@@ -95,7 +110,7 @@ function DashboardTab() {
       const params: any = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
-      const [s, bp, pc, pch, t, sa, dt, dm, ctr, prc, prs, wd, ad] = await Promise.all([
+      const [s, bp, pc, pch, t, sa, dt, dm, ctr, prc, prs, wd, ad, mom, to, hm, ts, cf] = await Promise.all([
         dashboardApi.getSummary({ aging_days: minDays }),
         dashboardApi.getBatchProfit({}),
         dashboardApi.getProfitByCategory(params),
@@ -109,6 +124,11 @@ function DashboardTab() {
         dashboardApi.getPriceRangeSelling(),
         dashboardApi.getWeightDistribution(),
         dashboardApi.getAgeDistribution(),
+        dashboardApi.getMomComparison(),
+        dashboardApi.getTurnover({ months: 6 }),
+        dashboardApi.getHeatmap({ months: 3 }),
+        dashboardApi.getTopSellers({ limit: 5 }),
+        dashboardApi.getCustomerFrequency(),
       ]);
       setSummary(s);
       setBatchProfit(bp || []);
@@ -123,6 +143,11 @@ function DashboardTab() {
       setPriceRangeSelling(prs || []);
       setWeightDist(wd || null);
       setAgeDist(ad || []);
+      setMomData(mom || null);
+      setTurnoverData(to || []);
+      setHeatmapData(hm || null);
+      setTopSellers(ts || []);
+      setCustomerFreq(cf || null);
     } catch {
       toast.error('加载看板数据失败');
     } finally {
@@ -149,6 +174,81 @@ function DashboardTab() {
 
   // Price range pie label
   const priceLabel = ({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`;
+
+  // ===== Heatmap calendar computation =====
+  const heatmapCalendar = useMemo(() => {
+    if (!heatmapData?.days?.length) return null;
+    const days = heatmapData.days;
+    // Find the range of months to display
+    const dates = days.map((d: any) => d.date);
+    const minDate = dates.reduce((a: string, b: string) => a < b ? a : b);
+    const maxDate = dates.reduce((a: string, b: string) => a > b ? a : b);
+
+    // Build a map for quick lookup
+    const dayMap = new Map(days.map((d: any) => [d.date, d]));
+
+    // Generate all months between minDate and maxDate
+    const months: { year: number; month: number; label: string }[] = [];
+    const start = new Date(minDate + 'T00:00:00');
+    const end = new Date(maxDate + 'T00:00:00');
+    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (cursor <= end) {
+      months.push({
+        year: cursor.getFullYear(),
+        month: cursor.getMonth(),
+        label: `${cursor.getFullYear()}年${cursor.getMonth() + 1}月`,
+      });
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
+
+    // For each month, build weeks
+    const monthWeeks = months.map(m => {
+      const firstDay = new Date(m.year, m.month, 1);
+      const lastDay = new Date(m.year, m.month + 1, 0);
+      const startDow = firstDay.getDay(); // 0=Sun
+
+      const weeks: (any | null)[][] = [];
+      let currentWeek: (any | null)[] = [];
+
+      // Pad start
+      for (let i = 0; i < startDow; i++) currentWeek.push(null);
+
+      for (let d = 1; d <= lastDay.getDate(); d++) {
+        const dateStr = `${m.year}-${String(m.month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayData = dayMap.get(dateStr) || null;
+        currentWeek.push(dayData ? { ...dayData, date: dateStr, dayNum: d } : { date: dateStr, dayNum: d, intensity: 0, count: 0, revenue: 0 });
+        if (currentWeek.length === 7) {
+          weeks.push(currentWeek);
+          currentWeek = [];
+        }
+      }
+      // Pad end
+      if (currentWeek.length > 0) {
+        while (currentWeek.length < 7) currentWeek.push(null);
+        weeks.push(currentWeek);
+      }
+
+      return { ...m, weeks };
+    });
+
+    return monthWeeks;
+  }, [heatmapData]);
+
+  // ===== Emerald color for heatmap =====
+  const getHeatmapColor = (intensity: number) => {
+    if (intensity === 0) return 'bg-gray-100 dark:bg-gray-800';
+    if (intensity < 0.2) return 'bg-emerald-100 dark:bg-emerald-900/40';
+    if (intensity < 0.4) return 'bg-emerald-200 dark:bg-emerald-800/50';
+    if (intensity < 0.6) return 'bg-emerald-300 dark:bg-emerald-700/60';
+    if (intensity < 0.8) return 'bg-emerald-400 dark:bg-emerald-600/70';
+    return 'bg-emerald-500 dark:bg-emerald-500/80';
+  };
+
+  // ===== Top sellers max margin for bar scaling =====
+  const topSellerMaxMargin = useMemo(() => {
+    if (!topSellers.length) return 1;
+    return Math.max(...topSellers.map((s: any) => Math.abs(s.margin)), 1);
+  }, [topSellers]);
 
   return (
     <div className="space-y-6">
@@ -192,17 +292,68 @@ function DashboardTab() {
         </div>
       )}
 
-      {/* ====== Distribution Filter ====== */}
-      <Card>
-        <CardContent className="p-3">
+      {/* ====== Month-over-Month Comparison (环比对比) ====== */}
+      {momData && (
+        <Card className="border-l-4 border-l-violet-500 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4 text-violet-600" />
+              环比对比（本月 vs 上月）
+              <span className="absolute -right-2 -top-2 opacity-10"><Activity className="h-16 w-16 text-violet-500" /></span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { key: 'revenue', label: '销售额', thisVal: momData.thisMonth.revenue, lastVal: momData.lastMonth.revenue, change: momData.changes.revenue, format: true },
+                { key: 'soldCount', label: '销售件数', thisVal: momData.thisMonth.soldCount, lastVal: momData.lastMonth.soldCount, change: momData.changes.soldCount, format: false },
+                { key: 'profit', label: '毛利', thisVal: momData.thisMonth.profit, lastVal: momData.lastMonth.profit, change: momData.changes.profit, format: true },
+                { key: 'newItems', label: '新入库数', thisVal: momData.thisMonth.newItems, lastVal: momData.lastMonth.newItems, change: momData.changes.newItems, format: false },
+              ].map(item => {
+                const isUp = item.change > 0;
+                const isDown = item.change < 0;
+                return (
+                  <div key={item.key} className="bg-muted/40 rounded-lg p-3 hover:bg-muted/60 transition-colors">
+                    <p className="text-xs text-muted-foreground mb-2">{item.label}</p>
+                    <div className="flex items-end gap-2 mb-1">
+                      <span className="text-lg font-bold">{item.format ? formatPrice(item.thisVal) : item.thisVal}</span>
+                      <Badge
+                        variant="secondary"
+                        className={`text-xs ${isUp ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' : isDown ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}
+                      >
+                        {isUp ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : isDown ? <ArrowDownRight className="h-3 w-3 mr-0.5" /> : null}
+                        {isUp ? '+' : ''}{item.change.toFixed(1)}%
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      上月: {item.format ? formatPrice(item.lastVal) : item.lastVal}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ====== Distribution Filter (Enhanced) ====== */}
+      <Card className="shadow-sm">
+        <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-muted-foreground">分析时段:</span>
-            {(['year', 'quarter', 'month', 'custom'] as const).map(f => (
-              <Button key={f} size="sm" variant={distFilter === f ? 'default' : 'outline'}
-                onClick={() => setDistFilter(f)}
-                className={distFilter === f ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">分析时段:</span>
+            {([
+              { key: 'month' as PeriodFilter, label: '本月' },
+              { key: 'quarter' as PeriodFilter, label: '本季度' },
+              { key: 'year' as PeriodFilter, label: '本年' },
+              { key: 'all' as PeriodFilter, label: '全部' },
+              { key: 'custom' as PeriodFilter, label: '自定义' },
+            ]).map(f => (
+              <Button key={f.key} size="sm" variant={distFilter === f.key ? 'default' : 'outline'}
+                onClick={() => setDistFilter(f.key)}
+                className={distFilter === f.key ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
               >
-                {{ year: '本年', quarter: '本季', month: '本月', custom: '自定义' }[f]}
+                {f.label}
               </Button>
             ))}
             {distFilter === 'custom' && (
@@ -212,7 +363,9 @@ function DashboardTab() {
                 <Input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-36 h-8 text-xs" />
               </>
             )}
-            <Button size="sm" variant="outline" onClick={fetchData}><RefreshCw className="h-3 w-3 mr-1" />刷新</Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={fetchData}><RefreshCw className="h-3 w-3 mr-1" />刷新</Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -431,6 +584,202 @@ function DashboardTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* ====== Inventory Turnover Chart (库存周转率) ====== */}
+      {turnoverData.length > 0 && (
+        <Card className="border-l-4 border-l-cyan-500 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <RotateCcw className="h-4 w-4 text-cyan-600" />
+              库存周转率（近6个月）
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={turnoverData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="yearMonth" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} domain={[0, 'auto']} />
+                <Tooltip formatter={(v: number, name: string) => {
+                  if (name === 'turnoverRate') return [v.toFixed(2), '周转率'];
+                  return [formatPrice(v), name === 'cogs' ? '销售成本' : '平均库存'];
+                }} />
+                <Legend formatter={(v: string) => ({ cogs: '销售成本', avgInventoryValue: '平均库存', turnoverRate: '周转率' }[v] || v)} />
+                <Bar yAxisId="left" dataKey="cogs" fill="#06b6d440" stroke="#06b6d4" strokeWidth={1} radius={[4, 4, 0, 0]} name="cogs" />
+                <Bar yAxisId="left" dataKey="avgInventoryValue" fill="#05966940" stroke="#059669" strokeWidth={1} radius={[4, 4, 0, 0]} name="avgInventoryValue" />
+                <Line yAxisId="right" type="monotone" dataKey="turnoverRate" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4, fill: '#ef4444' }} name="turnoverRate" />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ====== Sales Heatmap (销售热力图) ====== */}
+      <Card className="border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Flame className="h-4 w-4 text-emerald-600" />
+            销售热力图（近3个月）
+            {heatmapData?.maxRevenue > 0 && (
+              <span className="text-xs text-muted-foreground font-normal ml-2">最高日销 {formatPrice(heatmapData.maxRevenue)}</span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {heatmapCalendar && heatmapCalendar.length > 0 ? (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {heatmapCalendar.map((m, mi) => (
+                <div key={mi}>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{m.label}</p>
+                  <div className="flex gap-1 mb-0.5">
+                    {['日', '一', '二', '三', '四', '五', '六'].map((d, di) => (
+                      <div key={di} className="w-8 h-4 flex items-center justify-center text-[9px] text-muted-foreground">{d}</div>
+                    ))}
+                  </div>
+                  {m.weeks.map((week, wi) => (
+                    <div key={wi} className="flex gap-1 mb-0.5">
+                      {week.map((day, di) => (
+                        <TooltipProvider key={di}>
+                          {day ? (
+                            <UiTooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={`w-8 h-8 rounded-sm cursor-default flex items-center justify-center text-[9px] transition-all hover:scale-110 ${getHeatmapColor(day.intensity)}`}
+                                >
+                                  {day.count > 0 ? day.count : day.dayNum}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                <p>{day.date}</p>
+                                <p>销售 {day.count} 件，营收 {formatPrice(day.revenue)}</p>
+                              </TooltipContent>
+                            </UiTooltip>
+                          ) : (
+                            <div className="w-8 h-8" />
+                          )}
+                        </TooltipProvider>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {/* Legend */}
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-muted-foreground">少</span>
+                {[
+                  'bg-gray-100 dark:bg-gray-800',
+                  'bg-emerald-100 dark:bg-emerald-900/40',
+                  'bg-emerald-200 dark:bg-emerald-800/50',
+                  'bg-emerald-300 dark:bg-emerald-700/60',
+                  'bg-emerald-400 dark:bg-emerald-600/70',
+                  'bg-emerald-500 dark:bg-emerald-500/80',
+                ].map((cls, i) => (
+                  <div key={i} className={`w-4 h-4 rounded-sm ${cls}`} />
+                ))}
+                <span className="text-xs text-muted-foreground">多</span>
+              </div>
+            </div>
+          ) : (
+            <EmptyState icon={Flame} title="暂无数据" desc="还没有销售记录" />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ====== Top 5 Best Sellers + Customer Frequency ====== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top 5 Best Sellers */}
+        <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-amber-600" />
+              畅销品排行（利润Top5）
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topSellers.length === 0 ? (
+              <EmptyState icon={Trophy} title="暂无数据" desc="还没有销售记录" />
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {topSellers.map((item: any, index: number) => {
+                  const barWidth = Math.max((Math.abs(item.margin) / topSellerMaxMargin) * 100, 5);
+                  const rankColors = ['text-amber-500', 'text-gray-400', 'text-amber-700', 'text-gray-500', 'text-gray-500'];
+                  const rankBgs = ['bg-amber-50 dark:bg-amber-950/30', 'bg-gray-50 dark:bg-gray-900/30', 'bg-amber-50/50 dark:bg-amber-950/20', '', ''];
+                  return (
+                    <div key={item.itemId} className={`flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors ${rankBgs[index] || ''}`}>
+                      <span className={`text-lg font-bold w-6 text-center ${rankColors[index] || 'text-gray-500'}`}>
+                        {index + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium truncate">{item.name}</span>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">{item.materialName}</Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${item.margin >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                              style={{ width: `${barWidth}%` }}
+                            />
+                          </div>
+                          <span className={`text-xs font-medium w-14 text-right ${item.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {item.margin >= 0 ? '+' : ''}{item.margin.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold">{formatPrice(item.totalProfit)}</p>
+                        <p className="text-[10px] text-muted-foreground">利润</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Customer Purchase Frequency */}
+        <Card className="border-l-4 border-l-rose-500 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-rose-600" />
+              客户复购率分析
+              {customerFreq?.repeatRate != null && (
+                <Badge variant="secondary" className="ml-2 bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+                  复购率 {customerFreq.repeatRate.toFixed(1)}%
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {customerFreq?.distribution?.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={customerFreq.distribution} margin={{ top: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                    <Tooltip formatter={(v: number) => [`${v} 人`, '客户数']} />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]} name="客户数">
+                      {customerFreq.distribution.map((_: any, i: number) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <Separator className="my-3" />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>总客户数: {customerFreq.totalCustomers} 人</span>
+                  <span>复购客户: {customerFreq.repeatCustomers} 人</span>
+                </div>
+              </>
+            ) : (
+              <EmptyState icon={Users} title="暂无数据" desc="还没有客户购买记录" />
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* ====== 6. Price Range Analysis (2 pie charts) ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

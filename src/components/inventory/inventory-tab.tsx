@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { itemsApi, salesApi, dictsApi, batchesApi, exportApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAppStore } from '@/lib/store';
@@ -18,13 +18,17 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUpDown, ArrowUp, ArrowDown, Camera, Layers,
+  ShoppingCart, Tag, MapPin, X,
 } from 'lucide-react';
 
 // ========== Inventory Tab ==========
@@ -39,6 +43,9 @@ function InventoryTab() {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
+  // Selection state for batch operations
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
   // Dialogs
   const [showCreate, setShowCreate] = useState(false);
   const [detailItemId, setDetailItemId] = useState<number | null>(null);
@@ -51,6 +58,24 @@ function InventoryTab() {
   const [printLabelItem, setPrintLabelItem] = useState<any>(null);
   const [showScanner, setShowScanner] = useState(false);
 
+  // Batch operation dialogs
+  const [batchSellOpen, setBatchSellOpen] = useState(false);
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [batchPriceOpen, setBatchPriceOpen] = useState(false);
+  const [batchCounterOpen, setBatchCounterOpen] = useState(false);
+
+  // Batch sell form
+  const [batchSellForm, setBatchSellForm] = useState({ channel: 'store', saleDate: new Date().toISOString().slice(0, 10), useCurrentPrice: true });
+
+  // Batch price adjust form
+  const [batchPriceForm, setBatchPriceForm] = useState({ mode: 'percent', target: 'sellingPrice', value: '' });
+
+  // Batch counter form
+  const [batchCounterForm, setBatchCounterForm] = useState({ counter: '' });
+
+  // Batch operation loading state
+  const [batchLoading, setBatchLoading] = useState(false);
+
   useEffect(() => { dictsApi.getMaterials().then(setMaterials).catch(() => {}); }, []);
   useEffect(() => { batchesApi.getBatches({ page: 1, size: 1000 }).then(d => setAllBatches(d.items || [])).catch(() => {}); }, []);
 
@@ -59,6 +84,12 @@ function InventoryTab() {
     if (!filters.materialCategory) return true;
     return m.category === filters.materialCategory;
   });
+
+  // Selected items (memoized)
+  const selectedItems = useMemo(() => items.filter(i => selectedIds.has(i.id)), [items, selectedIds]);
+
+  // Only in_stock items among selected
+  const selectedInStockItems = useMemo(() => selectedItems.filter(i => i.status === 'in_stock'), [selectedItems]);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -82,6 +113,31 @@ function InventoryTab() {
   }, [pagination.page, pagination.size, filters, sortBy, sortOrder]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  // Clear selection when page/filters change
+  useEffect(() => { setSelectedIds(new Set()); }, [pagination.page, filters, sortBy, sortOrder]);
+
+  // Selection handlers
+  function toggleSelect(id: number) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === items.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map(i => i.id)));
+    }
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
 
   async function handleSale() {
     if (!saleDialog.item) return;
@@ -149,6 +205,153 @@ function InventoryTab() {
     setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
   }
 
+  // ========== Batch Operations ==========
+
+  async function handleBatchSell() {
+    if (selectedInStockItems.length === 0) {
+      toast.error('没有可出库的在库货品');
+      return;
+    }
+    setBatchLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const item of selectedInStockItems) {
+      try {
+        const price = batchSellForm.useCurrentPrice ? item.sellingPrice : item.sellingPrice;
+        await salesApi.createSale({
+          itemId: item.id,
+          actualPrice: price,
+          channel: batchSellForm.channel,
+          saleDate: batchSellForm.saleDate,
+          note: '批量出库',
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setBatchLoading(false);
+    setBatchSellOpen(false);
+    clearSelection();
+    fetchItems();
+    if (failCount === 0) {
+      toast.success(`批量出库成功！共 ${successCount} 件`);
+    } else {
+      toast.warning(`批量出库完成：成功 ${successCount} 件，失败 ${failCount} 件`);
+    }
+  }
+
+  async function handleBatchDelete() {
+    setBatchLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const item of selectedItems) {
+      try {
+        await itemsApi.deleteItem(item.id);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setBatchLoading(false);
+    setBatchDeleteOpen(false);
+    clearSelection();
+    fetchItems();
+    if (failCount === 0) {
+      toast.success(`批量删除成功！共 ${successCount} 件`);
+    } else {
+      toast.warning(`批量删除完成：成功 ${successCount} 件，失败 ${failCount} 件`);
+    }
+  }
+
+  async function handleBatchPriceAdjust() {
+    const adjustValue = parseFloat(batchPriceForm.value);
+    if (isNaN(adjustValue)) {
+      toast.error('请输入有效的调整值');
+      return;
+    }
+    setBatchLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const item of selectedItems) {
+      try {
+        const updateData: any = {};
+        if (batchPriceForm.target === 'sellingPrice') {
+          const oldPrice = item.sellingPrice || 0;
+          const newPrice = batchPriceForm.mode === 'percent'
+            ? Math.round(oldPrice * (1 + adjustValue / 100))
+            : Math.round(oldPrice + adjustValue);
+          if (newPrice < 0) { failCount++; continue; }
+          updateData.sellingPrice = newPrice;
+        } else {
+          const oldPrice = item.minimumPrice || 0;
+          const newPrice = batchPriceForm.mode === 'percent'
+            ? Math.round(oldPrice * (1 + adjustValue / 100))
+            : Math.round(oldPrice + adjustValue);
+          if (newPrice < 0) { failCount++; continue; }
+          updateData.minimumPrice = newPrice;
+        }
+        await itemsApi.updateItem(item.id, updateData);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setBatchLoading(false);
+    setBatchPriceOpen(false);
+    setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '' });
+    clearSelection();
+    fetchItems();
+    if (failCount === 0) {
+      toast.success(`批量调价成功！共 ${successCount} 件`);
+    } else {
+      toast.warning(`批量调价完成：成功 ${successCount} 件，失败 ${failCount} 件`);
+    }
+  }
+
+  async function handleBatchCounter() {
+    const counter = parseInt(batchCounterForm.counter);
+    if (isNaN(counter)) {
+      toast.error('请输入有效的柜台号');
+      return;
+    }
+    setBatchLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const item of selectedItems) {
+      try {
+        await itemsApi.updateItem(item.id, { counter: String(counter) });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setBatchLoading(false);
+    setBatchCounterOpen(false);
+    setBatchCounterForm({ counter: '' });
+    clearSelection();
+    fetchItems();
+    if (failCount === 0) {
+      toast.success(`批量修改柜台成功！共 ${successCount} 件`);
+    } else {
+      toast.warning(`批量修改柜台完成：成功 ${successCount} 件，失败 ${failCount} 件`);
+    }
+  }
+
+  // Price preview for batch adjust
+  const pricePreview = useMemo(() => {
+    const adjustValue = parseFloat(batchPriceForm.value);
+    if (isNaN(adjustValue)) return [];
+    return selectedItems.slice(0, 10).map(item => {
+      const field = batchPriceForm.target === 'sellingPrice' ? 'sellingPrice' : 'minimumPrice';
+      const oldPrice = item[field] || 0;
+      const newPrice = batchPriceForm.mode === 'percent'
+        ? Math.round(oldPrice * (1 + adjustValue / 100))
+        : Math.round(oldPrice + adjustValue);
+      return { id: item.id, name: item.name || item.skuCode, sku: item.skuCode, oldPrice, newPrice };
+    });
+  }, [selectedItems, batchPriceForm]);
+
   if (loading && items.length === 0) return <LoadingSkeleton />;
 
   const totalValue = items.reduce((sum, i) => sum + (i.allocatedCost || i.estimatedCost || i.costPrice || 0), 0);
@@ -161,6 +364,9 @@ function InventoryTab() {
     sku_code: 'SKU编号',
     name: '名称',
   };
+
+  const isAllSelected = items.length > 0 && selectedIds.size === items.length;
+  const isSomeSelected = selectedIds.size > 0 && !isAllSelected;
 
   return (
     <div className="space-y-6">
@@ -237,7 +443,7 @@ function InventoryTab() {
           <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
             <div className="space-y-1"><Label className="text-xs">关键词</Label><Input placeholder="SKU/名称/证书" value={filters.keyword} onChange={e => setFilters(f => ({ ...f, keyword: e.target.value }))} className="h-9" /></div>
             <div className="space-y-1"><Label className="text-xs">材质大类</Label>
-              <Select value={filters.materialCategory} onValueChange={v => {
+              <Select value={filters.materialCategory || '_all'} onValueChange={v => {
                 const cat = v === '_all' ? '' : v;
                 setFilters(f => ({ ...f, materialCategory: cat, materialId: '' }));
               }}>
@@ -249,20 +455,20 @@ function InventoryTab() {
               </Select>
             </div>
             <div className="space-y-1"><Label className="text-xs">材质</Label>
-              <Select value={filters.materialId} onValueChange={v => setFilters(f => ({ ...f, materialId: v }))}>
+              <Select value={filters.materialId || 'all'} onValueChange={v => setFilters(f => ({ ...f, materialId: v === 'all' ? '' : v }))}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="全部材质" /></SelectTrigger>
                 <SelectContent><SelectItem value="all">全部材质</SelectItem>{filteredMaterials.map(m => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1"><Label className="text-xs">状态</Label>
-              <Select value={filters.status} onValueChange={v => setFilters(f => ({ ...f, status: v }))}>
+              <Select value={filters.status || 'all'} onValueChange={v => setFilters(f => ({ ...f, status: v }))}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="all">全部</SelectItem><SelectItem value="in_stock">在库</SelectItem><SelectItem value="sold">已售</SelectItem><SelectItem value="returned">已退</SelectItem></SelectContent>
               </Select>
             </div>
             <div className="space-y-1"><Label className="text-xs">柜台</Label><Input type="number" placeholder="柜台号" value={filters.counter} onChange={e => setFilters(f => ({ ...f, counter: e.target.value }))} className="h-9" /></div>
             <div className="space-y-1"><Label className="text-xs">批次</Label>
-              <Select value={filters.batchId} onValueChange={v => setFilters(f => ({ ...f, batchId: v }))}>
+              <Select value={filters.batchId || 'all'} onValueChange={v => setFilters(f => ({ ...f, batchId: v === 'all' ? '' : v }))}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="全部批次" /></SelectTrigger>
                 <SelectContent><SelectItem value="all">全部批次</SelectItem>{allBatches.map(b => <SelectItem key={b.id} value={String(b.id)}>{b.batchCode}</SelectItem>)}</SelectContent>
               </Select>
@@ -310,6 +516,13 @@ function InventoryTab() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10 px-3">
+                      <Checkbox
+                        checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                        onCheckedChange={toggleSelectAll}
+                        className="data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary"
+                      />
+                    </TableHead>
                     <TableHead>SKU</TableHead><TableHead>名称</TableHead><TableHead>材质</TableHead><TableHead>器型</TableHead><TableHead>所属批次</TableHead>
                     <TableHead className="text-right">成本</TableHead><TableHead className="text-right">售价</TableHead>
                     <TableHead>状态</TableHead><TableHead>库龄</TableHead><TableHead className="text-right">操作</TableHead>
@@ -317,7 +530,13 @@ function InventoryTab() {
                 </TableHeader>
                 <TableBody>
                   {items.map(item => (
-                    <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
+                    <TableRow key={item.id} className={`hover:bg-muted/50 transition-colors ${selectedIds.has(item.id) ? 'bg-primary/5' : ''}`}>
+                      <TableCell className="w-10 px-3">
+                        <Checkbox
+                          checked={selectedIds.has(item.id)}
+                          onCheckedChange={() => toggleSelect(item.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs">{item.skuCode}</TableCell>
                       <TableCell>{item.name || item.skuCode}</TableCell>
                       <TableCell>{item.materialName}</TableCell>
@@ -360,11 +579,17 @@ function InventoryTab() {
         {/* Mobile Card View */}
         <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
           {items.map(item => (
-            <Card key={item.id} className="hover:shadow-md transition-shadow">
+            <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}>
               <CardContent className="p-4 space-y-3">
-                {/* Header: SKU + Status */}
+                {/* Header: Checkbox + SKU + Status */}
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-muted-foreground">{item.skuCode}</span>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedIds.has(item.id)}
+                      onCheckedChange={() => toggleSelect(item.id)}
+                    />
+                    <span className="font-mono text-xs text-muted-foreground">{item.skuCode}</span>
+                  </div>
                   <StatusBadge status={item.status} />
                 </div>
                 {/* Name */}
@@ -430,6 +655,62 @@ function InventoryTab() {
         </div>
       )}
 
+      {/* Floating Batch Action Bar */}
+      <div
+        className={`fixed bottom-16 md:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border rounded-xl shadow-2xl px-6 py-3 flex items-center gap-4 transition-all duration-300 ease-out ${
+          selectedIds.size > 0
+            ? 'translate-y-0 opacity-100'
+            : 'translate-y-8 opacity-0 pointer-events-none'
+        }`}
+      >
+        <span className="text-sm font-medium whitespace-nowrap">
+          已选择 <span className="text-primary font-bold">{selectedIds.size}</span> 件
+        </span>
+        <div className="h-5 w-px bg-border" />
+        <Button
+          size="sm"
+          className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+          onClick={() => setBatchSellOpen(true)}
+          disabled={selectedInStockItems.length === 0}
+          title={selectedInStockItems.length === 0 ? '无可出库的在库货品' : `出库 ${selectedInStockItems.length} 件`}
+        >
+          <ShoppingCart className="h-3.5 w-3.5 mr-1" />批量出库
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
+          onClick={() => setBatchDeleteOpen(true)}
+        >
+          <Trash2 className="h-3.5 w-3.5 mr-1" />批量删除
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30"
+          onClick={() => setBatchPriceOpen(true)}
+        >
+          <Tag className="h-3.5 w-3.5 mr-1" />批量调价
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 border-sky-300 text-sky-600 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/30"
+          onClick={() => setBatchCounterOpen(true)}
+        >
+          <MapPin className="h-3.5 w-3.5 mr-1" />修改柜台
+        </Button>
+        <div className="h-5 w-px bg-border" />
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 text-muted-foreground"
+          onClick={clearSelection}
+        >
+          <X className="h-3.5 w-3.5 mr-1" />取消
+        </Button>
+      </div>
+
       {/* Sale Dialog */}
       <Dialog open={saleDialog.open} onOpenChange={open => setSaleDialog({ open, item: open ? saleDialog.item : null })}>
         <DialogContent>
@@ -448,6 +729,208 @@ function InventoryTab() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaleDialog({ open: false, item: null })}>取消</Button>
             <Button onClick={handleSale} className="bg-emerald-600 hover:bg-emerald-700">确认出库</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Sell Dialog */}
+      <Dialog open={batchSellOpen} onOpenChange={setBatchSellOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-emerald-600" />
+              批量出库
+            </DialogTitle>
+            <DialogDescription>将选中的在库货品批量出库销售</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Selected items list */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">选中货品（{selectedInStockItems.length} 件可出库）</Label>
+              <ScrollArea className="max-h-48">
+                <div className="space-y-1">
+                  {selectedItems.map(item => (
+                    <div key={item.id} className={`flex items-center justify-between text-sm py-1 px-2 rounded ${item.status === 'in_stock' ? 'bg-muted/50' : 'bg-muted/20 opacity-50'}`}>
+                      <span className="font-mono text-xs">{item.skuCode}</span>
+                      <span className="truncate mx-2 text-xs">{item.name || item.skuCode}</span>
+                      <span className="font-medium text-emerald-600 whitespace-nowrap">{formatPrice(item.sellingPrice)}</span>
+                      {item.status !== 'in_stock' && <span className="text-xs text-red-500 ml-1">(非在库)</span>}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+            {/* Common fields */}
+            <div className="space-y-1">
+              <Label>销售渠道</Label>
+              <Select value={batchSellForm.channel} onValueChange={v => setBatchSellForm(f => ({ ...f, channel: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="store">门店</SelectItem><SelectItem value="wechat">微信</SelectItem></SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>销售日期</Label>
+              <Input type="date" value={batchSellForm.saleDate} onChange={e => setBatchSellForm(f => ({ ...f, saleDate: e.target.value }))} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="useCurrentPrice"
+                checked={batchSellForm.useCurrentPrice}
+                onCheckedChange={(checked) => setBatchSellForm(f => ({ ...f, useCurrentPrice: !!checked }))}
+              />
+              <Label htmlFor="useCurrentPrice" className="text-sm cursor-pointer">使用当前售价作为成交价</Label>
+            </div>
+            {selectedInStockItems.length > 0 && (
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg text-sm">
+                <p className="text-muted-foreground">预计总营收：</p>
+                <p className="text-lg font-bold text-emerald-600">
+                  {formatPrice(selectedInStockItems.reduce((sum, i) => sum + (i.sellingPrice || 0), 0))}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBatchSellOpen(false)}>取消</Button>
+            <Button onClick={handleBatchSell} disabled={batchLoading || selectedInStockItems.length === 0} className="bg-emerald-600 hover:bg-emerald-700">
+              {batchLoading ? '处理中...' : `确认出库 ${selectedInStockItems.length} 件`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Delete Confirmation */}
+      <AlertDialog open={batchDeleteOpen} onOpenChange={setBatchDeleteOpen}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              批量删除确认
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将永久删除选中的 <span className="text-red-600 font-bold">{selectedIds.size}</span> 件货品，此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ScrollArea className="max-h-48">
+            <div className="space-y-1 py-2">
+              {selectedItems.map(item => (
+                <div key={item.id} className="flex items-center justify-between text-sm py-1 px-2 rounded bg-red-50 dark:bg-red-950/20">
+                  <span className="font-mono text-xs">{item.skuCode}</span>
+                  <span className="truncate mx-2 text-xs">{item.name || item.skuCode}</span>
+                  <span className="font-medium whitespace-nowrap">{formatPrice(item.sellingPrice)}</span>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setBatchDeleteOpen(false)} disabled={batchLoading}>取消</Button>
+            <Button onClick={handleBatchDelete} disabled={batchLoading} className="bg-red-600 hover:bg-red-700">
+              {batchLoading ? '删除中...' : `确认删除 ${selectedIds.size} 件`}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Batch Price Adjust Dialog */}
+      <Dialog open={batchPriceOpen} onOpenChange={setBatchPriceOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5 text-amber-600" />
+              批量调价
+            </DialogTitle>
+            <DialogDescription>对选中的 {selectedIds.size} 件货品进行价格调整</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-xs">调整方式</Label>
+                <Select value={batchPriceForm.mode} onValueChange={v => setBatchPriceForm(f => ({ ...f, mode: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percent">百分比 (%)</SelectItem>
+                    <SelectItem value="fixed">固定金额 (元)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">调整对象</Label>
+                <Select value={batchPriceForm.target} onValueChange={v => setBatchPriceForm(f => ({ ...f, target: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sellingPrice">售价</SelectItem>
+                    <SelectItem value="minimumPrice">底价</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>
+                调整值 {batchPriceForm.mode === 'percent' ? '(正数涨, 负数降, 如 +10 或 -5)' : '(正数加, 负数减, 如 500 或 -200)'}
+              </Label>
+              <Input
+                type="number"
+                placeholder={batchPriceForm.mode === 'percent' ? '如 +10 表示涨10%' : '如 500 表示加500元'}
+                value={batchPriceForm.value}
+                onChange={e => setBatchPriceForm(f => ({ ...f, value: e.target.value }))}
+              />
+            </div>
+            {/* Preview */}
+            {pricePreview.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">价格预览（前10件）</Label>
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1">
+                    {pricePreview.map(p => (
+                      <div key={p.id} className="flex items-center justify-between text-sm py-1 px-2 rounded bg-amber-50 dark:bg-amber-950/20">
+                        <span className="text-xs truncate mr-2">{p.sku}</span>
+                        <span className="text-muted-foreground">{formatPrice(p.oldPrice)}</span>
+                        <span className="mx-2 text-muted-foreground">→</span>
+                        <span className={`font-medium ${p.newPrice >= p.oldPrice ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(p.newPrice)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+                {selectedItems.length > 10 && (
+                  <p className="text-xs text-muted-foreground text-center">...还有 {selectedItems.length - 10} 件</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBatchPriceOpen(false); setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '' }); }}>取消</Button>
+            <Button onClick={handleBatchPriceAdjust} disabled={batchLoading || !batchPriceForm.value} className="bg-amber-600 hover:bg-amber-700 text-white">
+              {batchLoading ? '处理中...' : '确认调价'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Change Counter Dialog */}
+      <Dialog open={batchCounterOpen} onOpenChange={setBatchCounterOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-sky-600" />
+              批量修改柜台
+            </DialogTitle>
+            <DialogDescription>将选中的 {selectedIds.size} 件货品统一修改到指定柜台</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label>新柜台号</Label>
+              <Input
+                type="number"
+                placeholder="输入柜台号"
+                value={batchCounterForm.counter}
+                onChange={e => setBatchCounterForm(f => ({ ...f, counter: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBatchCounterOpen(false); setBatchCounterForm({ counter: '' }); }}>取消</Button>
+            <Button onClick={handleBatchCounter} disabled={batchLoading || !batchCounterForm.counter} className="bg-sky-600 hover:bg-sky-700 text-white">
+              {batchLoading ? '处理中...' : '确认修改'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

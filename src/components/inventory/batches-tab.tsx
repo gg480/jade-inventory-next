@@ -6,14 +6,18 @@ import { toast } from 'sonner';
 import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton } from './shared';
 import BatchCreateDialog from './batch-create-dialog';
 import BatchDetailDialog from './batch-detail-dialog';
+import Pagination from './pagination';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import {
-  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList,
+  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock,
 } from 'lucide-react';
 
 // ========== Batches Tab ==========
@@ -23,6 +27,13 @@ function BatchesTab() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [detailBatchId, setDetailBatchId] = useState<number | null>(null);
+
+  // Edit dialog
+  const [editDialog, setEditDialog] = useState<{ open: boolean; batch: any }>({ open: false, batch: null });
+  const [editForm, setEditForm] = useState({ totalCost: 0, quantity: 0, purchaseDate: '', supplierName: '', note: '' });
+
+  // Delete dialog
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; batch: any }>({ open: false, batch: null });
 
   const fetchBatches = useCallback(async () => {
     setLoading(true);
@@ -43,10 +54,45 @@ function BatchesTab() {
     } catch (e: any) { toast.error(e.message || '分摊失败'); }
   }
 
+  function openEditDialog(batch: any) {
+    setEditDialog({ open: true, batch });
+    setEditForm({
+      totalCost: batch.totalCost || 0,
+      quantity: batch.quantity || 0,
+      purchaseDate: batch.purchaseDate || '',
+      supplierName: batch.supplierName || '',
+      note: batch.note || '',
+    });
+  }
+
+  async function handleEdit() {
+    if (!editDialog.batch) return;
+    try {
+      await batchesApi.updateBatch(editDialog.batch.id, editForm);
+      toast.success('批次更新成功');
+      setEditDialog({ open: false, batch: null });
+      fetchBatches();
+    } catch (e: any) { toast.error(e.message || '更新失败'); }
+  }
+
+  async function handleDelete() {
+    if (!deleteDialog.batch) return;
+    try {
+      await batchesApi.deleteBatch(deleteDialog.batch.id);
+      toast.success('批次删除成功');
+      setDeleteDialog({ open: false, batch: null });
+      fetchBatches();
+    } catch (e: any) {
+      toast.error(e.message || '删除失败');
+    }
+  }
+
   if (loading && batches.length === 0) return <LoadingSkeleton />;
 
   const totalCost = batches.reduce((s, b) => s + (b.totalCost || 0), 0);
   const totalRevenue = batches.reduce((s, b) => s + (b.revenue || 0), 0);
+
+  const allocMethodLabels: Record<string, string> = { equal: '均摊', by_weight: '按克重', by_price: '按售价' };
 
   return (
     <div className="space-y-6">
@@ -94,72 +140,173 @@ function BatchesTab() {
       {batches.length === 0 ? (
         <EmptyState icon={Layers} title="暂无批次" desc="还没有创建任何批次" />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>批次编号</TableHead><TableHead>材质</TableHead><TableHead className="text-right">总成本</TableHead>
-                    <TableHead className="text-right">数量</TableHead><TableHead className="text-right">已录入</TableHead><TableHead>分摊方式</TableHead><TableHead className="text-right">已售</TableHead>
-                    <TableHead className="text-right">已回款</TableHead><TableHead>回本进度</TableHead><TableHead>状态</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {batches.map(b => (
-                    <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setDetailBatchId(b.id)}>
-                      <TableCell className="font-mono text-sm">
-                        <div className="flex items-center gap-1.5">
-                          {b.batchCode}
-                          {(b.itemsCount || 0) > 0 ? (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">已关联货品</Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">未录入</Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{b.materialName}</TableCell>
-                      <TableCell className="text-right">{formatPrice(b.totalCost)}</TableCell>
-                      <TableCell className="text-right">{b.quantity}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={(b.itemsCount || 0) >= (b.quantity || 0) ? 'text-emerald-600 font-medium' : (b.itemsCount || 0) > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
-                          {b.itemsCount || 0}/{b.quantity}
-                        </span>
-                      </TableCell>
-                      <TableCell><Badge variant="outline">{({ equal: '均摊', by_weight: '按克重', by_price: '按售价' } as any)[b.costAllocMethod] || b.costAllocMethod}</Badge></TableCell>
-                      <TableCell className="text-right">{b.soldCount}/{b.quantity}</TableCell>
-                      <TableCell className="text-right font-medium">{formatPrice(b.revenue)}</TableCell>
-                      <TableCell><PaybackBar rate={b.paybackRate} /></TableCell>
-                      <TableCell><StatusBadge status={b.status} /></TableCell>
-                      <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setDetailBatchId(b.id)} title="查看详情"><Eye className="h-3 w-3" /></Button>
-                          {b.itemsCount === b.quantity && b.soldCount === 0 && (
-                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleAllocate(b.id)}>分摊</Button>
-                          )}
-                        </div>
-                      </TableCell>
+        <>
+          {/* Desktop Table */}
+          <Card className="hidden md:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>批次编号</TableHead><TableHead>材质</TableHead><TableHead className="text-right">总成本</TableHead>
+                      <TableHead className="text-right">数量</TableHead><TableHead className="text-right">已录入</TableHead><TableHead>分摊方式</TableHead><TableHead className="text-right">已售</TableHead>
+                      <TableHead className="text-right">已回款</TableHead><TableHead>回本进度</TableHead><TableHead>状态</TableHead>
+                      <TableHead className="text-right">操作</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {batches.map(b => (
+                      <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setDetailBatchId(b.id)}>
+                        <TableCell className="font-mono text-sm">
+                          <div className="flex items-center gap-1.5">
+                            {b.batchCode}
+                            {(b.itemsCount || 0) > 0 ? (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">已关联货品</Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">未录入</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{b.materialName}</TableCell>
+                        <TableCell className="text-right">{formatPrice(b.totalCost)}</TableCell>
+                        <TableCell className="text-right">{b.quantity}</TableCell>
+                        <TableCell className="text-right">
+                          <span className={(b.itemsCount || 0) >= (b.quantity || 0) ? 'text-emerald-600 font-medium' : (b.itemsCount || 0) > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
+                            {b.itemsCount || 0}/{b.quantity}
+                          </span>
+                        </TableCell>
+                        <TableCell><Badge variant="outline">{allocMethodLabels[b.costAllocMethod] || b.costAllocMethod}</Badge></TableCell>
+                        <TableCell className="text-right">{b.soldCount}/{b.quantity}</TableCell>
+                        <TableCell className="text-right font-medium">{formatPrice(b.revenue)}</TableCell>
+                        <TableCell><PaybackBar rate={b.paybackRate} /></TableCell>
+                        <TableCell><StatusBadge status={b.status} /></TableCell>
+                        <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setDetailBatchId(b.id)} title="查看详情"><Eye className="h-3 w-3" /></Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-amber-600" onClick={() => openEditDialog(b)} title="编辑"><Pencil className="h-3 w-3" /></Button>
+                            {b.itemsCount === b.quantity && b.soldCount === 0 && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleAllocate(b.id)}>分摊</Button>
+                            )}
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => setDeleteDialog({ open: true, batch: b })} title="删除"><Trash2 className="h-3 w-3" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {batches.map(b => (
+              <Card key={b.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailBatchId(b.id)}>
+                <CardContent className="p-4 space-y-2">
+                  {/* Header: batch code + status */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-sm font-medium">{b.batchCode}</span>
+                    <StatusBadge status={b.status} />
+                  </div>
+                  {/* Material + entry progress */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{b.materialName}</span>
+                    <span className={(b.itemsCount || 0) >= (b.quantity || 0) ? 'text-emerald-600 font-medium' : (b.itemsCount || 0) > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
+                      {b.itemsCount || 0}/{b.quantity}件
+                    </span>
+                  </div>
+                  {/* Cost + Revenue row */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">总成本</p>
+                      <p className="font-medium">{formatPrice(b.totalCost)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">已回款</p>
+                      <p className="font-medium text-emerald-600">{formatPrice(b.revenue)}</p>
+                    </div>
+                  </div>
+                  {/* Payback bar */}
+                  <div className="pt-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                      <span>回本进度</span>
+                      <span>{(b.paybackRate * 100).toFixed(1)}%</span>
+                    </div>
+                    <PaybackBar rate={b.paybackRate} />
+                  </div>
+                  {/* Sold count */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>已售 {b.soldCount}/{b.quantity}</span>
+                    {b.purchaseDate && (
+                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{b.purchaseDate}</span>
+                    )}
+                  </div>
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-1 pt-1 border-t" onClick={e => e.stopPropagation()}>
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs flex-1" onClick={() => setDetailBatchId(b.id)}><Eye className="h-3 w-3 mr-1" />详情</Button>
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-amber-600" onClick={() => openEditDialog(b)}><Pencil className="h-3 w-3" /></Button>
+                    {b.itemsCount === b.quantity && b.soldCount === 0 && (
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => handleAllocate(b.id)}>分摊</Button>
+                    )}
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-red-600" onClick={() => setDeleteDialog({ open: true, batch: b })}><Trash2 className="h-3 w-3" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
-      {pagination.pages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button size="sm" variant="outline" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}>上一页</Button>
-          <span className="text-sm text-muted-foreground">{pagination.page} / {pagination.pages}</span>
-          <Button size="sm" variant="outline" disabled={pagination.page >= pagination.pages} onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}>下一页</Button>
-        </div>
-      )}
+      <Pagination page={pagination.page} pages={pagination.pages} onPageChange={p => setPagination(prev => ({ ...prev, page: p }))} />
 
       {/* Dialogs */}
       <BatchCreateDialog open={showCreate} onOpenChange={setShowCreate} onSuccess={fetchBatches} />
       <BatchDetailDialog batchId={detailBatchId} open={detailBatchId != null} onOpenChange={o => { if (!o) setDetailBatchId(null); }} />
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={open => setEditDialog({ open, batch: open ? editDialog.batch : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑批次</DialogTitle>
+            <DialogDescription>{editDialog.batch?.batchCode}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1"><Label>总成本</Label><Input type="number" value={editForm.totalCost} onChange={e => setEditForm(f => ({ ...f, totalCost: parseFloat(e.target.value) || 0 }))} /></div>
+            <div className="space-y-1"><Label>数量</Label><Input type="number" value={editForm.quantity} onChange={e => setEditForm(f => ({ ...f, quantity: parseInt(e.target.value) || 0 }))} /></div>
+            <div className="space-y-1"><Label>采购日期</Label><Input type="date" value={editForm.purchaseDate} onChange={e => setEditForm(f => ({ ...f, purchaseDate: e.target.value }))} /></div>
+            <div className="space-y-1"><Label>供应商</Label><Input value={editForm.supplierName} onChange={e => setEditForm(f => ({ ...f, supplierName: e.target.value }))} placeholder="可选" /></div>
+            <div className="space-y-1"><Label>备注</Label><Input value={editForm.note} onChange={e => setEditForm(f => ({ ...f, note: e.target.value }))} placeholder="可选" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialog({ open: false, batch: null })}>取消</Button>
+            <Button onClick={handleEdit} className="bg-emerald-600 hover:bg-emerald-700">保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={open => setDeleteDialog({ open, batch: open ? deleteDialog.batch : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600 flex items-center gap-2"><Trash2 className="h-5 w-5" />确认删除批次</DialogTitle>
+            <DialogDescription>此操作不可撤销，确定要删除这个批次吗？关联的货品不会被删除。</DialogDescription>
+          </DialogHeader>
+          {deleteDialog.batch && (
+            <div className="py-2">
+              <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg text-sm space-y-1">
+                <p><span className="text-muted-foreground">批次编号:</span> <span className="font-mono">{deleteDialog.batch.batchCode}</span></p>
+                <p><span className="text-muted-foreground">材质:</span> {deleteDialog.batch.materialName}</p>
+                <p><span className="text-muted-foreground">总成本:</span> {formatPrice(deleteDialog.batch.totalCost)}</p>
+                <p><span className="text-muted-foreground">已录入:</span> {deleteDialog.batch.itemsCount || 0}/{deleteDialog.batch.quantity} 件</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, batch: null })}>取消</Button>
+            <Button onClick={handleDelete} className="bg-red-600 hover:bg-red-700">确认删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,11 +4,11 @@
 
 ### 迁移完成状态：100%
 - **技术栈**: Next.js 16 + React + Prisma(SQLite) + Tailwind CSS + shadcn/ui + recharts
-- **代码规模**: page.tsx ~57行(薄调度器)，17个Prisma表，60+API端点，18个组件文件
+- **代码规模**: page.tsx ~57行(薄调度器)，17个Prisma表，60+API端点，19个组件文件
 - **测试数据**: 34个货品(10个关联批次) + 6个批次 + 8条销售记录 + 5个客户
 - **核心功能**: 全部完成（双轨入库/出库/退货/编辑/套装销售/成本分摊/回本看板/操作日志/销售退货）
 - **批次关联**: 完整（批次→货品FK关联/库存显示所属批次/批次显示已录入数/批次筛选/录入进度）
-- **UI质量**: 高（暗色模式/移动端响应式/过渡动画/图标装饰/卡片视图/VIP徽章/快速统计底栏/InfoTip提示）
+- **UI质量**: 高（暗色模式/移动端全面卡片视图/过渡动画/图标装饰/卡片视图/VIP徽章/快速统计底栏/InfoTip提示/自定义确认对话框/页码分页）
 - **稳定性**: 高（lint通过/所有API正常/agent-browser全7页面QA零错误）
 - **与原项目功能对齐**: 已完成原始Python+Vue项目功能全面对比，所有核心功能均已实现
 
@@ -570,6 +570,110 @@ Task: 批次-库存关联增强 + QA测试 + UI细节优化
 ### 未解决/待改进
 - 登录认证系统（JWT + 密码修改，单用户NAS场景优先级低）
 - 图片缩略图生成（当前仅保存原图）
-- 批量操作（批量删除/批量修改状态）
-- 同比环比数据对比图表
+- 批量操作（批量删除/批量修改状态，store已有selectedItems基础设施但未使用）
+- 同比环比数据对比图表（Dashboard +vs上月 增长指标）
+- 器型编辑/删除UI（API已就绪但前端未添加）
+- 客户删除功能（无API端点）
 - GitHub推送最新代码
+- Dashboard 12个API并行加载优化（progressive loading）
+
+---
+Task ID: 5
+Agent: cron-agent
+Task: QA测试 + UX全面增强（移动端适配 + 分页组件 + 删除确认 + 客户关联 + 批次CRUD + 防抖搜索）
+
+### 项目状态判断
+- ✅ QA全7页面零错误零警告，系统稳定
+- 发现并修复10+个UX/功能问题
+
+### 完成的修改
+
+#### 1. 库存删除改为自定义确认对话框 (inventory-tab.tsx)
+**问题**: 原版使用浏览器原生 `confirm()` 删除确认，与整体UI风格不一致，移动端体验差
+**修复**:
+- 新增 `deleteConfirmItem` 状态 + `DeleteConfirmDialog`
+- 红色主题的确认对话框，显示货品SKU/名称/材质/售价/批次信息
+- 警告文案："此操作不可撤销，确定要删除这个货品吗？"
+
+#### 2. 单件销售对话框增加客户选择器 (inventory-tab.tsx)
+**问题**: 原版单件出库无客户选择，无法追踪买家信息（套装销售有客户选择但不一致）
+**修复**:
+- 新增客户列表加载 (`customersApi.getCustomers({ size: 500 })`)
+- 销售表单增加 `customerId` 字段
+- 对话框中新增"客户(可选)"下拉选择器，显示客户名+电话
+- 出库API已支持 `customerId`（无需修改后端）
+
+#### 3. 销售出库防重复提交 (inventory-tab.tsx)
+**问题**: 快速双击"确认出库"按钮可能创建重复销售记录
+**修复**:
+- 新增 `saleSubmitting` 状态
+- 提交时 `disabled={saleSubmitting}`
+- 按钮显示 `Loader2` 旋转加载图标
+
+#### 4. 库存搜索改为防抖自动搜索 (inventory-tab.tsx)
+**问题**: 原版需点击"搜索"按钮才触发搜索，操作繁琐
+**修复**:
+- 使用 `useRef<NodeJS.Timeout>` 实现 500ms 防抖
+- 输入时自动延迟搜索，无需手动点击搜索按钮
+- 保留手动搜索按钮用于精确查询
+
+#### 5. 销售记录页移动端卡片视图 (sales-tab.tsx)
+**问题**: 原版只有桌面表格（9列），移动端需横向滚动，体验差
+**新增**:
+- 移动端卡片视图（md:hidden），每条销售记录显示为卡片
+- 卡片内容：销售单号+渠道Badge、货品名称+SKU、价格+利润、日期+客户、退货按钮
+- 底部合计卡片（汇总营收+利润）
+- 渠道Badge图标化：门店=Store图标绿色，微信=MessageCircle图标蓝色
+
+#### 6. 批次管理页移动端卡片视图 (batches-tab.tsx)
+**问题**: 原版只有桌面表格（11列），移动端体验差
+**新增**:
+- 移动端卡片视图，每批次显示为卡片
+- 卡片内容：批次编号+状态、材质+录入进度、成本+回款、回本进度条、操作按钮行
+- 点击卡片直接打开批次详情
+
+#### 7. 操作日志页移动端卡片视图 (logs-tab.tsx)
+**问题**: 原版只有桌面表格（6列），移动端体验差
+**新增**:
+- 移动端卡片视图，每条日志显示为紧凑卡片
+- 卡片内容：操作类型Badge+时间、对象类型+ID+操作人、详情（line-clamp-2）
+- 详情区域带 FileText 图标装饰
+
+#### 8. 批次编辑/删除功能 (batches-tab.tsx + API)
+**问题**: 批次只能创建和查看，无法编辑或删除
+**新增**:
+- 批次编辑对话框：可修改总成本/数量/采购日期/供应商/备注
+- 批次删除API (`DELETE /api/batches/[id]`):
+  - 检查是否有已售出货品，有则拒绝删除
+  - 删除前先解除关联货品的 batchId 引用
+  - 硬删除批次记录
+- API客户端新增 `batchesApi.deleteBatch(id)`
+- 删除确认对话框：红色主题，显示批次完整信息
+
+#### 9. 通用分页组件 (pagination.tsx) — 新建
+**问题**: 原版分页只有上一页/下一页，无页码显示，大数据量时导航困难
+**新增**:
+- 新建 `Pagination` 组件，支持页码按钮显示
+- 智能省略号：总页数<=7显示全部，否则首尾+当前页附近+省略号
+- 当前页绿色高亮按钮
+- 已替换5个Tab的分页：库存/销售/批次/客户/操作日志
+
+#### 10. 销售对话框信息展示增强 (inventory-tab.tsx)
+- 出库对话框顶部新增货品信息摘要区（材质/器型/售价）
+- 退货对话框新增客户名显示
+
+### 验证结果
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ agent-browser 全7页面 QA 测试零错误零警告
+- ✅ 所有页面正常渲染，分页组件正常工作
+- ✅ 移动端3个新增卡片视图（销售/批次/日志）渲染正确
+
+### 关键文件变更
+- `src/components/inventory/inventory-tab.tsx` — 删除确认对话框+客户选择器+防重复提交+防抖搜索
+- `src/components/inventory/sales-tab.tsx` — 移动端卡片视图+渠道图标+合计卡片+Pagination
+- `src/components/inventory/batches-tab.tsx` — 移动端卡片视图+编辑对话框+删除确认+DELETE API
+- `src/components/inventory/logs-tab.tsx` — 移动端卡片视图+详情图标+Pagination
+- `src/components/inventory/customers-tab.tsx` — Pagination替换
+- `src/components/inventory/pagination.tsx` — 新建，通用分页组件
+- `src/app/api/batches/[id]/route.ts` — 新增 DELETE 端点
+- `src/lib/api.ts` — 新增 batchesApi.deleteBatch()

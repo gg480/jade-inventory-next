@@ -12,16 +12,17 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-import { ScrollText, RefreshCw, Filter, Clock } from 'lucide-react';
+import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText } from 'lucide-react';
+import Pagination from './pagination';
 
 // Action type config with labels and colors
-const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
-  create_item: { label: '入库', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
-  edit_item: { label: '编辑', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200' },
-  delete_item: { label: '删除', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
-  sell_item: { label: '出库', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
-  return_sale: { label: '退货', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
-  allocate_batch: { label: '分摊', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+const ACTION_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
+  create_item: { label: '入库', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200', icon: '📦' },
+  edit_item: { label: '编辑', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200', icon: '✏️' },
+  delete_item: { label: '删除', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', icon: '🗑️' },
+  sell_item: { label: '出库', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200', icon: '💰' },
+  return_sale: { label: '退货', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200', icon: '↩️' },
+  allocate_batch: { label: '分摊', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200', icon: '📊' },
 };
 
 const TARGET_TYPE_LABELS: Record<string, string> = {
@@ -100,6 +101,15 @@ function LogsTab() {
     });
   }
 
+  function formatDate(dateStr: string) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleString('zh-CN', {
+      month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
   if (loading && logs.length === 0) return <LoadingSkeleton />;
 
   return (
@@ -162,54 +172,78 @@ function LogsTab() {
         {autoRefresh && <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">每10秒刷新</Badge>}
       </div>
 
-      {/* Logs Table */}
+      {/* Logs - Desktop Table */}
       {logs.length === 0 ? (
         <EmptyState icon={ScrollText} title="暂无操作日志" desc="系统操作将自动记录到此处" />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-44">时间</TableHead>
-                    <TableHead className="w-24">操作类型</TableHead>
-                    <TableHead className="w-24">对象类型</TableHead>
-                    <TableHead className="w-20">对象ID</TableHead>
-                    <TableHead>详情</TableHead>
-                    <TableHead className="w-24">操作人</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.map((log: any) => (
-                    <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                        {formatTime(log.createdAt)}
-                      </TableCell>
-                      <TableCell><ActionBadge action={log.action} /></TableCell>
-                      <TableCell className="text-sm">{TARGET_TYPE_LABELS[log.targetType] || log.targetType || '-'}</TableCell>
-                      <TableCell className="text-sm font-mono">{log.targetId || '-'}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate" title={log.detail || ''}>
-                        {log.detail || '-'}
-                      </TableCell>
-                      <TableCell className="text-sm">{log.operator || '系统'}</TableCell>
+        <>
+          <Card className="hidden md:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-44">时间</TableHead>
+                      <TableHead className="w-24">操作类型</TableHead>
+                      <TableHead className="w-24">对象类型</TableHead>
+                      <TableHead className="w-20">对象ID</TableHead>
+                      <TableHead>详情</TableHead>
+                      <TableHead className="w-24">操作人</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {logs.map((log: any) => (
+                      <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {formatTime(log.createdAt)}
+                        </TableCell>
+                        <TableCell><ActionBadge action={log.action} /></TableCell>
+                        <TableCell className="text-sm">{TARGET_TYPE_LABELS[log.targetType] || log.targetType || '-'}</TableCell>
+                        <TableCell className="text-sm font-mono">{log.targetId || '-'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-xs truncate" title={log.detail || ''}>
+                          {log.detail || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm">{log.operator || '系统'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-2">
+            {logs.map((log: any) => (
+              <Card key={log.id} className="hover:shadow-sm transition-shadow">
+                <CardContent className="p-3 space-y-2">
+                  {/* Top: action badge + time */}
+                  <div className="flex items-center justify-between">
+                    <ActionBadge action={log.action} />
+                    <span className="text-xs text-muted-foreground">{formatDate(log.createdAt)}</span>
+                  </div>
+                  {/* Target info */}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Target className="h-3 w-3" />{TARGET_TYPE_LABELS[log.targetType] || log.targetType || '-'}</span>
+                    <span className="font-mono">#{log.targetId || '-'}</span>
+                    {log.operator && <span className="flex items-center gap-1"><User className="h-3 w-3" />{log.operator}</span>}
+                  </div>
+                  {/* Detail */}
+                  {log.detail && (
+                    <p className="text-xs text-muted-foreground bg-muted/30 rounded p-2 line-clamp-2 flex items-start gap-1">
+                      <FileText className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span className="truncate">{log.detail}</span>
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Pagination */}
-      {pagination.pages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button size="sm" variant="outline" disabled={pagination.page <= 1} onClick={() => { setPagination(p => ({ ...p, page: p.page - 1 })); fetchLogs(pagination.page - 1); }}>上一页</Button>
-          <span className="text-sm text-muted-foreground">{pagination.page} / {pagination.pages}</span>
-          <Button size="sm" variant="outline" disabled={pagination.page >= pagination.pages} onClick={() => { setPagination(p => ({ ...p, page: p.page + 1 })); fetchLogs(pagination.page + 1); }}>下一页</Button>
-        </div>
-      )}
+      <Pagination page={pagination.page} pages={pagination.pages} onPageChange={p => { setPagination(prev => ({ ...prev, page: p })); fetchLogs(p); }} />
     </div>
   );
 }

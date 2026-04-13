@@ -63,3 +63,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ code: 500, data: null, message: '更新失败' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  try {
+    // Check if batch has sold items
+    const soldCount = await db.item.count({ where: { batchId: parseInt(id), status: 'sold', isDeleted: false } });
+    if (soldCount > 0) {
+      return NextResponse.json({ code: 400, data: null, message: `该批次已有 ${soldCount} 件已售出货品，无法删除` }, { status: 400 });
+    }
+    // Unlink associated items (set batchId to null)
+    await db.item.updateMany({ where: { batchId: parseInt(id) }, data: { batchId: null, batchCode: null } });
+    await db.batch.delete({ where: { id: parseInt(id) } });
+    return NextResponse.json({ code: 0, data: null, message: '删除成功' });
+  } catch (e: any) {
+    return NextResponse.json({ code: 500, data: null, message: '删除失败' }, { status: 500 });
+  }
+}

@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { salesApi, exportApi, dashboardApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { formatPrice, EmptyState, LoadingSkeleton } from './shared';
+import { formatPrice, StatusBadge, EmptyState, LoadingSkeleton } from './shared';
 import BundleSaleDialog from './bundle-sale-dialog';
+import Pagination from './pagination';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import {
-  ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw,
+  ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
 } from 'lucide-react';
 
 import {
@@ -77,16 +78,6 @@ function SalesTab() {
     setSparkLoading(true);
     try {
       const trend = await dashboardApi.getTrend({ months: 1 });
-      // Convert to daily data for last 30 days
-      const dailyMap: Record<string, { revenue: number; profit: number }> = {};
-      const today = new Date();
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
-        dailyMap[key] = { revenue: 0, profit: 0 };
-      }
-      // If trend has daily granularity, use it; otherwise just show monthly
       if (trend && trend.length > 0) {
         setSparklineData(trend.map((t: any) => ({
           date: t.yearMonth || t.date || t.label,
@@ -132,24 +123,30 @@ function SalesTab() {
     } catch (e: any) { toast.error(e.message || '退货失败'); }
   }
 
+  function formatChannelBadge(channel: string) {
+    if (channel === 'store') return <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:text-emerald-400"><Store className="h-2.5 w-2.5 mr-1" />门店</Badge>;
+    if (channel === 'wechat') return <Badge variant="outline" className="border-sky-300 text-sky-700 dark:text-sky-400"><MessageCircle className="h-2.5 w-2.5 mr-1" />微信</Badge>;
+    return <Badge variant="outline">{channel}</Badge>;
+  }
+
   return (
     <div className="space-y-6">
       {/* Today Stats Row */}
       {todayStats && (
         <div className="grid grid-cols-3 gap-3">
-          <Card className="border-l-4 border-l-emerald-500">
+          <Card className="border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">今日销售数</p>
               <p className="text-xl font-bold">{todayStats.count} <span className="text-xs font-normal text-muted-foreground">件</span></p>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-sky-500">
+          <Card className="border-l-4 border-l-sky-500 hover:shadow-md transition-shadow">
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">今日营收</p>
               <p className="text-xl font-bold text-emerald-600">{formatPrice(todayStats.revenue)}</p>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-amber-500">
+          <Card className="border-l-4 border-l-amber-500 hover:shadow-md transition-shadow">
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">今日利润</p>
               <p className={`text-xl font-bold ${todayStats.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(todayStats.profit)}</p>
@@ -196,7 +193,7 @@ function SalesTab() {
         <CardContent className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="space-y-1"><Label className="text-xs">渠道</Label>
-              <Select value={filters.channel} onValueChange={v => setFilters(f => ({ ...f, channel: v }))}>
+              <Select value={filters.channel || 'all'} onValueChange={v => setFilters(f => ({ ...f, channel: v === 'all' ? '' : v }))}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="全部" /></SelectTrigger>
                 <SelectContent><SelectItem value="all">全部</SelectItem><SelectItem value="store">门店</SelectItem><SelectItem value="wechat">微信</SelectItem></SelectContent>
               </Select>
@@ -216,65 +213,107 @@ function SalesTab() {
         </CardContent>
       </Card>
 
-      {/* Sales Table */}
+      {/* Sales Table - Desktop */}
       {sales.length === 0 ? (
         <EmptyState icon={ShoppingCart} title="暂无销售记录" desc="还没有任何销售记录，去库存页面进行出库操作" />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>货品</TableHead>
-                    <TableHead className="text-right">成交价</TableHead><TableHead>渠道</TableHead>
-                    <TableHead>日期</TableHead><TableHead>客户</TableHead><TableHead className="text-right">毛利</TableHead>
-                    <TableHead className="text-center">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sales.map(sale => (
-                    <TableRow key={sale.id} className="hover:bg-muted/50 transition-colors">
-                      <TableCell className="font-mono text-xs">{sale.saleNo}</TableCell>
-                      <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
-                      <TableCell>{sale.itemName || sale.itemSku}</TableCell>
-                      <TableCell className="text-right font-medium">{formatPrice(sale.actualPrice)}</TableCell>
-                      <TableCell><Badge variant="outline" className={sale.channel === 'store' ? 'border-emerald-300 text-emerald-700 dark:text-emerald-400' : 'border-sky-300 text-sky-700 dark:text-sky-400'}>{sale.channel === 'store' ? '门店' : '微信'}</Badge></TableCell>
-                      <TableCell>{sale.saleDate}</TableCell>
-                      <TableCell>{sale.customerName || '-'}</TableCell>
-                      <TableCell className={`text-right font-medium ${sale.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(sale.grossProfit)}</TableCell>
-                      <TableCell className="text-center">
-                        <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600 hover:text-orange-700" onClick={() => openReturnDialog(sale)} title="退货">
-                          <RotateCcw className="h-3 w-3 mr-1" />退货
-                        </Button>
-                      </TableCell>
+        <>
+          <Card className="hidden md:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>货品</TableHead>
+                      <TableHead className="text-right">成交价</TableHead><TableHead>渠道</TableHead>
+                      <TableHead>日期</TableHead><TableHead>客户</TableHead><TableHead className="text-right">毛利</TableHead>
+                      <TableHead className="text-center">操作</TableHead>
                     </TableRow>
-                  ))}
-                  {/* Summary Row */}
-                  <TableRow className="bg-muted/40 font-medium">
-                    <TableCell colSpan={3}>合计 ({pagination.total} 条)</TableCell>
-                    <TableCell className="text-right text-emerald-600">{formatPrice(totalRevenue)}</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell></TableCell>
-                    <TableCell className={`text-right ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(totalProfit)}</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {sales.map(sale => (
+                      <TableRow key={sale.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell className="font-mono text-xs">{sale.saleNo}</TableCell>
+                        <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
+                        <TableCell>{sale.itemName || sale.itemSku}</TableCell>
+                        <TableCell className="text-right font-medium">{formatPrice(sale.actualPrice)}</TableCell>
+                        <TableCell>{formatChannelBadge(sale.channel)}</TableCell>
+                        <TableCell>{sale.saleDate}</TableCell>
+                        <TableCell>{sale.customerName || '-'}</TableCell>
+                        <TableCell className={`text-right font-medium ${sale.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(sale.grossProfit)}</TableCell>
+                        <TableCell className="text-center">
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600 hover:text-orange-700" onClick={() => openReturnDialog(sale)} title="退货">
+                            <RotateCcw className="h-3 w-3 mr-1" />退货
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {/* Summary Row */}
+                    <TableRow className="bg-muted/40 font-medium">
+                      <TableCell colSpan={3}>合计 ({pagination.total} 条)</TableCell>
+                      <TableCell className="text-right text-emerald-600">{formatPrice(totalRevenue)}</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                      <TableCell className={`text-right ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(totalProfit)}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden space-y-3">
+            {sales.map(sale => (
+              <Card key={sale.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4 space-y-2">
+                  {/* Header: saleNo + channel */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs text-muted-foreground">{sale.saleNo}</span>
+                    {formatChannelBadge(sale.channel)}
+                  </div>
+                  {/* Item info */}
+                  <p className="font-medium text-sm truncate">{sale.itemName || sale.itemSku}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{sale.itemSku}</p>
+                  {/* Price + Profit row */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-bold text-emerald-600">{formatPrice(sale.actualPrice)}</span>
+                    <span className={`text-sm font-medium ${sale.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {sale.grossProfit >= 0 ? '+' : ''}{formatPrice(sale.grossProfit)}
+                    </span>
+                  </div>
+                  {/* Meta row: date + customer */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{sale.saleDate}</span>
+                    {sale.customerName && <span>{sale.customerName}</span>}
+                  </div>
+                  {/* Return button */}
+                  <div className="flex justify-end">
+                    <Button size="sm" variant="outline" className="h-7 px-3 text-xs text-orange-600" onClick={() => openReturnDialog(sale)}>
+                      <RotateCcw className="h-3 w-3 mr-1" />退货
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {/* Summary card */}
+            <Card className="bg-muted/40">
+              <CardContent className="p-3 flex items-center justify-between text-sm">
+                <span className="font-medium">合计 ({pagination.total} 条)</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-600 font-medium">{formatPrice(totalRevenue)}</span>
+                  <span className={totalProfit >= 0 ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>{formatPrice(totalProfit)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
 
       {/* Pagination */}
-      {pagination.pages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button size="sm" variant="outline" disabled={pagination.page <= 1} onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}>上一页</Button>
-          <span className="text-sm text-muted-foreground">{pagination.page} / {pagination.pages}</span>
-          <Button size="sm" variant="outline" disabled={pagination.page >= pagination.pages} onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}>下一页</Button>
-        </div>
-      )}
+      <Pagination page={pagination.page} pages={pagination.pages} onPageChange={p => setPagination(prev => ({ ...prev, page: p }))} />
 
       {/* Profit Trend Sparkline */}
       {sparklineData.length > 0 && (
@@ -313,10 +352,11 @@ function SalesTab() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="p-3 bg-muted/50 rounded-lg text-sm">
+            <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
               <p><span className="text-muted-foreground">销售单号:</span> <span className="font-mono">{returnDialog.sale?.saleNo}</span></p>
               <p><span className="text-muted-foreground">成交价:</span> <span className="font-medium text-emerald-600">{formatPrice(returnDialog.sale?.actualPrice || 0)}</span></p>
               <p><span className="text-muted-foreground">销售日期:</span> {returnDialog.sale?.saleDate}</p>
+              {returnDialog.sale?.customerName && <p><span className="text-muted-foreground">客户:</span> {returnDialog.sale.customerName}</p>}
             </div>
             <div className="space-y-1">
               <Label>退款金额</Label>

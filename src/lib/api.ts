@@ -63,6 +63,8 @@ export const batchesApi = {
     request<any>(`/batches/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   allocateBatch: (id: number) =>
     request<any>(`/batches/${id}/allocate`, { method: 'POST' }),
+  deleteBatch: (id: number) =>
+    request<any>(`/batches/${id}`, { method: 'DELETE' }),
 };
 
 // ========== Items ==========
@@ -199,6 +201,20 @@ export const dashboardApi = {
   getPriceRangeSelling: () => request<any[]>(`/dashboard/price-range/selling`),
   getWeightDistribution: () => request<any>(`/dashboard/weight-distribution`),
   getAgeDistribution: () => request<any[]>(`/dashboard/age-distribution`),
+  getMomComparison: () => request<any>(`/dashboard/mom-comparison`),
+  getTurnover: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any[]>(`/dashboard/turnover${qs}`);
+  },
+  getHeatmap: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any>(`/dashboard/heatmap${qs}`);
+  },
+  getTopSellers: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any[]>(`/dashboard/top-sellers${qs}`);
+  },
+  getCustomerFrequency: () => request<any>(`/dashboard/customer-frequency`),
 };
 
 // ========== Metal Prices ==========
