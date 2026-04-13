@@ -127,8 +127,9 @@ function SalesTab() {
   }
 
   function formatChannelBadge(channel: string) {
-    if (channel === 'store') return <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:text-emerald-400"><Store className="h-2.5 w-2.5 mr-1" />门店</Badge>;
-    if (channel === 'wechat') return <Badge variant="outline" className="border-sky-300 text-sky-700 dark:text-sky-400"><MessageCircle className="h-2.5 w-2.5 mr-1" />微信</Badge>;
+    if (!channel) return null;
+    if (channel === 'store') return <Badge variant="outline" className="border-sky-300 text-sky-700 dark:border-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/30"><Store className="h-2.5 w-2.5 mr-1" />门店</Badge>;
+    if (channel === 'wechat') return <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30"><MessageCircle className="h-2.5 w-2.5 mr-1" />微信</Badge>;
     return <Badge variant="outline">{channel}</Badge>;
   }
 
@@ -266,8 +267,8 @@ function SalesTab() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>货品</TableHead>
-                      <TableHead className="text-right">成交价</TableHead><TableHead>渠道</TableHead>
+                      <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>渠道</TableHead><TableHead>货品</TableHead>
+                      <TableHead className="text-right">成交价</TableHead>
                       <TableHead>日期</TableHead><TableHead>客户</TableHead><TableHead className="text-right">毛利</TableHead>
                       <TableHead className="text-center">操作</TableHead>
                     </TableRow>
@@ -282,9 +283,9 @@ function SalesTab() {
                       <TableRow key={sale.id} className={`hover:bg-muted/50 transition-all duration-150 ${rowBg}`}>
                         <TableCell className="font-mono text-xs">{sale.saleNo}</TableCell>
                         <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
+                        <TableCell>{formatChannelBadge(sale.channel) || '-'}</TableCell>
                         <TableCell>{sale.itemName || sale.itemSku}</TableCell>
                         <TableCell className="text-right font-medium">{formatPrice(sale.actualPrice)}</TableCell>
-                        <TableCell>{formatChannelBadge(sale.channel)}</TableCell>
                         <TableCell>{sale.saleDate}</TableCell>
                         <TableCell>{sale.customerName || '-'}</TableCell>
                         <TableCell className={`text-right font-medium ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>

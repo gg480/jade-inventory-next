@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { customersApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, EmptyState, LoadingSkeleton } from './shared';
@@ -407,7 +407,9 @@ function CustomersTab() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', phone: '', wechat: '', address: '', notes: '', tags: '' });
   const [expandedCustomerId, setExpandedCustomerId] = useState<number | null>(null);
@@ -418,16 +420,28 @@ function CustomersTab() {
   const [profileCustomer, setProfileCustomer] = useState<any>(null);
   const [deleteCustomerConfirm, setDeleteCustomerConfirm] = useState<any>(null);
 
+  // Debounce keyword changes
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedKeyword(keyword);
+    }, 300);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
+  }, [keyword]);
+
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await customersApi.getCustomers({ page: pagination.page, size: pagination.size, keyword, tag: tagFilter || undefined });
+      const data = await customersApi.getCustomers({ page: pagination.page, size: pagination.size, keyword: debouncedKeyword, tag: tagFilter || undefined });
       setCustomers(data.items || []);
       setPagination(data.pagination || { total: 0, page: 1, size: 20, pages: 0 });
       setStats(data.stats || null);
       setAllTags(data.allTags || []);
     } catch { toast.error('加载客户失败'); } finally { setLoading(false); }
-  }, [pagination.page, keyword, tagFilter]);
+  }, [pagination.page, debouncedKeyword, tagFilter]);
+
+  // Reset page when keyword or tag changes
+  useEffect(() => { setPagination(p => ({ ...p, page: 1 })); }, [debouncedKeyword, tagFilter]);
 
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
@@ -519,8 +533,13 @@ function CustomersTab() {
       {/* Search + Filter */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <Input placeholder="搜索客户" value={keyword} onChange={e => setKeyword(e.target.value)} className="w-48 h-9" />
-          <Button size="sm" onClick={() => { setPagination(p => ({ ...p, page: 1 })); fetchCustomers(); }}><Search className="h-3 w-3" /></Button>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input name="search" data-testid="customer-search" placeholder="搜索客户（姓名/电话/微信）" value={keyword} onChange={e => setKeyword(e.target.value)} className="w-64 h-9 pl-8" />
+          </div>
+          {!loading && keyword && (
+            <span className="text-xs text-muted-foreground">找到 {pagination.total} 个客户</span>
+          )}
           {allTags.length > 0 && (
             <select
               value={tagFilter}
@@ -538,9 +557,15 @@ function CustomersTab() {
       </div>
 
       {customers.length === 0 ? (
-        <EmptyState icon={Users} title="暂无客户" desc="还没有添加任何客户，点击「新增客户」开始" />
+        keyword ? (
+          <div className="animate-in fade-in-0 duration-200">
+            <EmptyState icon={Users} title="未找到匹配的客户" desc={`没有与「${keyword}」匹配的客户，请尝试其他关键词`} />
+          </div>
+        ) : (
+          <EmptyState icon={Users} title="暂无客户" desc="还没有添加任何客户，点击「新增客户」开始" />
+        )
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in-0 duration-200">
           {customers.map(c => {
             const vip = getVipLevel(c.totalSpending || 0);
             const VipIcon = vip.icon;

@@ -211,10 +211,23 @@ export default function JadeInventoryPage() {
         setActiveTab('inventory');
         setAnimKey(k => k + 1);
         // Focus search input after a brief delay for tab to render
-        setTimeout(() => {
-          const searchInput = document.querySelector('input[placeholder*="SKU"]') as HTMLInputElement;
-          if (searchInput) searchInput.focus();
-        }, 100);
+        // First attempt at 200ms with multiple selectors, fallback at 500ms
+        const focusSearch = () => {
+          const selectors = [
+            'input[placeholder*="SKU"]',
+            'input[name="search"]',
+            '[data-testid="inventory-search"]',
+          ];
+          for (const sel of selectors) {
+            const el = document.querySelector(sel) as HTMLInputElement;
+            if (el) { el.focus(); return true; }
+          }
+          return false;
+        };
+        if (!focusSearch()) {
+          setTimeout(focusSearch, 200);
+          setTimeout(focusSearch, 500);
+        }
         return;
       }
 

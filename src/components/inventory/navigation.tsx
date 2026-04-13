@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TabId } from '@/lib/store';
 import ThemeToggle from './theme-toggle';
 import NotificationBell from './notification-bell';
@@ -15,6 +15,36 @@ import {
 
 // ========== Mobile Bottom Navigation ==========
 function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (t: TabId) => void }) {
+  const [pendingBatches, setPendingBatches] = useState(0);
+
+  // Fetch pending batches count
+  const fetchPendingCount = async () => {
+    try {
+      const res = await fetch('/api/batches?page=1&size=100');
+      if (!res.ok) return;
+      const data = await res.json();
+      const batches = data.items || [];
+      setPendingBatches(batches.filter((b: any) => (b.itemsCount || 0) < (b.quantity || 0)).length);
+    } catch { /* silently fail */ }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/batches?page=1&size=100');
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const batches = data.items || [];
+        setPendingBatches(batches.filter((b: any) => (b.itemsCount || 0) < (b.quantity || 0)).length);
+      } catch { /* silently fail */ }
+    };
+    load();
+    const interval = setInterval(load, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
   const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: 'dashboard', label: '看板', icon: BarChart3 },
     { id: 'inventory', label: '库存', icon: Package },
@@ -35,8 +65,13 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
             <button key={tab.id} onClick={() => onTabChange(tab.id)}
               className={`flex-1 flex flex-col items-center justify-center h-full text-[10px] font-medium transition-all gap-0.5 ${active ? 'text-emerald-600' : 'text-muted-foreground'}`}
             >
-              <div className={`transition-transform ${active ? 'scale-110' : ''}`}>
+              <div className={`relative transition-transform ${active ? 'scale-110' : ''}`}>
                 <Icon className="h-5 w-5" />
+                {tab.id === 'batches' && pendingBatches > 0 && (
+                  <span className="absolute -top-1.5 -right-2 flex items-center justify-center min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none">
+                    {pendingBatches > 99 ? '99+' : pendingBatches}
+                  </span>
+                )}
               </div>
               <span>{tab.label}</span>
               {active && <div className="w-1 h-1 rounded-full bg-emerald-500 mt-0.5" />}

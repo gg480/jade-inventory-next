@@ -12,17 +12,29 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText } from 'lucide-react';
+import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText, Plus, Pencil, Trash2, ShoppingCart, RotateCcw, LogIn } from 'lucide-react';
 import Pagination from './pagination';
 
-// Action type config with labels and colors
-const ACTION_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  create_item: { label: '入库', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200', icon: '📦' },
-  edit_item: { label: '编辑', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200', icon: '✏️' },
-  delete_item: { label: '删除', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', icon: '🗑️' },
-  sell_item: { label: '出库', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200', icon: '💰' },
-  return_sale: { label: '退货', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200', icon: '↩️' },
-  allocate_batch: { label: '分摊', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200', icon: '📊' },
+// Action type config with labels, colors, icons and border colors
+const ACTION_CONFIG: Record<string, { label: string; color: string; icon: string; border: string; iconComponent: React.ElementType }> = {
+  create_item: { label: '入库', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200', icon: '📦', border: 'border-l-emerald-500', iconComponent: Plus },
+  edit_item: { label: '编辑', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200', icon: '✏️', border: 'border-l-amber-500', iconComponent: Pencil },
+  delete_item: { label: '删除', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200', icon: '🗑️', border: 'border-l-red-500', iconComponent: Trash2 },
+  sell_item: { label: '出库', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200', icon: '💰', border: 'border-l-sky-500', iconComponent: ShoppingCart },
+  return_sale: { label: '退货', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200', icon: '↩️', border: 'border-l-orange-500', iconComponent: RotateCcw },
+  allocate_batch: { label: '分摊', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200', icon: '📊', border: 'border-l-purple-500', iconComponent: FileText },
+  login: { label: '登录', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200', icon: '🔐', border: 'border-l-purple-500', iconComponent: LogIn },
+};
+
+// Icon color map for action type icons
+const ACTION_ICON_COLORS: Record<string, string> = {
+  create_item: 'text-emerald-600',
+  edit_item: 'text-amber-600',
+  delete_item: 'text-red-600',
+  sell_item: 'text-sky-600',
+  return_sale: 'text-orange-500',
+  allocate_batch: 'text-purple-600',
+  login: 'text-purple-600',
 };
 
 const TARGET_TYPE_LABELS: Record<string, string> = {
@@ -38,10 +50,49 @@ const ACTION_OPTIONS = [
   ...Object.entries(ACTION_CONFIG).map(([value, { label }]) => ({ value, label })),
 ];
 
+// Relative time helper
+function formatRelativeTime(dateStr: string): string {
+  if (!dateStr) return '-';
+  const now = Date.now();
+  const date = new Date(dateStr).getTime();
+  const diffMs = now - date;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  const diffMonth = Math.floor(diffDay / 30);
+  const diffYear = Math.floor(diffDay / 365);
+
+  if (diffSec < 60) return '刚刚';
+  if (diffMin < 60) return `${diffMin}分钟前`;
+  if (diffHour < 24) return `${diffHour}小时前`;
+  if (diffDay < 30) return `${diffDay}天前`;
+  if (diffMonth < 12) return `${diffMonth}个月前`;
+  return `${diffYear}年前`;
+}
+
 function ActionBadge({ action }: { action: string }) {
   const config = ACTION_CONFIG[action];
   if (!config) return <Badge variant="secondary">{action}</Badge>;
-  return <Badge variant="secondary" className={config.color}>{config.label}</Badge>;
+  const IconComp = config.iconComponent;
+  const iconColor = ACTION_ICON_COLORS[action] || 'text-gray-500';
+  return (
+    <Badge variant="secondary" className={`${config.color} flex items-center gap-1`}>
+      <IconComp className={`h-3 w-3 ${iconColor}`} />
+      {config.label}
+    </Badge>
+  );
+}
+
+function ActionBorder({ action }: { action: string }) {
+  const config = ACTION_CONFIG[action];
+  const iconColor = ACTION_ICON_COLORS[action] || 'text-gray-500';
+  const IconComp = config?.iconComponent || FileText;
+  return (
+    <div className={`flex items-center justify-center w-7 shrink-0 ${iconColor}`}>
+      <IconComp className="h-3.5 w-3.5" />
+    </div>
+  );
 }
 
 // ========== Logs Tab ==========
@@ -192,10 +243,12 @@ function LogsTab() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {logs.map((log: any) => (
-                      <TableRow key={log.id} className="hover:bg-muted/50 transition-colors">
+                    {logs.map((log: any) => {
+                      const actionBorder = ACTION_CONFIG[log.action]?.border || 'border-l-gray-400';
+                      return (
+                      <TableRow key={log.id} className={`hover:bg-muted/50 transition-colors border-l-2 ${actionBorder}`}>
                         <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatTime(log.createdAt)}
+                          <span title={formatTime(log.createdAt)}>{formatRelativeTime(log.createdAt)}</span>
                         </TableCell>
                         <TableCell><ActionBadge action={log.action} /></TableCell>
                         <TableCell className="text-sm">{TARGET_TYPE_LABELS[log.targetType] || log.targetType || '-'}</TableCell>
@@ -205,7 +258,8 @@ function LogsTab() {
                         </TableCell>
                         <TableCell className="text-sm">{log.operator || '系统'}</TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -214,13 +268,15 @@ function LogsTab() {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-2">
-            {logs.map((log: any) => (
-              <Card key={log.id} className="hover:shadow-sm transition-shadow">
+            {logs.map((log: any) => {
+              const actionBorder = ACTION_CONFIG[log.action]?.border || 'border-l-gray-400';
+              return (
+              <Card key={log.id} className={`hover:shadow-sm transition-shadow border-l-2 ${actionBorder}`}>
                 <CardContent className="p-3 space-y-2">
                   {/* Top: action badge + time */}
                   <div className="flex items-center justify-between">
                     <ActionBadge action={log.action} />
-                    <span className="text-xs text-muted-foreground">{formatDate(log.createdAt)}</span>
+                    <span className="text-xs text-muted-foreground" title={formatDate(log.createdAt)}>{formatRelativeTime(log.createdAt)}</span>
                   </div>
                   {/* Target info */}
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -237,7 +293,8 @@ function LogsTab() {
                   )}
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

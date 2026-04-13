@@ -542,3 +542,51 @@ Stage Summary:
 - 5项UI功能增强（智能规格输入 + 销售利润着色 + 批次进度条 + 库存行悬停 + 快速日期）
 - 所有API和代码验证通过
 - 建议：下一轮优先中文化/扫码/级联
+
+---
+
+## Task 13: 7-Tab Enhancement Sprint (2026-06-18)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- 7项功能增强全部完成
+
+### 完成的修改
+
+#### 1. Inventory Tab — Search Keyboard Shortcut Enhancement (page.tsx)
+- Ctrl/Cmd+K 搜索聚焦改为多选择器策略，更健壮地查找搜索输入框
+- 尝试 input[placeholder*="SKU"] → input[name="search"] → [data-testid="inventory-search"]
+- 延迟改为 200ms 和 500ms 双重回退
+
+#### 2. Customers Tab — Search Enhancement (customers-tab.tsx)
+- 搜索输入框新增放大镜图标（Search 绝对定位在左侧）
+- 新增 300ms 防抖（debouncedKeyword），输入时自动触发搜索
+- 搜索结果计数显示："找到 N 个客户"
+- animate-in fade-in-0 duration-200 入场动画
+- 搜索无结果时显示专属 EmptyState
+
+#### 3. Logs Tab — Action Type Icons & Relative Timestamps (logs-tab.tsx)
+- ACTION_CONFIG 扩展：新增 border 和 iconComponent 字段
+- ActionBadge 组件：显示对应 lucide-react 图标 + 文字标签
+- 桌面/移动端新增 border-l-2 左边框，颜色对应操作类型
+- 新增 formatRelativeTime(dateStr) 辅助函数
+- 悬停显示完整时间戳
+
+#### 4. Sales Tab — Channel Badge Enhancement (sales-tab.tsx)
+- 门店 → 蓝色 badge，微信 → 绿色 badge
+- 渠道列移到 SKU 和货品之间
+- 暗色模式支持
+
+#### 5. Batch Create Dialog — Material Pre-selection (batch-create-dialog.tsx)
+- 新增 initialMaterialId 和 initialSupplierId 可选 props
+- 打开时自动预填充并推断材质大类
+
+#### 6. Mobile Nav — Pending Batches Badge (navigation.tsx)
+- 移动端"批次"标签新增红色徽章
+- 每60秒自动刷新待录入批次数
+
+#### 7. Settings Tab — Material Sub-Type & Origin
+- 已确认：subType 和 origin 已完整实现，无需修改
+
+### 验证结果
+- ✅ bun run lint — 0 errors, 0 warnings

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 // ========== Batch Create Dialog ==========
-function BatchCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void }) {
+function BatchCreateDialog({ open, onOpenChange, onSuccess, initialMaterialId, initialSupplierId }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void; initialMaterialId?: string; initialSupplierId?: string }) {
   const [materials, setMaterials] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -29,6 +29,18 @@ function BatchCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; o
       dictsApi.getMaterials().then(setMaterials).catch(() => {});
       dictsApi.getTypes().then(setTypes).catch(() => {});
       suppliersApi.getSuppliers().then((s: any) => setSuppliers(s?.items || s || [])).catch(() => {});
+      // Pre-fill material and supplier if provided
+      if (initialMaterialId) {
+        setForm(f => ({ ...f, materialId: initialMaterialId }));
+        // Infer material category from the material
+        dictsApi.getMaterials().then((mats: any[]) => {
+          const mat = mats.find((m: any) => String(m.id) === String(initialMaterialId));
+          if (mat?.category) setMaterialCategory(mat.category);
+        }).catch(() => {});
+      }
+      if (initialSupplierId) {
+        setForm(f => ({ ...f, supplierId: initialSupplierId }));
+      }
     }
   }, [open]);
 
@@ -58,6 +70,9 @@ function BatchCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; o
       toast.success('批次创建成功！');
       setForm({ batchCode: '', materialId: '', typeId: '', quantity: 1, totalCost: 0, costAllocMethod: 'equal', supplierId: '', purchaseDate: '', notes: '' });
       setMaterialCategory('');
+      // Clear initial values after use
+      void initialMaterialId;
+      void initialSupplierId;
       onOpenChange(false);
       onSuccess();
     } catch (e: any) {
