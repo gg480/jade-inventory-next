@@ -147,6 +147,22 @@ export const dashboardApi = {
     const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
     return request<any>(`/dashboard/stock-aging${qs}`);
   },
+  getDistributionByType: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any>(`/dashboard/distribution/by-type${qs}`);
+  },
+  getDistributionByMaterial: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any>(`/dashboard/distribution/by-material${qs}`);
+  },
+  getProfitByCounter: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any[]>(`/dashboard/profit/by-counter${qs}`);
+  },
+  getPriceRangeCost: () => request<any[]>(`/dashboard/price-range/cost`),
+  getPriceRangeSelling: () => request<any[]>(`/dashboard/price-range/selling`),
+  getWeightDistribution: () => request<any>(`/dashboard/weight-distribution`),
+  getAgeDistribution: () => request<any[]>(`/dashboard/age-distribution`),
 };
 
 // ========== Metal Prices ==========
