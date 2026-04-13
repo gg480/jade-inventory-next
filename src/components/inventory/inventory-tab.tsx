@@ -10,6 +10,7 @@ import ItemDetailDialog from './item-detail-dialog';
 import ItemEditDialog from './item-edit-dialog';
 import LabelPrintDialog from './label-print-dialog';
 import BarcodeScanner from './barcode-scanner';
+import ImageLightbox from './image-lightbox';
 import { MATERIAL_CATEGORIES } from './settings-tab';
 
 import { Card, CardContent } from '@/components/ui/card';
@@ -137,7 +138,7 @@ function InventoryTab() {
   const [editItemId, setEditItemId] = useState<number | null>(null);
   const [returnConfirmItem, setReturnConfirmItem] = useState<{ open: boolean; item: any }>({ open: false, item: null });
   const [saleDialog, setSaleDialog] = useState<{ open: boolean; item: any }>({ open: false, item: null });
-  const [saleForm, setSaleForm] = useState({ actualPrice: 0, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' });
+  const [saleForm, setSaleForm] = useState({ actualPrice: 0, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' });
   const [scanSku, setScanSku] = useState('');
   const [scanLoading, setScanLoading] = useState(false);
   const [printLabelItem, setPrintLabelItem] = useState<any>(null);
@@ -174,6 +175,11 @@ function InventoryTab() {
 
   // Slide-in detail panel
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+
+  // Image lightbox gallery
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<{ id: number; url: string; isCover?: boolean }[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => { dictsApi.getMaterials().then(setMaterials).catch(() => {}); }, []);
   useEffect(() => { customersApi.getCustomers().then((d: any) => setCustomers(d?.items || d || [])).catch(() => {}); }, []);
@@ -267,10 +273,28 @@ function InventoryTab() {
     setSelectedIds(new Set());
   }
 
+  // ========== Image Lightbox Gallery ==========
+  const galleryImages = useMemo(() => {
+    return sortedItems
+      .filter((item: any) => item.coverImage)
+      .map((item: any, idx: number) => ({ id: idx, url: item.coverImage, isCover: true, itemId: item.id, skuCode: item.skuCode }));
+  }, [sortedItems]);
+
+  function openLightbox(itemId: number) {
+    const idx = galleryImages.findIndex((img: any) => img.itemId === itemId);
+    if (idx >= 0) {
+      setLightboxImages(galleryImages);
+      setLightboxIndex(idx);
+      setLightboxOpen(true);
+    }
+  }
+
   async function handleSale() {
     if (!saleDialog.item) return;
     try {
-      await salesApi.createSale({ itemId: saleDialog.item.id, actualPrice: saleForm.actualPrice, channel: saleForm.channel, saleDate: saleForm.saleDate, note: saleForm.note });
+      const salePayload: any = { itemId: saleDialog.item.id, actualPrice: saleForm.actualPrice, channel: saleForm.channel, saleDate: saleForm.saleDate, note: saleForm.note };
+      if (saleForm.customerId) salePayload.customerId = Number(saleForm.customerId);
+      await salesApi.createSale(salePayload);
       toast.success('出库成功！');
       setSaleDialog({ open: false, item: null });
       fetchItems();
@@ -312,7 +336,7 @@ function InventoryTab() {
       const item = await itemsApi.lookupBySku(scanSku.trim());
       if (item.status === 'in_stock') {
         setSaleDialog({ open: true, item });
-        setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' });
+        setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' });
         setScanSku('');
       } else {
         toast.error(`货品 ${item.skuCode} 当前状态为「${item.status === 'sold' ? '已售' : item.status === 'returned' ? '已退' : item.status}」，无法出库`);
@@ -331,7 +355,7 @@ function InventoryTab() {
       const item = await itemsApi.lookupBySku(code.trim());
       if (item.status === 'in_stock') {
         setSaleDialog({ open: true, item });
-        setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' });
+        setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' });
       } else {
         toast.error(`货品 ${item.skuCode} 当前状态为「${item.status === 'sold' ? '已售' : item.status === 'returned' ? '已退' : item.status}」，无法出库`);
       }
@@ -938,10 +962,16 @@ function InventoryTab() {
                           onCheckedChange={() => toggleSelect(item.id)}
                         />
                       </TableCell>
-                      <TableCell className="w-12 px-2">
+                                      <TableCell className="w-12 px-2">
                         {item.coverImage ? (
                           <div className="relative group/img">
-                            <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted" loading="lazy" />
+                            <button
+                              type="button"
+                              className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-md"
+                              onClick={(e) => { e.stopPropagation(); openLightbox(item.id); }}
+                            >
+                              <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all" loading="lazy" />
+                            </button>
                             <div className="absolute left-12 top-0 z-10 hidden group-hover/img:block pointer-events-none">
                               <img src={item.coverImage} alt="" className="w-[120px] h-[120px] rounded-lg object-cover shadow-lg border border-border bg-background" />
                             </div>
@@ -981,7 +1011,7 @@ function InventoryTab() {
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-sky-600" onClick={() => setPrintLabelItem(item)} title="打印标签"><Printer className="h-3 w-3" /></Button>
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-amber-600" onClick={() => setEditItemId(item.id)} title="编辑"><Pencil className="h-3 w-3" /></Button>
                           {item.status === 'in_stock' && (
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600" onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' }); }}>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600" onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' }); }}>
                               <DollarSignIcon className="h-3 w-3" /> 出库
                             </Button>
                           )}
@@ -1009,7 +1039,13 @@ function InventoryTab() {
                 {/* Header: Thumbnail + Checkbox + SKU + Status */}
                 <div className="flex items-center gap-3">
                   {item.coverImage ? (
-                    <img src={item.coverImage} alt="" className="w-12 h-12 rounded-md object-cover aspect-square bg-muted shrink-0" loading="lazy" />
+                    <button
+                      type="button"
+                      className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-md shrink-0"
+                      onClick={(e) => { e.stopPropagation(); openLightbox(item.id); }}
+                    >
+                      <img src={item.coverImage} alt="" className="w-12 h-12 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all" loading="lazy" />
+                    </button>
                   ) : (
                     <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center shrink-0">
                       <Gem className="h-5 w-5 text-muted-foreground/50" />
@@ -1074,7 +1110,7 @@ function InventoryTab() {
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-sky-600" onClick={() => setPrintLabelItem(item)}><Printer className="h-3 w-3 mr-1" />标签</Button>
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-amber-600" onClick={() => setEditItemId(item.id)}><Pencil className="h-3 w-3 mr-1" />编辑</Button>
                   {item.status === 'in_stock' && (
-                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-emerald-600" onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' }); }}>
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-emerald-600" onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' }); }}>
                       <DollarSignIcon className="h-3 w-3 mr-1" />出库
                     </Button>
                   )}
@@ -1150,6 +1186,15 @@ function InventoryTab() {
           <DialogHeader><DialogTitle>销售出库</DialogTitle><DialogDescription>货品: {saleDialog.item?.skuCode} - {saleDialog.item?.name || saleDialog.item?.skuCode}</DialogDescription></DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1"><Label>成交价</Label><Input type="number" value={saleForm.actualPrice} onChange={e => setSaleForm(f => ({ ...f, actualPrice: parseFloat(e.target.value) || 0 }))} /></div>
+            <div className="space-y-1"><Label>客户</Label>
+              <Select value={saleForm.customerId || '_none'} onValueChange={v => setSaleForm(f => ({ ...f, customerId: v === '_none' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="无（散客）" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">无（散客）</SelectItem>
+                  {customers.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.name}{c.phone ? ` (${c.phone})` : ''}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1"><Label>销售渠道</Label>
               <Select value={saleForm.channel} onValueChange={v => setSaleForm(f => ({ ...f, channel: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1462,6 +1507,9 @@ function InventoryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Image Lightbox Gallery */}
+      <ImageLightbox images={lightboxImages} initialIndex={lightboxIndex} open={lightboxOpen} onClose={() => setLightboxOpen(false)} />
 
       {/* Item Create Dialog */}
       <ItemCreateDialog open={showCreate} onOpenChange={setShowCreate} onSuccess={fetchItems} />

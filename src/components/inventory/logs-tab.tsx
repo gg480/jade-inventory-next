@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText, Plus, Pencil, Trash2, ShoppingCart, RotateCcw, LogIn, Copy, Check, Search, X } from 'lucide-react';
+import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText, Plus, Pencil, Trash2, ShoppingCart, RotateCcw, LogIn, Copy, Check, Search, X, FileDown } from 'lucide-react';
 import Pagination from './pagination';
 
 // Action type config with labels, colors, icons and border colors
@@ -188,6 +188,41 @@ function LogsTab() {
     });
   }
 
+  // ========== CSV Export ==========
+  function handleExportCSV() {
+    if (logs.length === 0) {
+      toast.error('没有可导出的日志');
+      return;
+    }
+    const actionLabels: Record<string, string> = {
+      create_item: '入库', edit_item: '编辑', delete_item: '删除',
+      sell_item: '出库', return_sale: '退货', allocate_batch: '分摊', login: '登录',
+    };
+    const escape = (v: string) => {
+      if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+        return `"${v.replace(/"/g, '""')}"`;
+      }
+      return v;
+    };
+    const header = '操作时间,操作类型,操作详情,操作人';
+    const rows = logs.map((log: any) => {
+      const time = log.createdAt || '';
+      const action = actionLabels[log.action] || log.action || '';
+      const detail = log.detail || '';
+      const operator = log.operator || '系统';
+      return [escape(time), escape(action), escape(detail), escape(operator)].join(',');
+    });
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `操作日志_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`已导出 ${logs.length} 条操作日志`);
+  }
+
   if (loading && logs.length === 0) return <LoadingSkeleton />;
 
   return (
@@ -280,6 +315,9 @@ function LogsTab() {
         <ScrollText className="h-4 w-4" />
         <span>共 {pagination.total} 条操作日志</span>
         {autoRefresh && <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">每10秒刷新</Badge>}
+        <Button size="sm" variant="outline" className="h-8 text-xs ml-auto" onClick={handleExportCSV} disabled={logs.length === 0}>
+          <FileDown className="h-3 w-3 mr-1" />导出CSV
+        </Button>
       </div>
 
       {/* Logs - Desktop Table */}

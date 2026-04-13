@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { batchesApi, exportApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, ConfirmDialog } from './shared';
@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import {
-  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock, TrendingDown, ArrowUpRight, ArrowDownRight,
+  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock, TrendingDown, ArrowUpRight, ArrowDownRight, Search, X,
 } from 'lucide-react';
 
 // ========== Batches Tab ==========
@@ -27,6 +27,15 @@ function BatchesTab() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [detailBatchId, setDetailBatchId] = useState<number | null>(null);
+
+  // Search
+  const [searchText, setSearchText] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300);
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   // Edit dialog
   const [editDialog, setEditDialog] = useState<{ open: boolean; batch: any }>({ open: false, batch: null });
@@ -87,6 +96,13 @@ function BatchesTab() {
     }
   }
 
+  // Client-side search filter by batchCode (before early return to satisfy hooks rules)
+  const filteredBatches = useMemo(() => {
+    if (!debouncedSearch.trim()) return batches;
+    const q = debouncedSearch.trim().toLowerCase();
+    return batches.filter((b: any) => (b.batchCode || '').toLowerCase().includes(q));
+  }, [batches, debouncedSearch]);
+
   if (loading && batches.length === 0) return <LoadingSkeleton />;
 
   const totalCost = batches.reduce((s, b) => s + (b.totalCost || 0), 0);
@@ -130,14 +146,40 @@ function BatchesTab() {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新建批次</Button>
         <a href={exportApi.batches()} target="_blank" rel="noopener noreferrer">
           <Button size="sm" variant="outline" className="h-9"><FileDown className="h-3 w-3 mr-1" />导出</Button>
         </a>
+        {/* Search */}
+        <div className="relative ml-auto">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="搜索批次编号..."
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            className="h-9 w-48 md:w-56 pl-8 pr-8"
+          />
+          {searchText && (
+            <button
+              type="button"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setSearchText('')}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
+      {/* Search result count */}
+      {debouncedSearch.trim() && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in-0 slide-in-from-top-1 duration-200">
+          <Search className="h-3.5 w-3.5" />
+          <span>找到 <span className="font-medium text-foreground">{filteredBatches.length}</span> 个批次</span>
+        </div>
+      )}
 
-      {batches.length === 0 ? (
+      {filteredBatches.length === 0 ? (
         <EmptyState icon={Layers} title="暂无批次" desc="还没有创建任何批次" />
       ) : (
         <>
@@ -156,7 +198,7 @@ function BatchesTab() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {batches.map(b => (
+                    {filteredBatches.map(b => (
                       <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setDetailBatchId(b.id)}>
                         <TableCell className="font-mono text-sm">
                           <div className="flex items-center gap-1.5">
@@ -245,7 +287,7 @@ function BatchesTab() {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            {batches.map(b => (
+            {filteredBatches.map(b => (
               <Card key={b.id} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => setDetailBatchId(b.id)}>
                 <CardContent className="p-4 space-y-2">
                   {/* Header: batch code + status */}

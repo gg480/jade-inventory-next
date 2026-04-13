@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { dictsApi, configApi, suppliersApi, metalApi, backupApi, importApi, itemsApi, salesApi, batchesApi, customersApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, EmptyState, LoadingSkeleton } from './shared';
@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X } from 'lucide-react';
 
 // ========== 材质大类选项 ==========
 const MATERIAL_CATEGORIES = [
@@ -81,6 +81,15 @@ function SettingsTab() {
   const [configs, setConfigs] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Supplier search
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [debouncedSupplierSearch, setDebouncedSupplierSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSupplierSearch(supplierSearch), 300);
+    return () => clearTimeout(timer);
+  }, [supplierSearch]);
 
   // Supplier dialog states
   const [showCreateSupplier, setShowCreateSupplier] = useState(false);
@@ -525,11 +534,45 @@ function SettingsTab() {
           <Card className="border-l-4 border-l-teal-400 hover:shadow-sm transition-shadow duration-200">
             <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Factory className="h-4 w-4 text-teal-500" />供应商 ({suppliers.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateSupplier(true); setSupplierForm({ name: '', contact: '', notes: '' }); }}><Plus className="h-3 w-3 mr-1" />新增供应商</Button></div></CardHeader>
             <CardContent>
+              {/* Supplier Search */}
+              <div className="mb-3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="搜索名称、联系人、电话..."
+                    value={supplierSearch}
+                    onChange={e => setSupplierSearch(e.target.value)}
+                    className="h-9 pl-8 pr-8"
+                  />
+                  {supplierSearch && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setSupplierSearch('')}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                {debouncedSupplierSearch.trim() && (
+                  <p className="text-xs text-muted-foreground mt-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                    找到 <span className="font-medium text-foreground">{(() => {
+                      const q = debouncedSupplierSearch.trim().toLowerCase();
+                      return suppliers.filter((s: any) => (s.name || '').toLowerCase().includes(q) || (s.contact || '').toLowerCase().includes(q) || (s.phone || '').toLowerCase().includes(q)).length;
+                    })()}</span> 个供应商
+                  </p>
+                )}
+              </div>
               {suppliers.length === 0 ? (
                 <EmptyState icon={Factory} title="暂无供应商" desc="还没有添加任何供应商" />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {suppliers.map((s: any) => (
+                  {(() => {
+                    const q = debouncedSupplierSearch.trim().toLowerCase();
+                    const filtered = q ? suppliers.filter((s: any) => (s.name || '').toLowerCase().includes(q) || (s.contact || '').toLowerCase().includes(q) || (s.phone || '').toLowerCase().includes(q)) : suppliers;
+                    return filtered.length === 0 ? (
+                      <div className="col-span-full text-center text-sm text-muted-foreground py-8">无匹配的供应商</div>
+                    ) : filtered.map((s: any) => (
                     <div key={s.id} className="p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center justify-between mb-1">
                         <p className="font-medium">{s.name}</p>
@@ -546,7 +589,8 @@ function SettingsTab() {
                       )}
                       {s.notes && <p className="text-sm text-muted-foreground truncate">{s.notes}</p>}
                     </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               )}
             </CardContent>

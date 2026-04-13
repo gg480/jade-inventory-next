@@ -498,6 +498,47 @@ function DashboardTab() {
         </div>
       )}
 
+      {/* ====== Turnover Days & Today Profit Margin Indicators ====== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* 周转天数 */}
+        {turnoverData.length > 0 && (() => {
+          const latest = turnoverData[turnoverData.length - 1];
+          const turnoverDays = latest.turnoverRate > 0 ? Math.round(30 / latest.turnoverRate) : 0;
+          return (
+            <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.01] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+              <CardContent className="p-4">
+                <div className="absolute -right-2 -bottom-2 opacity-10"><RotateCcw className="h-16 w-16 text-emerald-500" /></div>
+                <p className="text-sm text-muted-foreground">平均周转天数</p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
+                  {turnoverDays} <span className="text-sm font-normal text-muted-foreground">天</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">基于最新月周转率 {latest.turnoverRate?.toFixed(2)}</p>
+              </CardContent>
+            </Card>
+          );
+        })()}
+        {/* 今日利润率 */}
+        {summary && (summary.todayRevenue || 0) > 0 && (() => {
+          const todayProfit = summary.todayProfit || 0;
+          const todayRevenue = summary.todayRevenue || 0;
+          const margin = todayRevenue > 0 ? ((todayProfit / todayRevenue) * 100).toFixed(1) : '0.0';
+          return (
+            <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.01] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+              <CardContent className="p-4">
+                <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-16 w-16 text-emerald-500" /></div>
+                <p className="text-sm text-muted-foreground">今日利润率</p>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
+                  {margin}<span className="text-sm font-normal text-muted-foreground">%</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  营收 {formatPrice(todayRevenue)} · 利润 {formatPrice(todayProfit)}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })()}
+      </div>
+
       {/* ====== Month-over-Month Comparison (环比对比) ====== */}
       {momData && (
         <Card className="border-l-4 border-l-violet-500 shadow-sm hover:shadow-md transition-shadow">

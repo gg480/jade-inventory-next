@@ -1581,3 +1581,100 @@ Stage Summary:
 - 6项功能增强（全局美化+统计栏+批次利润+通知面板+日志筛选+数据统计）
 - 后端新增 logs search 参数
 - 所有代码验证通过
+
+---
+
+## Task 23: 库存灯箱画廊 + 出库客户选择 + 批次搜索 + Dashboard增强 + 供应商搜索 + 日志CSV导出 (2026-04-14)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ 6项功能增强全部完成
+
+### 本轮完成的6项改动
+
+#### 1. 库存图片灯箱画廊 (inventory-tab.tsx)
+- 点击库存表格缩略图（桌面/移动端均可）打开 ImageLightbox 灯箱画廊
+- 画廊自动收集当前筛选结果中所有有图片的货品
+- 支持左右切换浏览所有图片（prev/next + 键盘方向键 + 触摸滑动）
+- 缩略图增加 `hover:ring-2 hover:ring-emerald-400` 悬停反馈
+- 点击事件 `e.stopPropagation()` 防止触发行点击/卡片详情面板
+- 新增状态: `lightboxOpen`, `lightboxImages`, `lightboxIndex`
+- 新增 `galleryImages` (useMemo) 从 sortedItems 提取有图片的货品
+- 新增 `openLightbox(itemId)` 定位并打开灯箱
+
+#### 2. 单件出库客户选择增强 (inventory-tab.tsx)
+- 销售出库对话框新增"客户"Select下拉框
+- 加载已有客户列表（名称+电话）
+- 默认"无（散客）"选项
+- 选择客户后 `saleForm.customerId` 传递到 `createSale` API
+- 所有打开出库对话框的地方统一重置 `customerId: ''`
+
+#### 3. 批次列表搜索 (batches-tab.tsx)
+- 操作栏新增搜索输入框（Search图标 + 300ms防抖）
+- 支持按批次编号（batchCode）实时搜索过滤
+- 显示搜索结果数："找到 N 个批次"
+- 清除按钮（X图标）
+- 桌面/移动端均使用 `filteredBatches` 替代原 `batches`
+- 新增: `searchText`, `debouncedSupplierSearch` 状态 + `useMemo` 过滤
+
+#### 4. Dashboard KPI趋势卡片增强 (dashboard-tab.tsx)
+- **周转天数卡片** (card-glow + emerald色系):
+  - 从 turnoverData 最新月份计算平均周转天数（30/turnoverRate）
+  - 显示 RotateCcw 图标 + 天数 + 基于最新月周转率说明
+- **今日利润率卡片** (card-glow + emerald色系):
+  - 从 summary.todayRevenue/todayProfit 计算利润率百分比
+  - 显示 TrendingUp 图标 + 利润率% + 营收/利润详情
+  - 仅在今日有营收时显示
+
+#### 5. 供应商搜索增强 (settings-tab.tsx)
+- 供应商Tab新增搜索输入框（Search图标 + 300ms防抖）
+- 支持按名称、联系人、电话号码搜索
+- 显示搜索结果数："找到 N 个供应商"
+- 无匹配时显示"无匹配的供应商"提示
+- 新增: `supplierSearch`, `debouncedSupplierSearch` 状态
+- 新增 useMemo 导入
+
+#### 6. 操作日志导出CSV (logs-tab.tsx)
+- 统计栏新增"导出CSV"按钮（FileDown图标）
+- CSV列: 操作时间, 操作类型, 操作详情, 操作人
+- 操作类型自动映射为中文（入库/编辑/删除/出库/退货/分摊/登录）
+- 包含BOM（\uFEFF）兼容Excel UTF-8编码
+- 正确处理逗号/引号/换行转义
+- 下载文件名: `操作日志_YYYY-MM-DD.csv`
+- 无日志数据时按钮禁用
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+
+### 关键文件变更
+- `src/components/inventory/inventory-tab.tsx` (1780行) — 灯箱画廊 + 客户选择
+- `src/components/inventory/batches-tab.tsx` (427行) — 批次搜索
+- `src/components/inventory/dashboard-tab.tsx` (1390行) — 周转天数 + 今日利润率
+- `src/components/inventory/settings-tab.tsx` (1482行) — 供应商搜索
+- `src/components/inventory/logs-tab.tsx` (425行) — CSV导出
+
+---
+
+Task ID: 23
+Agent: main-agent
+Task: 6项功能增强
+
+Work Log:
+- 读取 worklog.md 最后200行了解近期状态
+- 读取 image-lightbox.tsx 了解灯箱组件API
+- 读取 api.ts 了解现有API客户端
+- 读取 inventory-tab.tsx (1732行) 全文，理解现有结构
+- 读取 batches-tab.tsx (385行), dashboard-tab.tsx, settings-tab.tsx, logs-tab.tsx
+- 实现 Feature 1: 库存灯箱画廊（import ImageLightbox, galleryImages, openLightbox, 可点击缩略图）
+- 实现 Feature 2: 单件出库客户选择（saleForm.customerId, Select下拉, createSale传递）
+- 实现 Feature 3: 批次搜索（searchText, debounce, filteredBatches, 结果计数）
+- 实现 Feature 4: Dashboard增强（周转天数卡片 + 今日利润率卡片, card-glow + emerald）
+- 实现 Feature 5: 供应商搜索（supplierSearch, debounce, 多字段过滤, 结果计数）
+- 实现 Feature 6: 日志CSV导出（handleExportCSV, BOM, 转义, FileDown按钮）
+- lint发现1个错误: useMemo在early return之后 → 移到early return之前
+- 最终 lint → 0 errors, 0 warnings
+- 更新 worklog.md
+
+Stage Summary:
+- 6项功能增强（灯箱画廊 + 客户选择 + 批次搜索 + Dashboard KPI + 供应商搜索 + CSV导出）
+- 所有代码验证通过（0 errors, 0 warnings）
