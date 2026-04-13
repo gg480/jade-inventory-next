@@ -8,6 +8,7 @@ import InventoryTab from '@/components/inventory/inventory-tab';
 import SalesTab from '@/components/inventory/sales-tab';
 import BatchesTab from '@/components/inventory/batches-tab';
 import CustomersTab from '@/components/inventory/customers-tab';
+import LogsTab from '@/components/inventory/logs-tab';
 import SettingsTab from '@/components/inventory/settings-tab';
 import { MobileNav, DesktopNav } from '@/components/inventory/navigation';
 import { Gem, Package, ShoppingCart, Zap } from 'lucide-react';
@@ -85,6 +86,7 @@ export default function JadeInventoryPage() {
       case 'sales': return <SalesTab />;
       case 'batches': return <BatchesTab />;
       case 'customers': return <CustomersTab />;
+      case 'logs': return <LogsTab />;
       case 'settings': return <SettingsTab />;
       default: return <DashboardTab />;
     }

@@ -7,7 +7,7 @@ import ThemeToggle from './theme-toggle';
 import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard, Package, ShoppingCart, Layers, Users, Settings,
-  BarChart3, Gem,
+  BarChart3, Gem, ScrollText,
 } from 'lucide-react';
 
 // ========== Mobile Bottom Navigation ==========
@@ -18,6 +18,7 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
     { id: 'sales', label: '销售', icon: ShoppingCart },
     { id: 'batches', label: '批次', icon: Layers },
     { id: 'customers', label: '客户', icon: Users },
+    { id: 'logs', label: '日志', icon: ScrollText },
     { id: 'settings', label: '设置', icon: Settings },
   ];
 
@@ -49,6 +50,7 @@ function DesktopNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
     { id: 'sales', label: '销售记录', icon: ShoppingCart },
     { id: 'batches', label: '批次管理', icon: Layers },
     { id: 'customers', label: '客户管理', icon: Users },
+    { id: 'logs', label: '操作日志', icon: ScrollText },
     { id: 'settings', label: '系统设置', icon: Settings },
   ];
 

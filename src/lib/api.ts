@@ -144,6 +144,19 @@ export const logsApi = {
   },
 };
 
+// ========== Backup ==========
+export const backupApi = {
+  download: () => `${BASE}/backup`,
+  restore: async (file: File) => {
+    const formData = new FormData();
+    formData.append('backup', file);
+    const res = await fetch(`${BASE}/backup`, { method: 'POST', body: formData });
+    const json = await res.json();
+    if (json.code !== 0 && json.code !== 200) throw new Error(json.message || '恢复失败');
+    return json.data;
+  },
+};
+
 // ========== Dashboard ==========
 export const dashboardApi = {
   getSummary: (params?: Record<string, any>) => {

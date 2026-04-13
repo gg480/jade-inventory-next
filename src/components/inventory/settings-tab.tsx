@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { dictsApi, configApi, suppliersApi, metalApi } from '@/lib/api';
+import { dictsApi, configApi, suppliersApi, metalApi, backupApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, EmptyState, LoadingSkeleton } from './shared';
 
@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2 } from 'lucide-react';
 
 // ========== Settings Tab ==========
 function SettingsTab() {
@@ -47,6 +47,11 @@ function SettingsTab() {
   const [priceHistory, setPriceHistory] = useState<any[]>([]);
   const [showPriceHistory, setShowPriceHistory] = useState(false);
   const [priceHistoryMaterial, setPriceHistoryMaterial] = useState<string>('');
+
+  // Backup/restore states
+  const [restoring, setRestoring] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
 
   useEffect(() => {
     async function fetchAll() {
@@ -147,11 +152,12 @@ function SettingsTab() {
   return (
     <div className="space-y-4">
       <Tabs value={subTab} onValueChange={setSubTab}>
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="dicts">字典管理</TabsTrigger>
           <TabsTrigger value="metal">贵金属市价</TabsTrigger>
           <TabsTrigger value="suppliers">供应商</TabsTrigger>
           <TabsTrigger value="config">系统配置</TabsTrigger>
+          <TabsTrigger value="backup">数据备份</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dicts" className="mt-4 space-y-4">
@@ -295,7 +301,30 @@ function SettingsTab() {
             <CardHeader className="pb-2"><CardTitle className="text-base">系统配置</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {configs.map(c => (
+                {/* Aging threshold special config */}
+                <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <div>
+                      <p className="font-medium">压货预警天数</p>
+                      <p className="text-xs text-muted-foreground">超过此天数未售出的货品将列入压货预警</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input type="number" value={configs.find(c => c.key === 'aging_threshold_days')?.value || '90'} className="w-20 h-8 text-sm text-center"
+                      onBlur={e => {
+                        const val = e.target.value;
+                        if (val && parseInt(val) > 0) {
+                          updateConfig('aging_threshold_days', val);
+                        }
+                      }}
+                      onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                    />
+                    <span className="text-sm text-muted-foreground">天</span>
+                  </div>
+                </div>
+                {/* Other configs */}
+                {configs.filter(c => c.key !== 'aging_threshold_days').map(c => (
                   <div key={c.key} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <div><p className="font-medium">{c.description || c.key}</p><p className="text-xs text-muted-foreground font-mono">{c.key}</p></div>
                     <Input type="text" value={c.value} className="w-32 h-8 text-sm"
@@ -304,6 +333,52 @@ function SettingsTab() {
                     />
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="backup" className="mt-4 space-y-4">
+          {/* Download backup */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Download className="h-4 w-4 text-emerald-600" />备份数据库</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">下载当前数据库文件（SQLite），可用于数据迁移或定期备份。</p>
+              <Button className="bg-emerald-600 hover:bg-emerald-700" asChild>
+                <a href={backupApi.download()} download>
+                  <Download className="h-4 w-4 mr-2" />下载数据库备份
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Restore backup */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Upload className="h-4 w-4 text-amber-600" />恢复数据库</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-2">从备份文件恢复数据库。恢复前会自动保存当前数据库为安全副本。</p>
+              <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800 mb-4">
+                <p className="text-sm text-red-700 dark:text-red-300 font-medium">⚠️ 恢复操作将覆盖当前所有数据，请谨慎操作！</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Input type="file" accept=".db" onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) { setRestoreFile(f); setShowRestoreConfirm(true); }
+                }} className="max-w-xs" />
+                {restoring && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Info card */}
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4 text-sky-600" />数据说明</CardTitle></CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>• 数据库为 SQLite 单文件，包含所有业务数据（货品、销售、客户等）</p>
+                <p>• 图片文件需单独备份（<code className="px-1 py-0.5 bg-muted rounded text-xs">public/images/</code> 目录）</p>
+                <p>• Docker 部署时，数据和图片已挂载到本地 <code className="px-1 py-0.5 bg-muted rounded text-xs">./data/</code> 目录</p>
+                <p>• 建议定期下载备份，特别是进行大批量操作前</p>
               </div>
             </CardContent>
           </Card>
@@ -451,6 +526,37 @@ function SettingsTab() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setRepricePreview(null)}>取消</Button>
             <Button onClick={handleConfirmReprice} className="bg-emerald-600 hover:bg-emerald-700" disabled={!repricePreview?.affectedItems?.length}>确认调价</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restore Confirm Dialog */}
+      <Dialog open={showRestoreConfirm} onOpenChange={open => { if (!open) { setShowRestoreConfirm(false); setRestoreFile(null); } }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>确认恢复数据库</DialogTitle><DialogDescription>即将用文件「{restoreFile?.name}」覆盖当前数据库。恢复前会自动保存当前数据库为安全副本。</DialogDescription></DialogHeader>
+          <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
+            <p className="text-sm text-red-700 dark:text-red-300 font-medium">⚠️ 此操作将覆盖当前所有数据！恢复后需要刷新页面。</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowRestoreConfirm(false); setRestoreFile(null); }}>取消</Button>
+            <Button onClick={async () => {
+              if (!restoreFile) return;
+              setRestoring(true);
+              try {
+                await backupApi.restore(restoreFile);
+                toast.success('数据库恢复成功，页面将在3秒后刷新');
+                setShowRestoreConfirm(false);
+                setRestoreFile(null);
+                setTimeout(() => window.location.reload(), 3000);
+              } catch (e: any) {
+                toast.error(e.message || '恢复失败');
+              } finally {
+                setRestoring(false);
+              }
+            }} className="bg-red-600 hover:bg-red-700" disabled={restoring}>
+              {restoring && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              确认恢复
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
