@@ -395,6 +395,24 @@ function DashboardTab() {
                 {f.label}
               </Button>
             ))}
+            <div className="w-px h-5 bg-border mx-1" />
+            {([
+              { days: 7, label: '近7天' },
+              { days: 30, label: '近30天' },
+              { days: 90, label: '近90天' },
+            ]).map(q => (
+              <Button key={q.days} size="sm" variant="outline" className="h-7 text-xs"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now.getTime() - q.days * 86400000).toISOString().slice(0, 10);
+                  setCustomStart(start);
+                  setCustomEnd(now.toISOString().slice(0, 10));
+                  setDistFilter('custom');
+                }}
+              >
+                {q.label}
+              </Button>
+            ))}
             {distFilter === 'custom' && (
               <>
                 <Input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-36 h-8 text-xs" />

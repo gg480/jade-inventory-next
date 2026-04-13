@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
-  CalendarDays,
+  CalendarDays, ArrowUp, ArrowDown,
 } from 'lucide-react';
 
 import {
@@ -273,8 +273,13 @@ function SalesTab() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sales.map(sale => (
-                      <TableRow key={sale.id} className="hover:bg-muted/50 transition-colors">
+                    {sales.map(sale => {
+                      const profit = sale.grossProfit || 0;
+                      const isProfit = profit > 0;
+                      const isLoss = profit < 0;
+                      const rowBg = isProfit ? 'bg-emerald-50/50 dark:bg-emerald-950/20' : isLoss ? 'bg-red-50/50 dark:bg-red-950/20' : '';
+                      return (
+                      <TableRow key={sale.id} className={`hover:bg-muted/50 transition-all duration-150 ${rowBg}`}>
                         <TableCell className="font-mono text-xs">{sale.saleNo}</TableCell>
                         <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
                         <TableCell>{sale.itemName || sale.itemSku}</TableCell>
@@ -282,14 +287,20 @@ function SalesTab() {
                         <TableCell>{formatChannelBadge(sale.channel)}</TableCell>
                         <TableCell>{sale.saleDate}</TableCell>
                         <TableCell>{sale.customerName || '-'}</TableCell>
-                        <TableCell className={`text-right font-medium ${sale.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(sale.grossProfit)}</TableCell>
+                        <TableCell className={`text-right font-medium ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <span className="inline-flex items-center gap-1">
+                            {isProfit ? <ArrowUp className="h-3 w-3" /> : isLoss ? <ArrowDown className="h-3 w-3" /> : null}
+                            {formatPrice(profit)}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-center">
                           <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600 hover:text-orange-700" onClick={() => openReturnDialog(sale)} title="退货">
                             <RotateCcw className="h-3 w-3 mr-1" />退货
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                     {/* Summary Row */}
                     <TableRow className="bg-muted/40 font-medium">
                       <TableCell colSpan={3}>合计 ({pagination.total} 条)</TableCell>
@@ -309,7 +320,7 @@ function SalesTab() {
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
             {sales.map(sale => (
-              <Card key={sale.id} className="hover:shadow-md transition-shadow">
+              <Card key={sale.id} className={`hover:shadow-md transition-shadow ${sale.grossProfit > 0 ? 'border-l-2 border-l-emerald-400' : sale.grossProfit < 0 ? 'border-l-2 border-l-red-400' : ''}`}>
                 <CardContent className="p-4 space-y-2">
                   {/* Header: saleNo + channel */}
                   <div className="flex items-center justify-between">
@@ -322,7 +333,8 @@ function SalesTab() {
                   {/* Price + Profit row */}
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-bold text-emerald-600">{formatPrice(sale.actualPrice)}</span>
-                    <span className={`text-sm font-medium ${sale.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <span className={`text-sm font-medium inline-flex items-center gap-1 ${sale.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {sale.grossProfit > 0 ? <ArrowUp className="h-3 w-3" /> : sale.grossProfit < 0 ? <ArrowDown className="h-3 w-3" /> : null}
                       {sale.grossProfit >= 0 ? '+' : ''}{formatPrice(sale.grossProfit)}
                     </span>
                   </div>

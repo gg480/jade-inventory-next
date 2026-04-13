@@ -628,7 +628,7 @@ function InventoryTab() {
                 </TableHeader>
                 <TableBody>
                   {items.map(item => (
-                    <TableRow key={item.id} className={`hover:bg-muted/50 transition-colors ${selectedIds.has(item.id) ? 'bg-emerald-50 dark:bg-emerald-950/20' : ''}`}>
+                    <TableRow key={item.id} className={`group hover:bg-muted/50 transition-all duration-150 border-l-2 border-l-transparent hover:border-l-emerald-400 ${selectedIds.has(item.id) ? 'bg-emerald-50 dark:bg-emerald-950/20 hover:border-l-emerald-500' : item.status === 'sold' ? 'hover:border-l-gray-400' : item.status === 'returned' ? 'hover:border-l-red-400' : ''}`}>
                       <TableCell className="w-10 px-3">
                         <Checkbox
                           checked={selectedIds.has(item.id)}

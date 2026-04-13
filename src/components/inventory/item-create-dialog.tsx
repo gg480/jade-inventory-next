@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Gem, Layers, Plus, Calculator } from 'lucide-react';
+import { Gem, Layers, Plus, Calculator, Pencil } from 'lucide-react';
 
 // ========== Item Creation Dialog ==========
 function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defaultBatchInfo }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void; defaultBatchId?: number; defaultBatchInfo?: { materialId?: number; supplierId?: number; purchaseDate?: string; typeId?: number } }) {
@@ -27,6 +27,7 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
   const [saving, setSaving] = useState(false);
   const [pricingSuggestion, setPricingSuggestion] = useState<any>(null);
   const [pricingLoading, setPricingLoading] = useState(false);
+  const [customFields, setCustomFields] = useState<Record<string, boolean>>({});
 
   // 级联选择: 大类 → 材质
   const [materialCategory, setMaterialCategory] = useState('');
@@ -77,18 +78,169 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
 
   function renderSpecFields(form: typeof highValueForm | typeof batchForm, setForm: (f: any) => void) {
     if (specFieldKeys.length === 0) return null;
+
+    const BRACELET_SIZES = [50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72];
+    const RING_SIZES = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];
+
+    function renderSizeSelect(field: string, sizes: number[], form: typeof highValueForm | typeof batchForm, setForm: (f: any) => void) {
+      const isCustom = customFields[field] || false;
+      const value = (form as any)[field] || '';
+      const label = SPEC_FIELD_LABEL_MAP[field] || field;
+      const isRequired = specFieldsObj[field]?.required ?? false;
+      const isOther = !sizes.includes(Number(value)) && value !== '';
+
+      if (isCustom) {
+        return (
+          <div key={field} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">
+                {label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+              </Label>
+              <button type="button" onClick={() => setCustomFields(p => ({ ...p, [field]: false }))} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+                <Pencil className="h-2.5 w-2.5" />预设选择
+              </button>
+            </div>
+            <Input
+              type="text"
+              value={value}
+              onChange={e => setForm({ ...(form as any), [field]: e.target.value })}
+              className="h-9"
+              placeholder={`自定义${label}`}
+            />
+          </div>
+        );
+      }
+
+      return (
+        <div key={field} className="space-y-1">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">
+              {label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+            </Label>
+            <button type="button" onClick={() => setCustomFields(p => ({ ...p, [field]: true }))} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+              <Pencil className="h-2.5 w-2.5" />自定义
+            </button>
+          </div>
+          <Select value={isOther ? '__other__' : value} onValueChange={v => {
+            if (v === '__other__') {
+              setCustomFields(p => ({ ...p, [field]: true }));
+            } else {
+              setForm({ ...(form as any), [field]: v });
+            }
+          }}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder={`选择${label}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {sizes.map(s => (
+                <SelectItem key={s} value={String(s)}>{s}</SelectItem>
+              ))}
+              <SelectItem value="__other__">其他（自定义）</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
     return (
       <div className="grid grid-cols-2 gap-3">
         {specFieldKeys.map((field: string) => {
           const isRequired = specFieldsObj[field]?.required ?? false;
           const label = SPEC_FIELD_LABEL_MAP[field] || field;
+
+          // braceletSize: Select dropdown
+          if (field === 'braceletSize') {
+            return renderSizeSelect(field, BRACELET_SIZES, form, setForm);
+          }
+          // ringSize: Select dropdown
+          if (field === 'ringSize') {
+            return renderSizeSelect(field, RING_SIZES, form, setForm);
+          }
+          // weight / metalWeight: number with step + "g" suffix
+          if (field === 'weight' || field === 'metalWeight') {
+            return (
+              <div key={field} className="space-y-1">
+                <Label className="text-xs">
+                  {label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={(form as any)[field] || ''}
+                    onChange={e => setForm({ ...(form as any), [field]: e.target.value })}
+                    className="h-9 pr-8"
+                    placeholder={label}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">g</span>
+                </div>
+              </div>
+            );
+          }
+          // size: text with placeholder
+          if (field === 'size') {
+            return (
+              <div key={field} className="space-y-1">
+                <Label className="text-xs">
+                  {label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+                </Label>
+                <Input
+                  type="text"
+                  value={(form as any)[field] || ''}
+                  onChange={e => setForm({ ...(form as any), [field]: e.target.value })}
+                  className="h-9"
+                  placeholder="例: 35×25×8 mm"
+                />
+              </div>
+            );
+          }
+          // beadCount: number with min=1
+          if (field === 'beadCount') {
+            return (
+              <div key={field} className="space-y-1">
+                <Label className="text-xs">
+                  {label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+                </Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={(form as any)[field] || ''}
+                  onChange={e => setForm({ ...(form as any), [field]: e.target.value })}
+                  className="h-9"
+                  placeholder={label}
+                />
+              </div>
+            );
+          }
+          // beadDiameter: number with step=0.5 + "mm" suffix
+          if (field === 'beadDiameter') {
+            return (
+              <div key={field} className="space-y-1">
+                <Label className="text-xs">
+                  {label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={(form as any)[field] || ''}
+                    onChange={e => setForm({ ...(form as any), [field]: e.target.value })}
+                    className="h-9 pr-10"
+                    placeholder={label}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">mm</span>
+                </div>
+              </div>
+            );
+          }
+          // Default fallback for other spec fields
           return (
             <div key={field} className="space-y-1">
               <Label className="text-xs">
                 {label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
               </Label>
               <Input
-                type={field === 'beadCount' ? 'number' : 'text'}
+                type="text"
                 value={(form as any)[field] || ''}
                 onChange={e => setForm({ ...(form as any), [field]: e.target.value })}
                 className="h-9"

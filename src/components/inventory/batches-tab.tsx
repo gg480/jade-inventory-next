@@ -171,9 +171,29 @@ function BatchesTab() {
                         <TableCell className="text-right">{formatPrice(b.totalCost)}</TableCell>
                         <TableCell className="text-right">{b.quantity}</TableCell>
                         <TableCell className="text-right">
-                          <span className={(b.itemsCount || 0) >= (b.quantity || 0) ? 'text-emerald-600 font-medium' : (b.itemsCount || 0) > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
-                            {b.itemsCount || 0}/{b.quantity}
-                          </span>
+                          {(() => {
+                            const itemsCount = b.itemsCount || 0;
+                            const quantity = b.quantity || 0;
+                            const pct = quantity > 0 ? Math.round((itemsCount / quantity) * 100) : 0;
+                            const barColor = pct === 0 ? 'bg-gray-300 dark:bg-gray-600' : pct <= 50 ? 'bg-amber-500' : pct < 100 ? 'bg-sky-500' : 'bg-emerald-500';
+                            const isInProgress = pct > 0 && pct < 100;
+                            return (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className={itemsCount >= quantity ? 'text-emerald-600 font-medium' : itemsCount > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
+                                    {itemsCount}/{quantity}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">{pct}%</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-300 ${barColor} ${isInProgress ? 'animate-pulse' : ''}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell><Badge variant="outline">{allocMethodLabels[b.costAllocMethod] || b.costAllocMethod}</Badge></TableCell>
                         <TableCell className="text-right">{b.soldCount}/{b.quantity}</TableCell>
@@ -211,9 +231,29 @@ function BatchesTab() {
                   {/* Material + entry progress */}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">{b.materialName}</span>
-                    <span className={(b.itemsCount || 0) >= (b.quantity || 0) ? 'text-emerald-600 font-medium' : (b.itemsCount || 0) > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
-                      {b.itemsCount || 0}/{b.quantity}件
-                    </span>
+                    {(() => {
+                      const itemsCount = b.itemsCount || 0;
+                      const quantity = b.quantity || 0;
+                      const pct = quantity > 0 ? Math.round((itemsCount / quantity) * 100) : 0;
+                      const barColor = pct === 0 ? 'bg-gray-300 dark:bg-gray-600' : pct <= 50 ? 'bg-amber-500' : pct < 100 ? 'bg-sky-500' : 'bg-emerald-500';
+                      const isInProgress = pct > 0 && pct < 100;
+                      return (
+                        <div className="flex-1 ml-3 space-y-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs ${itemsCount >= quantity ? 'text-emerald-600 font-medium' : itemsCount > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                              {itemsCount}/{quantity}件
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">{pct}%</span>
+                          </div>
+                          <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${barColor} ${isInProgress ? 'animate-pulse' : ''}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   {/* Cost + Revenue row */}
                   <div className="flex items-center justify-between">

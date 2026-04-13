@@ -423,3 +423,58 @@ Stage Summary:
 - 6项UI/UX增强（导航动画 + 卡片光晕 + 骨架屏 + 交错动画 + 空状态浮动 + 键盘无障碍）
 - 删除15个未使用组件文件（~1100行代码）
 - 所有API和代码验证通过
+
+---
+
+## Task 12: UI Enhancements — Smart Spec Fields, Profit/Loss Coding, Progress Bars, Row Hover, Quick Dates (2026-06-18)
+
+### 完成的修改
+
+#### 1. Smart Type-Parameter Linking in Item Create Dialog (item-create-dialog.tsx)
+- `braceletSize` (圈口): Select dropdown with 12 common sizes (50-72), plus "其他（自定义）" option → switches to text input via `customFields` state toggle
+- `ringSize` (戒圈): Select dropdown with 21 common sizes (5-25), plus "其他（自定义）" option → same toggle mechanism
+- `weight` / `metalWeight`: Changed to `type="number"` with `step="0.01"`, added "g" suffix using absolute-positioned span
+- `size` (尺寸): Text with placeholder "例: 35×25×8 mm"
+- `beadCount` (颗数): Added `min="1"`
+- `beadDiameter` (珠径): Changed to `type="number"` with `step="0.5"`, added "mm" suffix
+- New state: `customFields` (Record<string, boolean>) tracks which fields are in custom input mode
+- Pencil icon toggle button switches between preset Select and custom text Input
+
+#### 2. Sales Record Profit/Loss Color Coding (sales-tab.tsx)
+- Desktop table rows: Added `bg-emerald-50/50 dark:bg-emerald-950/20` for profit rows, `bg-red-50/50 dark:bg-red-950/20` for loss rows
+- Profit cell: Green text + ArrowUp icon for profit, Red text + ArrowDown icon for loss
+- Mobile card view: Added `border-l-2 border-l-emerald-400` / `border-l-red-400` left border indicator on cards
+- Added ArrowUp, ArrowDown imports from lucide-react
+- Transition: `transition-all duration-150` on desktop rows
+
+#### 3. Batch Progress Bar Enhancement (batches-tab.tsx)
+- Desktop: Replaced simple "N/M" text with visual progress bar + percentage text
+  - Shows "N/M" count + "P%" percentage above the bar
+  - Color coding: 0% → gray, 1-50% → amber, 51-99% → sky blue, 100% → emerald green
+  - `animate-pulse` animation when progress is between 1-99% (in progress)
+- Mobile: Same progress bar pattern replacing the simple text, with compact layout
+
+#### 4. Inventory Table Row Hover Enhancement (inventory-tab.tsx)
+- Desktop table rows: Added left border color indicator on hover based on item status:
+  - `in_stock` → `hover:border-l-emerald-400`
+  - `sold` → `hover:border-l-gray-400`
+  - `returned` → `hover:border-l-red-400`
+- Selected rows: Stronger `bg-emerald-50 dark:bg-emerald-950/20` + `hover:border-l-emerald-500`
+- Changed `transition-colors` to `transition-all duration-150` for smoother hover effect
+- Added `group` class for potential child hover effects
+
+#### 5. Dashboard Date Range Quick Buttons (dashboard-tab.tsx)
+- Added 3 quick date range buttons after existing period filter buttons: "近7天", "近30天", "近90天"
+- Separated by vertical divider (`w-px h-5 bg-border`)
+- Clicking a quick button: sets `customStart` to N days ago, `customEnd` to today, switches `distFilter` to `'custom'`
+- Buttons styled as `size="sm" variant="outline" className="h-7 text-xs"`
+
+### 验证结果
+- `bun run lint` — 0 errors, 0 warnings
+
+### 关键文件变更
+- `src/components/inventory/item-create-dialog.tsx` — Smart spec field inputs (braceletSize/ringSize selects, weight/metalWeight/beadDiameter with units, size placeholder, beadCount min)
+- `src/components/inventory/sales-tab.tsx` — Profit/loss row backgrounds + arrow indicators
+- `src/components/inventory/batches-tab.tsx` — Visual progress bars with color coding + pulse animation
+- `src/components/inventory/inventory-tab.tsx` — Status-based left border hover indicator
+- `src/components/inventory/dashboard-tab.tsx` — Quick date range buttons (近7天/近30天/近90天)
