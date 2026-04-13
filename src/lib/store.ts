@@ -11,6 +11,8 @@ interface AppState {
   toggleItem: (id: number) => void;
   clearSelection: () => void;
   selectAll: (ids: number[]) => void;
+  theme: 'light' | 'dark' | 'system';
+  setTheme: (theme: 'light' | 'dark' | 'system') => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -28,4 +30,6 @@ export const useAppStore = create<AppState>((set) => ({
     }),
   clearSelection: () => set({ selectedItems: new Set() }),
   selectAll: (ids) => set({ selectedItems: new Set(ids) }),
+  theme: 'system',
+  setTheme: (theme) => set({ theme }),
 }));
