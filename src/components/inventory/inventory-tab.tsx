@@ -214,6 +214,58 @@ function InventoryTab() {
     return Array.from(counterSet).sort((a, b) => a - b);
   }, [items]);
 
+  // Client-side filter for price range and purchase date (applied after server fetch)
+  const filteredItems = useMemo(() => {
+    let result = items;
+    if (filters.minPrice) {
+      const min = parseFloat(filters.minPrice);
+      if (!isNaN(min)) result = result.filter(i => (i.sellingPrice || 0) >= min);
+    }
+    if (filters.maxPrice) {
+      const max = parseFloat(filters.maxPrice);
+      if (!isNaN(max)) result = result.filter(i => (i.sellingPrice || 0) <= max);
+    }
+    if (filters.purchaseStartDate) {
+      result = result.filter(i => (i.purchaseDate || '') >= filters.purchaseStartDate);
+    }
+    if (filters.purchaseEndDate) {
+      result = result.filter(i => (i.purchaseDate || '') <= filters.purchaseEndDate);
+    }
+    return result;
+  }, [items, filters.minPrice, filters.maxPrice, filters.purchaseStartDate, filters.purchaseEndDate]);
+
+  // Client-side sort for table display
+  const sortedItems = useMemo(() => {
+    if (!filteredItems.length) return filteredItems;
+    const sorted = [...filteredItems];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'selling_price':
+          cmp = (a.sellingPrice || 0) - (b.sellingPrice || 0);
+          break;
+        case 'cost_price':
+          cmp = (a.allocatedCost || a.estimatedCost || a.costPrice || 0) - (b.allocatedCost || b.estimatedCost || b.costPrice || 0);
+          break;
+        case 'purchase_date':
+          cmp = (a.purchaseDate || '').localeCompare(b.purchaseDate || '');
+          break;
+        case 'sku_code':
+          cmp = (a.skuCode || '').localeCompare(b.skuCode || '');
+          break;
+        case 'name':
+          cmp = (a.name || a.skuCode || '').localeCompare(b.name || b.skuCode || '');
+          break;
+        case 'created_at':
+        default:
+          cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
+          break;
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [filteredItems, sortBy, sortOrder]);
+
   // 根据大类筛选材质
   const filteredMaterials = materials.filter((m: any) => {
     if (!filters.materialCategory) return true;
@@ -578,58 +630,6 @@ function InventoryTab() {
       return { id: item.id, name: item.name || item.skuCode, sku: item.skuCode, oldPrice, newPrice };
     });
   }, [selectedItems, batchPriceForm]);
-
-  // Client-side filter for price range and purchase date (applied after server fetch)
-  const filteredItems = useMemo(() => {
-    let result = items;
-    if (filters.minPrice) {
-      const min = parseFloat(filters.minPrice);
-      if (!isNaN(min)) result = result.filter(i => (i.sellingPrice || 0) >= min);
-    }
-    if (filters.maxPrice) {
-      const max = parseFloat(filters.maxPrice);
-      if (!isNaN(max)) result = result.filter(i => (i.sellingPrice || 0) <= max);
-    }
-    if (filters.purchaseStartDate) {
-      result = result.filter(i => (i.purchaseDate || '') >= filters.purchaseStartDate);
-    }
-    if (filters.purchaseEndDate) {
-      result = result.filter(i => (i.purchaseDate || '') <= filters.purchaseEndDate);
-    }
-    return result;
-  }, [items, filters.minPrice, filters.maxPrice, filters.purchaseStartDate, filters.purchaseEndDate]);
-
-  // Client-side sort for table display
-  const sortedItems = useMemo(() => {
-    if (!filteredItems.length) return filteredItems;
-    const sorted = [...filteredItems];
-    sorted.sort((a, b) => {
-      let cmp = 0;
-      switch (sortBy) {
-        case 'selling_price':
-          cmp = (a.sellingPrice || 0) - (b.sellingPrice || 0);
-          break;
-        case 'cost_price':
-          cmp = (a.allocatedCost || a.estimatedCost || a.costPrice || 0) - (b.allocatedCost || b.estimatedCost || b.costPrice || 0);
-          break;
-        case 'purchase_date':
-          cmp = (a.purchaseDate || '').localeCompare(b.purchaseDate || '');
-          break;
-        case 'sku_code':
-          cmp = (a.skuCode || '').localeCompare(b.skuCode || '');
-          break;
-        case 'name':
-          cmp = (a.name || a.skuCode || '').localeCompare(b.name || b.skuCode || '');
-          break;
-        case 'created_at':
-        default:
-          cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
-          break;
-      }
-      return sortOrder === 'asc' ? cmp : -cmp;
-    });
-    return sorted;
-  }, [filteredItems, sortBy, sortOrder]);
 
   function SortableHead({ field, children, align }: { field: string; children: React.ReactNode; align?: 'left' | 'right' }) {
     const isActive = sortBy === field;
