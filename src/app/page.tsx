@@ -13,7 +13,7 @@ const InventoryTab = lazy(() => import('@/components/inventory/inventory-tab'));
 const SettingsTab = lazy(() => import('@/components/inventory/settings-tab'));
 import LoginPage from '@/components/inventory/login-page';
 import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
-import { Gem, Package, ShoppingCart, Zap, Clock, LogOut, ArrowUp } from 'lucide-react';
+import { Gem, Package, ShoppingCart, Zap, Clock, LogOut, ArrowUp, HelpCircle } from 'lucide-react';
 import { itemsApi, salesApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -308,6 +308,14 @@ export default function JadeInventoryPage() {
         </div>
       </footer>
       <ShortcutsHelpDialog open={showShortcuts} onOpenChange={setShowShortcuts} />
+      {/* Floating Keyboard Shortcuts Help Button (desktop only) */}
+      <button
+        onClick={() => setShowShortcuts(true)}
+        className="hidden md:flex fixed bottom-6 left-6 z-20 h-8 w-8 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground shadow-sm hover:shadow-md items-center justify-center transition-all"
+        title="快捷键帮助 (? )"
+      >
+        <HelpCircle className="h-4 w-4" />
+      </button>
       <Toaster richColors position="top-right" />
       {/* Scroll-to-Top Button */}
       <button

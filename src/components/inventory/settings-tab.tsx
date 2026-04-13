@@ -539,6 +539,29 @@ function SettingsTab() {
                     />
                   </div>
                 ))}
+                {/* Counter Preset Quick Pick */}
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="font-medium mb-2">柜台编号快捷参考</p>
+                  <p className="text-xs text-muted-foreground mb-3">点击可复制到剪贴板，方便标准化柜台命名</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'].map(counter => (
+                      <button
+                        key={counter}
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(counter).then(() => {
+                            toast.success(`已复制: ${counter}`);
+                          }).catch(() => {
+                            toast.error('复制失败');
+                          });
+                        }}
+                        className="inline-flex items-center justify-center px-3 py-1.5 rounded-full text-sm font-medium bg-background border border-border hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-700 dark:hover:text-emerald-300 transition-colors cursor-pointer"
+                      >
+                        {counter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

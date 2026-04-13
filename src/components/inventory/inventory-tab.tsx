@@ -573,7 +573,25 @@ function InventoryTab() {
       <Card>
         <CardContent className="p-4">
           <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
-            <div className="space-y-1"><Label className="text-xs">关键词</Label><Input placeholder="SKU/名称/证书" value={filters.keyword} onChange={e => setFilters(f => ({ ...f, keyword: e.target.value }))} className="h-9" /></div>
+            <div className="space-y-1 relative">
+              <Label className="text-xs">关键词</Label>
+              <div className="relative">
+                <Input placeholder="SKU/名称/证书" value={filters.keyword} onChange={e => setFilters(f => ({ ...f, keyword: e.target.value }))} className="h-9 pr-8" />
+                {filters.keyword && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => {
+                      setFilters(f => ({ ...f, keyword: '' }));
+                      const input = document.querySelector('input[placeholder*="SKU"]') as HTMLInputElement;
+                      if (input) input.focus();
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="space-y-1"><Label className="text-xs">材质大类</Label>
               <Select value={filters.materialCategory || '_all'} onValueChange={v => {
                 const cat = v === '_all' ? '' : v;

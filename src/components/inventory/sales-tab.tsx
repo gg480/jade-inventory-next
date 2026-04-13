@@ -160,7 +160,7 @@ function SalesTab() {
         returnReason: returnForm.returnReason || '客户退货',
         returnDate: returnForm.returnDate,
       });
-      toast.success('退货成功！');
+      toast.success(`退货成功！已退款 ¥${returnForm.refundAmount.toFixed(2)}`);
       setReturnDialog({ open: false, sale: null });
       fetchSales();
     } catch (e: any) { toast.error(e.message || '退货失败'); }
@@ -336,8 +336,8 @@ function SalesTab() {
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600 hover:text-orange-700" onClick={() => openReturnDialog(sale)} title="退货">
-                            <RotateCcw className="h-3 w-3 mr-1" />退货
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600 hover:text-orange-700" onClick={() => openReturnDialog(sale)} title="退货" disabled={sale.returnedAt}>
+                            <RotateCcw className="h-3 w-3 mr-1" />{sale.returnedAt ? '已退' : '退货'}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -387,8 +387,8 @@ function SalesTab() {
                   </div>
                   {/* Return button */}
                   <div className="flex justify-end">
-                    <Button size="sm" variant="outline" className="h-7 px-3 text-xs text-orange-600" onClick={() => openReturnDialog(sale)}>
-                      <RotateCcw className="h-3 w-3 mr-1" />退货
+                    <Button size="sm" variant="outline" className="h-7 px-3 text-xs text-orange-600" onClick={() => openReturnDialog(sale)} disabled={sale.returnedAt}>
+                      <RotateCcw className="h-3 w-3 mr-1" />{sale.returnedAt ? '已退' : '退货'}
                     </Button>
                   </div>
                 </CardContent>
@@ -504,18 +504,23 @@ function SalesTab() {
           <DialogHeader>
             <DialogTitle>销售退货</DialogTitle>
             <DialogDescription>
-              退货: {returnDialog.sale?.saleNo} — {returnDialog.sale?.itemSku} {returnDialog.sale?.itemName ? `(${returnDialog.sale.itemName})` : ''}
+              退货单号: {returnDialog.sale?.saleNo}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Warning Banner */}
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
+              ⚠️ 退货后货品将恢复为在库状态
+            </div>
             <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
-              <p><span className="text-muted-foreground">销售单号:</span> <span className="font-mono">{returnDialog.sale?.saleNo}</span></p>
+              <p><span className="text-muted-foreground">货品名称:</span> {returnDialog.sale?.itemName || '-'}</p>
+              <p><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{returnDialog.sale?.itemSku}</span></p>
               <p><span className="text-muted-foreground">成交价:</span> <span className="font-medium text-emerald-600">{formatPrice(returnDialog.sale?.actualPrice || 0)}</span></p>
               <p><span className="text-muted-foreground">销售日期:</span> {returnDialog.sale?.saleDate}</p>
               {returnDialog.sale?.customerName && <p><span className="text-muted-foreground">客户:</span> {returnDialog.sale.customerName}</p>}
             </div>
             <div className="space-y-1">
-              <Label>退款金额</Label>
+              <Label>退款金额 (¥)</Label>
               <Input type="number" value={returnForm.refundAmount} onChange={e => setReturnForm(f => ({ ...f, refundAmount: parseFloat(e.target.value) || 0 }))} />
             </div>
             <div className="space-y-1">
@@ -529,7 +534,7 @@ function SalesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReturnDialog({ open: false, sale: null })}>取消</Button>
-            <Button onClick={handleReturn} className="bg-orange-600 hover:bg-orange-700" disabled={returnForm.refundAmount <= 0}>确认退货</Button>
+            <Button onClick={handleReturn} className="bg-orange-600 hover:bg-orange-700" disabled={returnForm.refundAmount <= 0 || returnDialog.sale?.returnedAt}>{returnDialog.sale?.returnedAt ? '已退货' : '确认退货'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

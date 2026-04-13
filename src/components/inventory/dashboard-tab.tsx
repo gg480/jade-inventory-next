@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { dashboardApi, configApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, CHART_COLORS } from './shared';
@@ -24,6 +24,40 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart as RPieChart, Pie, Cell, Line, Area, AreaChart, ComposedChart
 } from 'recharts';
+
+// ========== Count-up Animation Hook ==========
+function useCountUp(target: number, duration: number = 800) {
+  const [display, setDisplay] = useState(target);
+  const rafRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
+  const prevTargetRef = useRef<number>(target);
+
+  useEffect(() => {
+    if (prevTargetRef.current === target) return;
+    prevTargetRef.current = target;
+
+    startTimeRef.current = 0;
+
+    function animate(timestamp: number) {
+      if (!startTimeRef.current) startTimeRef.current = timestamp;
+      const elapsed = timestamp - startTimeRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(eased * target));
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(animate);
+      } else {
+        setDisplay(target);
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, duration]);
+
+  return display;
+}
 
 // ========== Period Selector Types ==========
 type PeriodFilter = 'month' | 'quarter' | 'year' | 'all' | 'custom';
@@ -271,6 +305,12 @@ function DashboardTab() {
     return Math.max(...topSellers.map((s: any) => Math.abs(s.margin)), 1);
   }, [topSellers]);
 
+  // Count-up animations for overview cards
+  const animTotalItems = useCountUp(summary?.totalItems ?? 0, 800);
+  const animStockAging = useCountUp(stockAging.totalItems || 0, 800);
+  const paidBackCount = batchProfit.filter((b: any) => b.status === 'paid_back' || b.status === 'cleared').length;
+  const animPaidBack = useCountUp(paidBackCount, 800);
+
   if (loading) return <LoadingSkeleton />;
 
   const channelLabelMap: Record<string, string> = { store: '门店', wechat: '微信' };
@@ -298,7 +338,7 @@ function DashboardTab() {
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
               <p className="text-sm text-muted-foreground">库存总计</p>
-              <p className="text-3xl font-extrabold mt-1 tabular-nums">{summary.totalItems}</p>
+              <p className="text-3xl font-extrabold mt-1 tabular-nums">{animTotalItems}</p>
               <p className="text-xs text-muted-foreground mt-1">库存货值 {formatPrice(summary.totalStockValue)}</p>
             </CardContent>
           </Card>
@@ -314,7 +354,7 @@ function DashboardTab() {
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><AlertTriangle className="h-20 w-20 text-red-500" /></div>
               <p className="text-sm text-muted-foreground">压货预警</p>
-              <p className="text-3xl font-extrabold text-red-600 mt-1 tabular-nums">{stockAging.totalItems || 0}</p>
+              <p className="text-3xl font-extrabold text-red-600 mt-1 tabular-nums">{animStockAging}</p>
               <p className="text-xs text-muted-foreground mt-1">超过 {minDays} 天未售</p>
             </CardContent>
           </Card>
@@ -323,7 +363,7 @@ function DashboardTab() {
               <div className="absolute -right-2 -bottom-2 opacity-10"><CheckCircle className="h-20 w-20 text-amber-500" /></div>
               <p className="text-sm text-muted-foreground">已回本批次</p>
               <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">
-                {batchProfit.filter(b => b.status === 'paid_back' || b.status === 'cleared').length}
+                {animPaidBack}
               </p>
               <p className="text-xs text-muted-foreground mt-1">共 {batchProfit.length} 个批次</p>
             </CardContent>
