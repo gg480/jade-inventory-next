@@ -1395,67 +1395,6 @@ function DashboardTab() {
         </CardContent>
       </Card>
 
-      {/* ====== Sales Channel Distribution Chart (销售渠道分布) ====== */}
-      <Card className="hover:shadow-md transition-shadow duration-300">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <BarChart3 className="h-4 w-4 text-sky-600" />
-            销售渠道分布
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {(() => {
-            const channelData = [
-              { name: '门店', value: (summary?.storeCount || storeCount) || 0, color: '#0284c7' },
-              { name: '微信', value: (summary?.wechatCount || wechatCount) || 0, color: '#059669' },
-              { name: '线上', value: (summary?.onlineCount || 0), color: '#7c3aed' },
-              { name: '其他', value: (summary?.otherCount || 0), color: '#94a3b8' },
-            ].filter(d => d.value > 0);
-            const total = channelData.reduce((sum, d) => sum + d.value, 0);
-            if (channelData.length === 0 || total === 0) {
-              return <p className="text-sm text-muted-foreground text-center py-8">暂无销售数据</p>;
-            }
-            return (
-              <div className="flex flex-col items-center gap-4">
-                <ResponsiveContainer width="100%" height={280}>
-                  <RPieChart>
-                    <Pie
-                      data={channelData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={100}
-                      innerRadius={55}
-                      paddingAngle={2}
-                      stroke="none"
-                    >
-                      {channelData.map((entry, index) => (
-                        <Cell key={`channel-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v: number, name: string) => [`${v} 件`, name]} />
-                  </RPieChart>
-                </ResponsiveContainer>
-                {/* Custom Legend */}
-                <div className="flex items-center justify-center gap-6 flex-wrap">
-                  {channelData.map(d => {
-                    const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0';
-                    return (
-                      <div key={d.name} className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
-                        <span className="text-sm font-medium">{d.name}</span>
-                        <span className="text-xs text-muted-foreground">{d.value}件 ({pct}%)</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
-        </CardContent>
-      </Card>
-
       {/* ====== 9. Stock Aging + Age Distribution ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">
