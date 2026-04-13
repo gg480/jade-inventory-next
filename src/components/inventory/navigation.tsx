@@ -16,6 +16,8 @@ import {
 // ========== Mobile Bottom Navigation ==========
 function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (t: TabId) => void }) {
   const [pendingBatches, setPendingBatches] = useState(0);
+  const [hasSalesToday, setHasSalesToday] = useState(false);
+  const [tapAnim, setTapAnim] = useState<string | null>(null);
 
   // Fetch pending batches count
   const fetchPendingCount = async () => {
@@ -39,6 +41,15 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
         const batches = data.items || [];
         setPendingBatches(batches.filter((b: any) => (b.itemsCount || 0) < (b.quantity || 0)).length);
       } catch { /* silently fail */ }
+      // Check sales today
+      try {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const salesRes = await fetch(`/api/sales?start_date=${todayStr}&end_date=${todayStr}&size=1`);
+        if (salesRes.ok && !cancelled) {
+          const salesData = await salesRes.json();
+          setHasSalesToday((salesData.pagination?.total || 0) > 0);
+        }
+      } catch { /* silently fail */ }
     };
     load();
     const interval = setInterval(load, 60000);
@@ -61,21 +72,34 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
         {tabs.map(tab => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
+          const isTapping = tapAnim === tab.id;
           return (
-            <button key={tab.id} onClick={() => onTabChange(tab.id)}
+            <button key={tab.id} onClick={() => {
+              // Haptic-like feedback: scale down then up
+              setTapAnim(tab.id);
+              setTimeout(() => setTapAnim(null), 100);
+              onTabChange(tab.id);
+            }}
               title={tab.title}
-              className={`flex-1 flex flex-col items-center justify-center h-full text-[10px] font-medium transition-all gap-0.5 ${active ? 'text-emerald-600' : 'text-muted-foreground'}`}
+              className={`flex-1 flex flex-col items-center justify-center h-full text-[10px] font-medium gap-0.5 ${active ? 'text-emerald-600' : 'text-muted-foreground'} active:scale-95 transition-transform duration-75`}
             >
-              <div className={`relative transition-transform ${active ? 'scale-110' : ''}`}>
+              <div className={`relative transition-transform duration-150 ${active ? 'scale-110' : ''} ${isTapping ? 'scale-90' : ''}`}>
                 <Icon className="h-5 w-5" />
+                {/* Batches pending badge (red, with count) */}
                 {tab.id === 'batches' && pendingBatches > 0 && (
                   <span className="absolute -top-1.5 -right-2 flex items-center justify-center min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-[10px] font-bold text-white leading-none">
                     {pendingBatches > 99 ? '99+' : pendingBatches}
                   </span>
                 )}
+                {/* Sales today dot (just a red dot, no count) */}
+                {tab.id === 'sales' && hasSalesToday && !active && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500" />
+                )}
               </div>
               <span>{tab.label}</span>
-              {active && <div className="w-1 h-1 rounded-full bg-emerald-500 mt-0.5" />}
+              {active && (
+                <div className="absolute -top-px left-1/2 -translate-x-1/2 w-6 h-0.5 bg-emerald-500 rounded-full shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
+              )}
             </button>
           );
         })}

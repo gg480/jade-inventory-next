@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
-  CalendarDays, ArrowUp, ArrowDown, CreditCard,
+  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag,
 } from 'lucide-react';
 
 import {
@@ -67,6 +67,12 @@ function SalesTab() {
   // Return dialog state
   const [returnDialog, setReturnDialog] = useState<{ open: boolean; sale: any }>({ open: false, sale: null });
   const [returnForm, setReturnForm] = useState({ refundAmount: 0, returnReason: '', returnDate: new Date().toISOString().slice(0, 10) });
+
+  // Expanded sale row
+  const [expandedSaleId, setExpandedSaleId] = useState<number | null>(null);
+
+  // Print receipt dialog
+  const [printSale, setPrintSale] = useState<any>(null);
 
   // Today stats
   const [todayStats, setTodayStats] = useState<{ count: number; revenue: number; profit: number } | null>(null);
@@ -138,6 +144,15 @@ function SalesTab() {
   function openReturnDialog(sale: any) {
     setReturnDialog({ open: true, sale });
     setReturnForm({ refundAmount: sale.actualPrice || 0, returnReason: '', returnDate: new Date().toISOString().slice(0, 10) });
+  }
+
+  function toggleExpand(saleId: number) {
+    setExpandedSaleId(prev => prev === saleId ? null : saleId);
+  }
+
+  function handlePrintReceipt(sale: any) {
+    setPrintSale(sale);
+    setTimeout(() => window.print(), 300);
   }
 
   function handleExportCSV() {
@@ -368,9 +383,12 @@ function SalesTab() {
                       const isProfit = profit > 0;
                       const isLoss = profit < 0;
                       const rowBg = isProfit ? 'bg-emerald-50/50 dark:bg-emerald-950/20' : isLoss ? 'bg-red-50/50 dark:bg-red-950/20' : '';
+                      const isExpanded = expandedSaleId === sale.id;
+                      const marginPct = sale.actualPrice > 0 ? ((profit / sale.actualPrice) * 100).toFixed(1) : '0.0';
                       return (
-                      <TableRow key={sale.id} className={`hover:bg-muted/50 transition-all duration-150 ${rowBg}`}>
-                        <TableCell className="font-mono text-xs">{sale.saleNo}</TableCell>
+                      <React.Fragment key={sale.id}>
+                      <TableRow className={`hover:bg-muted/50 transition-all duration-150 cursor-pointer ${rowBg}`} onClick={() => toggleExpand(sale.id)}>
+                        <TableCell className="font-mono text-xs"><div className="flex items-center gap-1.5">{isExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}{sale.saleNo}</div></TableCell>
                         <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
                         <TableCell>{formatChannelBadge(sale.channel) || '-'}</TableCell>
                         <TableCell>{formatPaymentBadge(sale.note) || '-'}</TableCell>
@@ -384,12 +402,43 @@ function SalesTab() {
                             {formatPrice(profit)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600 hover:text-orange-700" onClick={() => openReturnDialog(sale)} title="退货" disabled={sale.returnedAt}>
-                            <RotateCcw className="h-3 w-3 mr-1" />{sale.returnedAt ? '已退' : '退货'}
-                          </Button>
+                        <TableCell className="text-center" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-sky-600 hover:text-sky-700" onClick={() => handlePrintReceipt(sale)} title="打印小票">
+                              <Printer className="h-3 w-3 mr-1" />小票
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600 hover:text-orange-700" onClick={() => openReturnDialog(sale)} title="退货" disabled={sale.returnedAt}>
+                              <RotateCcw className="h-3 w-3 mr-1" />{sale.returnedAt ? '已退' : '退货'}
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
+                      {isExpanded && (
+                        <TableRow>
+                          <TableCell colSpan={10} className="p-0">
+                            <div className="bg-muted/30 border-t border-b p-4 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div><span className="text-muted-foreground">货品名称:</span> <span className="font-medium">{sale.itemName || sale.itemSku}</span></div>
+                                <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{sale.itemSku}</span></div>
+                                <div><span className="text-muted-foreground">材质:</span> {sale.materialName || '-'}</div>
+                                <div><span className="text-muted-foreground">器型:</span> {sale.typeName || '-'}</div>
+                                <div><span className="text-muted-foreground">成本价:</span> {formatPrice(sale.costPrice)}</div>
+                                <div><span className="text-muted-foreground">成交价:</span> <span className="font-bold text-emerald-600">{formatPrice(sale.actualPrice)}</span></div>
+                                <div><span className="text-muted-foreground">毛利:</span> <span className={`font-medium ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(profit)}</span></div>
+                                <div><span className="text-muted-foreground">毛利率:</span> <span className={`font-medium ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{marginPct}%</span></div>
+                                <div><span className="text-muted-foreground">客户:</span> {sale.customerName || '-'}</div>
+                                <div><span className="text-muted-foreground">客户电话:</span> {sale.customerPhone || '-'}</div>
+                                <div><span className="text-muted-foreground">VIP等级:</span> {sale.customerVipLevel || '-'}</div>
+                                <div><span className="text-muted-foreground">柜台号:</span> {sale.counter || '-'}</div>
+                                <div><span className="text-muted-foreground">支付方式:</span> {formatPaymentBadge(sale.note) || <span className="text-muted-foreground">未指定</span>}</div>
+                                <div><span className="text-muted-foreground">渠道:</span> {formatChannelBadge(sale.channel) || '-'}</div>
+                              </div>
+                              {sale.note && <p className="text-sm text-muted-foreground mt-2"><span className="font-medium">备注:</span> {getPaymentNote(sale.note)}</p>}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </React.Fragment>
                       );
                     })}
                     {/* Summary Row */}
@@ -410,12 +459,19 @@ function SalesTab() {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            {sales.map(sale => (
-              <Card key={sale.id} className={`hover:shadow-md transition-shadow ${sale.grossProfit > 0 ? 'border-l-2 border-l-emerald-400' : sale.grossProfit < 0 ? 'border-l-2 border-l-red-400' : ''}`}>
+            {sales.map(sale => {
+              const profit = sale.grossProfit || 0;
+              const isExpanded = expandedSaleId === sale.id;
+              const marginPct = sale.actualPrice > 0 ? ((profit / sale.actualPrice) * 100).toFixed(1) : '0.0';
+              return (
+              <Card key={sale.id} className={`hover:shadow-md transition-shadow cursor-pointer ${sale.grossProfit > 0 ? 'border-l-2 border-l-emerald-400' : sale.grossProfit < 0 ? 'border-l-2 border-l-red-400' : ''}`} onClick={() => toggleExpand(sale.id)}>
                 <CardContent className="p-4 space-y-2">
                   {/* Header: saleNo + channel */}
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-muted-foreground">{sale.saleNo}</span>
+                    <div className="flex items-center gap-1.5">
+                      {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                      <span className="font-mono text-xs text-muted-foreground">{sale.saleNo}</span>
+                    </div>
                     <div className="flex items-center gap-1">
                       {formatChannelBadge(sale.channel)}
                       {formatPaymentBadge(sale.note)}
@@ -437,15 +493,33 @@ function SalesTab() {
                     <span>{sale.saleDate}</span>
                     {sale.customerName && <span>{sale.customerName}</span>}
                   </div>
-                  {/* Return button */}
-                  <div className="flex justify-end">
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className="pt-2 mt-2 border-t text-xs space-y-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><span className="text-muted-foreground">材质:</span> {sale.materialName || '-'}</div>
+                        <div><span className="text-muted-foreground">器型:</span> {sale.typeName || '-'}</div>
+                        <div><span className="text-muted-foreground">成本:</span> {formatPrice(sale.costPrice)}</div>
+                        <div><span className="text-muted-foreground">毛利率:</span> <span className={profit >= 0 ? 'text-emerald-600' : 'text-red-600'}>{marginPct}%</span></div>
+                        {sale.customerName && <div><span className="text-muted-foreground">客户:</span> {sale.customerName}</div>}
+                        {sale.customerPhone && <div><span className="text-muted-foreground">电话:</span> {sale.customerPhone}</div>}
+                      </div>
+                      {sale.note && <p className="text-muted-foreground">备注: {getPaymentNote(sale.note)}</p>}
+                    </div>
+                  )}
+                  {/* Action buttons */}
+                  <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}>
+                    <Button size="sm" variant="outline" className="h-7 px-3 text-xs text-sky-600" onClick={() => handlePrintReceipt(sale)}>
+                      <Printer className="h-3 w-3 mr-1" />小票
+                    </Button>
                     <Button size="sm" variant="outline" className="h-7 px-3 text-xs text-orange-600" onClick={() => openReturnDialog(sale)} disabled={sale.returnedAt}>
                       <RotateCcw className="h-3 w-3 mr-1" />{sale.returnedAt ? '已退' : '退货'}
                     </Button>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
             {/* Summary card */}
             <Card className="bg-emerald-50/50 dark:bg-emerald-950/20 font-semibold">
               <CardContent className="p-3 flex items-center justify-between text-sm">
@@ -590,6 +664,86 @@ function SalesTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Print Receipt Dialog */}
+      <Dialog open={printSale !== null} onOpenChange={open => { if (!open) setPrintSale(null); }}>
+        <DialogContent className="print-receipt-dialog max-w-sm">
+          <DialogHeader>
+            <DialogTitle>打印小票</DialogTitle>
+            <DialogDescription>预览销售小票</DialogDescription>
+          </DialogHeader>
+          {printSale && (
+            <div id="print-receipt-content" className="print-only-content font-mono text-sm space-y-3 py-2">
+              <div className="text-center border-b border-dashed pb-3">
+                <p className="text-lg font-bold">翡翠珠宝</p>
+                <p className="text-xs text-muted-foreground">销售凭证</p>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between"><span>单号:</span><span>{printSale.saleNo}</span></div>
+                <div className="flex justify-between"><span>日期:</span><span>{printSale.saleDate}</span></div>
+              </div>
+              <div className="border-t border-dashed pt-2 space-y-1.5">
+                <p className="font-medium">{printSale.itemName || printSale.itemSku}</p>
+                <p className="text-xs text-muted-foreground">SKU: {printSale.itemSku}</p>
+                {printSale.materialName && <p className="text-xs text-muted-foreground">材质: {printSale.materialName}</p>}
+                {printSale.typeName && <p className="text-xs text-muted-foreground">器型: {printSale.typeName}</p>}
+              </div>
+              <div className="border-t border-dashed pt-2 space-y-1 text-xs">
+                <div className="flex justify-between"><span>成本价:</span><span>{formatPrice(printSale.costPrice)}</span></div>
+                <div className="flex justify-between font-bold"><span>售价:</span><span>{formatPrice(printSale.actualPrice)}</span></div>
+                <div className="flex justify-between"><span>毛利:</span><span className={printSale.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}>{formatPrice(printSale.grossProfit)}</span></div>
+              </div>
+              {printSale.customerName && (
+                <div className="border-t border-dashed pt-2 text-xs">
+                  <div className="flex justify-between"><span>客户:</span><span>{printSale.customerName}</span></div>
+                  {printSale.customerPhone && <div className="flex justify-between"><span>电话:</span><span>{printSale.customerPhone}</span></div>}
+                </div>
+              )}
+              <div className="border-t border-dashed pt-2 text-xs">
+                <div className="flex justify-between"><span>支付:</span><span>{getPaymentMethod(printSale.note) || '未指定'}</span></div>
+                <div className="flex justify-between"><span>渠道:</span><span>{printSale.channel === 'store' ? '门店' : printSale.channel === 'wechat' ? '微信' : printSale.channel || '-'}</span></div>
+              </div>
+              <div className="border-t border-dashed pt-2 text-center text-xs text-muted-foreground">
+                <p className="font-mono tracking-widest">{printSale.itemSku}</p>
+                <p className="mt-1">感谢惠顾</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintSale(null)}>关闭</Button>
+            <Button onClick={() => { window.print(); }} className="bg-sky-600 hover:bg-sky-700">
+              <Printer className="h-3 w-3 mr-1" />打印
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print-specific stylesheet */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #print-receipt-content,
+          #print-receipt-content * {
+            visibility: visible !important;
+          }
+          #print-receipt-content {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            padding: 4mm !important;
+            background: white !important;
+            color: black !important;
+            font-size: 12px !important;
+          }
+          .print-receipt-dialog [data-radix-dialog-overlay],
+          .print-receipt-dialog > div > div:not(:has(#print-receipt-content)) {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

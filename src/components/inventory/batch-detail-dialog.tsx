@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { batchesApi } from '@/lib/api';
+import { batchesApi, itemsApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, StatusBadge, PaybackBar, InfoTip } from './shared';
 import ItemCreateDialog from './item-create-dialog';
@@ -11,10 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Layers, Plus, Eye, Clock } from 'lucide-react';
+import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 
 // ========== Batch Detail Dialog ==========
 function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | null; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -22,6 +25,10 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
   const [loading, setLoading] = useState(false);
   const [showItemCreate, setShowItemCreate] = useState(false);
   const [detailItemId, setDetailItemId] = useState<number | null>(null);
+  // Inline quick add form
+  const [quickAdd, setQuickAdd] = useState(false);
+  const [quickForm, setQuickForm] = useState({ name: '', sellingPrice: 0, counter: '', certNo: '' });
+  const [quickSaving, setQuickSaving] = useState(false);
 
   const fetchBatchDetail = useCallback(async (id: number) => {
     setLoading(true);
@@ -69,6 +76,50 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
     setDetailItemId(itemId);
   }
 
+  async function handleQuickAdd() {
+    if (!batchId || !quickForm.name || !quickForm.sellingPrice) {
+      toast.error('请输入名称和售价');
+      return;
+    }
+    setQuickSaving(true);
+    try {
+      await itemsApi.createItem({
+        batchId: batchId,
+        name: quickForm.name || undefined,
+        sellingPrice: quickForm.sellingPrice,
+        counter: quickForm.counter ? Number(quickForm.counter) : undefined,
+        certNo: quickForm.certNo || undefined,
+      });
+      toast.success('快速添加成功！');
+      setQuickForm({ name: '', sellingPrice: 0, counter: '', certNo: '' });
+      setQuickAdd(false);
+      fetchBatchDetail(batchId);
+    } catch (e: any) {
+      toast.error(e.message || '快速添加失败');
+    } finally {
+      setQuickSaving(false);
+    }
+  }
+
+  // Status color coding for items
+  function getItemStatusColor(status: string) {
+    switch (status) {
+      case 'in_stock': return 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30';
+      case 'sold': return 'text-gray-500 bg-gray-50 dark:bg-gray-900/30';
+      case 'returned': return 'text-red-600 bg-red-50 dark:bg-red-950/30';
+      default: return '';
+    }
+  }
+
+  function getItemStatusLabel(status: string) {
+    switch (status) {
+      case 'in_stock': return '在库';
+      case 'sold': return '已售';
+      case 'returned': return '已退';
+      default: return status;
+    }
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,13 +154,41 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
 
               {/* Quick Add Button */}
               {enteredCount < declaredCount && (
-                <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={() => setShowItemCreate(true)}
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />快速添加货品
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => setShowItemCreate(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />完整录入
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setQuickAdd(!quickAdd)}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />快速添加
+                  </Button>
+                </div>
+              )}
+
+              {/* Inline Quick Add Form */}
+              {quickAdd && enteredCount < declaredCount && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800 space-y-3 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">快速添加货品</p>
+                    <button onClick={() => setQuickAdd(false)} className="text-muted-foreground hover:text-foreground"><XCircle className="h-4 w-4" /></button>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className="space-y-1"><Label className="text-xs">名称 <span className="text-red-500">*</span></Label><Input placeholder="货品名称" value={quickForm.name} onChange={e => setQuickForm(f => ({ ...f, name: e.target.value }))} className="h-8 text-sm" /></div>
+                    <div className="space-y-1"><Label className="text-xs">售价 <span className="text-red-500">*</span></Label><Input type="number" placeholder="售价" value={quickForm.sellingPrice || ''} onChange={e => setQuickForm(f => ({ ...f, sellingPrice: parseFloat(e.target.value) || 0 }))} className="h-8 text-sm" /></div>
+                    <div className="space-y-1"><Label className="text-xs">柜台号</Label><Input placeholder="例: A-01" value={quickForm.counter} onChange={e => setQuickForm(f => ({ ...f, counter: e.target.value }))} className="h-8 text-sm" /></div>
+                    <div className="space-y-1"><Label className="text-xs">证书号</Label><Input placeholder="可选" value={quickForm.certNo} onChange={e => setQuickForm(f => ({ ...f, certNo: e.target.value }))} className="h-8 text-sm" /></div>
+                  </div>
+                  <Button size="sm" onClick={handleQuickAdd} className="bg-emerald-600 hover:bg-emerald-700" disabled={quickSaving}>
+                    {quickSaving ? '添加中...' : '确认添加'}
+                  </Button>
+                </div>
               )}
 
               {/* Batch Info Cards */}
