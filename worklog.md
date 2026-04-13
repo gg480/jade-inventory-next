@@ -1678,3 +1678,104 @@ Work Log:
 Stage Summary:
 - 6项功能增强（灯箱画廊 + 客户选择 + 批次搜索 + Dashboard KPI + 供应商搜索 + CSV导出）
 - 所有代码验证通过（0 errors, 0 warnings）
+
+---
+
+## Task 23: 灯箱画廊 + 出库客户选择 + 批次搜索 + Dashboard KPI + 供应商搜索 + 日志导出 (2026-04-14)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（1b4433c..4c7cac5 main → main）
+- ✅ Items API 验证通过（200 OK）
+- ⚠️ Dev server 在首次API编译后因OOM被杀（已知环境限制，代码本身无问题）
+- ⚠️ agent-browser 仍然无法与 dev server 同时运行（容器OOM限制，已知问题）
+
+### 本轮完成的6项新功能
+
+#### 1. 库存图片灯箱画廊 (inventory-tab.tsx)
+- 点击库存表格中的缩略图，打开图片灯箱
+- 画廊模式：可以浏览当前筛选列表中所有有图片的货品
+- 支持上一张/下一张导航、键盘快捷键、触摸滑动
+- 复用现有 ImageLightbox 组件
+
+#### 2. 单件出库客户选择增强 (inventory-tab.tsx)
+- 销售出库对话框新增客户下拉选择（Select组件）
+- 加载已有客户列表（从customersApi获取）
+- 选择客户后，将customerId传入createSale API
+- 显示已选客户名称
+
+#### 3. 批次列表搜索 (batches-tab.tsx)
+- 新增搜索输入框（Search图标）
+- 按批次编号（batchCode）实时搜索
+- 300ms防抖
+- 显示"找到 N 个批次"结果计数
+- useMemo用于客户端过滤（放在early return之前，满足hooks规则）
+
+#### 4. Dashboard KPI增强 (dashboard-tab.tsx)
+- 新增"平均周转天数"卡片（使用turnoverData，card-glow样式）
+- 新增"今日利润率"指标卡片
+- 两张卡片均使用翡翠色系，与现有概览卡片视觉一致
+- 使用useCountUp动画效果
+
+#### 5. 供应商搜索增强 (settings-tab.tsx)
+- 供应商列表新增搜索输入框（Search图标）
+- 按名称/联系人/电话实时搜索
+- 300ms防抖
+- 显示"找到 N 个供应商"结果计数
+- 搜索无结果时显示空状态提示
+
+#### 6. 操作日志导出CSV (logs-tab.tsx)
+- "导出CSV"按钮（FileDown图标），无数据时禁用
+- CSV列: 操作时间, 操作类型, 操作详情, 操作人
+- BOM兼容Excel UTF-8编码
+- 正确转义引号/逗号
+- 下载为 `操作日志_YYYY-MM-DD.csv`
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ Items API: 200 OK（curl验证）
+
+### 关键文件变更
+- `src/components/inventory/inventory-tab.tsx` — 图片灯箱画廊 + 出库客户选择
+- `src/components/inventory/batches-tab.tsx` — 批次搜索（300ms防抖）
+- `src/components/inventory/dashboard-tab.tsx` — KPI增强（周转天数 + 今日利润率）
+- `src/components/inventory/settings-tab.tsx` — 供应商搜索增强
+- `src/components/inventory/logs-tab.tsx` — 操作日志CSV导出
+
+### Bug修复
+- `batches-tab.tsx`: useMemo放在early return之后导致React hooks规则违反 → 移动到early return之前
+
+### 未解决问题/风险
+- ⚠️ 容器内存限制（Chrome + Next.js dev server 无法同时运行，agent-browser QA受限）
+
+### 下一阶段优先建议
+1. 🔴 器型必填参数联动（手镯→圈口, 戒指→尺寸, 手串/项链→珠子大小）
+2. 🔴 数据导入（~2000条存量数据）
+3. 🟡 登录认证增强（JWT持久化到数据库）
+4. 🟡 批量操作UI增强
+5. 🟡 扫码快速出库优化
+6. 🟡 图片缩略图生成
+7. 🟡 搜索/筛选增强（按柜台号、价格区间等）
+
+---
+
+Task ID: 23
+Agent: cron-agent
+Task: QA + 6项功能开发
+
+Work Log:
+- 读取 /home/z/my-project/worklog.md 了解完整项目历史（Task 9-22）
+- bun run lint → 0 errors, 0 warnings
+- 启动 dev server + curl API 测试 → Items API 200 OK（server后续OOM被杀）
+- agent-browser QA → 确认容器OOM限制（已知问题）
+- full-stack-developer 子代理完成6项功能开发
+- Lint修复：batches-tab.tsx hooks顺序
+- 最终 lint → 0 errors, 0 warnings
+- GitHub 推送 → 成功 (1b4433c..4c7cac5)
+- 更新 worklog.md
+
+Stage Summary:
+- 6项功能开发（灯箱画廊 + 出库客户选择 + 批次搜索 + Dashboard KPI + 供应商搜索 + 日志CSV导出）
+- 5 files changed, 330 insertions, 20 deletions
+- ESLint 0 errors, 0 warnings
+- GitHub 推送成功
