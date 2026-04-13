@@ -690,3 +690,111 @@ Stage Summary:
 
 ### 验证结果
 - ✅ bun run lint — 0 errors, 0 warnings
+
+---
+
+## Task 14: Toast通知 + 供应商电话 + CSV导出 + 中文化 + UI增强 (2026-04-13)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（2bf0458..93e1906 main → main）
+- ✅ 7个API端点验证通过（Homepage/Customers/Items/Sales/Batches/Suppliers/Logs）
+- ✅ Prisma schema 新增 Supplier.phone 字段已生效（db push 成功）
+- ⚠️ agent-browser 仍然无法与 dev server 同时运行（容器OOM限制，已知问题）
+
+### 本轮完成的7项改动
+
+#### 1. Toast通知系统集成 (page.tsx)
+- 在 `page.tsx` 添加 `<Toaster richColors position="top-right" />` 组件
+- 所有CRUD操作已有 `toast.success/error/warning` 调用（之前缺少Toaster DOM渲染）
+- 覆盖操作：货品创建/编辑、销售/退货、客户CRUD、供应商CRUD、批次CRUD、套装销售
+
+#### 2. 供应商电话字段 + tel:链接
+- **Prisma schema**: Supplier 模型新增 `phone String?` 字段
+- **数据库**: `prisma db push` 成功应用
+- **settings-tab.tsx**: 
+  - supplierForm 状态新增 phone 字段
+  - 创建/编辑对话框新增电话输入框（Phone图标）
+  - 供应商卡片电话号码渲染为可点击的 `<a href="tel:...">` 链接
+
+#### 3. 销售记录CSV导出 (sales-tab.tsx)
+- 新增 `handleExportCSV()` 函数：客户端生成CSV文件
+- CSV列：销售日期, SKU, 货品名称, 客户, 售价, 成本, 利润, 渠道, 柜台号
+- 包含BOM（`\uFEFF`）兼容 Excel UTF-8 编码
+- 正确处理引号/逗号转义
+- "导出CSV"按钮（FileDown图标），无数据时禁用
+
+#### 4. 界面中文化完善
+- **page.tsx**: `Powered by Z.ai` → `技术支持: Z.ai`
+- **dashboard-tab.tsx**: Recharts 所有 `name` props 从英文改为中文：
+  - totalRevenue → 营收, totalProfit → 利润
+  - revenue → 销售额, profit → 毛利, salesCount → 销量
+  - cogs → 销售成本, avgInventoryValue → 平均库存, turnoverRate → 周转率
+  - count → 件数, totalValue → 货值
+- 同步简化 Tooltip/Legend formatter（name 已是中文，无需映射）
+
+#### 5. Dashboard 数字等宽显示 (dashboard-tab.tsx)
+- 4个概览卡片数字添加 `tabular-nums` class
+- 防止数字更新时位宽跳动
+
+#### 6. 库存表格交替行色 (inventory-tab.tsx)
+- 桌面端表格行添加 `even:bg-muted/20` 斑马纹
+- 提升长列表可读性
+
+#### 7. 销售汇总行样式增强 (sales-tab.tsx)
+- 桌面汇总行/移动端汇总卡片从 `bg-muted/40 font-medium` 改为 `bg-emerald-50/50 dark:bg-emerald-950/20 font-semibold`
+- 视觉上更突出
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ Suppliers API 返回 phone 字段（null，待用户填写）
+- ✅ Homepage / Items / Sales API 全部 200 OK
+
+### 关键文件变更
+- `src/app/page.tsx` — Toaster组件 + "技术支持: Z.ai"
+- `prisma/schema.prisma` — Supplier.phone 字段
+- `src/components/inventory/settings-tab.tsx` — 供应商电话输入 + tel:链接
+- `src/components/inventory/sales-tab.tsx` — CSV导出 + 汇总行样式
+- `src/components/inventory/dashboard-tab.tsx` — Recharts中文化 + tabular-nums
+- `src/components/inventory/inventory-tab.tsx` — 交替行色
+
+### 未解决问题/风险
+- ⚠️ 容器内存限制（Chrome + Next.js dev server 无法同时运行，agent-browser QA受限）
+
+### 下一阶段优先建议
+1. 🟡 批量操作UI增强（选中体验优化、批量编辑、批量标签打印）
+2. 🟡 数据导入功能完善（~2000条存量数据批量导入）
+3. 🟡 手机端摄像头扫码快速出库（已有html5-qrcode基础，优化交互流程）
+4. 🟡 材质下拉级联优化（材质→子类→产地三级联动）
+5. 🟡 图片缩略图生成（上传时自动生成，减少大图加载延迟）
+6. 🟡 柜台号必填验证（入库时校验）
+7. 🟢 登录认证增强（JWT持久化到数据库，支持多用户）
+8. 🟢 数据备份自动化（定时自动备份SQLite数据库）
+9. 🟢 供应商联系人电话一键拨打（已实现tel:链接，可添加message:短信链接）
+
+---
+
+Task ID: 14
+Agent: cron-agent
+Task: QA + Toast通知 + 供应商电话 + CSV导出 + 中文化 + UI增强
+
+Work Log:
+- 读取 worklog.md 了解完整项目历史
+- bun run lint → 0 errors, 0 warnings
+- 启动 dev server + API 测试 → 7/7 通过
+- agent-browser QA → 确认容器OOM限制（已知问题）
+- Explore 子代理扫描21个组件文件完成中文化审查（仅1处英文+11处Recharts可选）
+- 快速修复：Powered by Z.ai → 技术支持: Z.ai
+- 快速修复：11处 Recharts name props 全部中文化 + Legend/Tooltip简化
+- full-stack-developer 子代理完成4项功能开发（Toast+供应商电话+CSV导出+UI增强）
+- Prisma db push 成功（Supplier.phone）
+- 最终 lint → 0 errors, 0 warnings
+- 最终 API 验证 → 通过
+- GitHub 推送 → 成功 (2bf0458..93e1906)
+- 更新 worklog.md
+
+Stage Summary:
+- 7项改动（Toast通知 + 供应商电话字段 + 销售CSV导出 + 界面中文化 + 数字等宽 + 交替行色 + 汇总行样式）
+- 7 files changed, 89 insertions, 40 deletions
+- 中文化审查结果：全项目仅1处可见英文（已修复），11处Recharts内部key（已全部中文化）
+- 所有API和代码验证通过
