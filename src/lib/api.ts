@@ -80,6 +80,19 @@ export const itemsApi = {
     request<any>(`/items/${id}`, { method: 'DELETE' }),
   createItemsBatch: (data: any) =>
     request<any>('/items/batch', { method: 'POST', body: JSON.stringify(data) }),
+  lookupBySku: (sku: string) => request<any>(`/items/lookup?sku=${encodeURIComponent(sku)}`),
+  uploadImage: async (itemId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await fetch(`${BASE}/items/${itemId}/images`, { method: 'POST', body: formData });
+    const json = await res.json();
+    if (json.code !== 0 && json.code !== 200) throw new Error(json.message || '上传失败');
+    return json.data;
+  },
+  deleteImage: (itemId: number, imageId: number) =>
+    request<any>(`/items/${itemId}/images?image_id=${imageId}`, { method: 'DELETE' }),
+  setCoverImage: (itemId: number, imageId: number) =>
+    request<any>(`/items/${itemId}/images`, { method: 'PUT', body: JSON.stringify({ imageId }) }),
 };
 
 // ========== Sales ==========
@@ -92,6 +105,8 @@ export const salesApi = {
     request<any>('/sales', { method: 'POST', body: JSON.stringify(data) }),
   createBundleSale: (data: any) =>
     request<any>('/sales/bundle', { method: 'POST', body: JSON.stringify(data) }),
+  returnSale: (data: any) =>
+    request<any>('/sales/return', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ========== Customers ==========
@@ -119,6 +134,14 @@ export const suppliersApi = {
     request<any>(`/suppliers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteSupplier: (id: number) =>
     request<any>(`/suppliers/${id}`, { method: 'DELETE' }),
+};
+
+// ========== Logs ==========
+export const logsApi = {
+  getLogs: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any>(`/logs${qs}`);
+  },
 };
 
 // ========== Dashboard ==========
@@ -178,6 +201,12 @@ export const metalApi = {
     request<any>('/metal-prices/reprice', { method: 'POST', body: JSON.stringify(data) }),
   confirmReprice: (data: any) =>
     request<any>('/metal-prices/reprice/confirm', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ========== Pricing ==========
+export const pricingApi = {
+  calculate: (data: any) =>
+    request<any>('/pricing', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ========== Export ==========

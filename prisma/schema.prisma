@@ -164,6 +164,7 @@ model Item {
   tags          DictTag[]    @relation("ItemTags")
   itemTags      ItemTag[]
   saleRecords   SaleRecord[]
+  saleReturns   SaleReturn[]
 
   @@index([status])
   @@index([materialId])
@@ -238,6 +239,7 @@ model SaleRecord {
   item        Item        @relation(fields: [itemId], references: [id])
   customer    Customer?   @relation(fields: [customerId], references: [id])
   bundle      BundleSale? @relation(fields: [bundleId], references: [id])
+  saleReturns SaleReturn[]
 
   @@index([saleDate])
   @@index([channel])
@@ -277,4 +279,54 @@ model MetalPrice {
   material      DictMaterial @relation(fields: [materialId], references: [id])
 
   @@map("metal_prices")
+}
+
+// ──────────────────────────────────────────────
+// 15. users — 管理员用户
+// ──────────────────────────────────────────────
+model User {
+  id              Int      @id @default(autoincrement())
+  username        String   @unique
+  passwordHash    String   @map("password_hash")
+  mustChangePwd   Boolean  @default(true) @map("must_change_pwd")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// ──────────────────────────────────────────────
+// 16. sale_returns — 销售退货记录
+// ──────────────────────────────────────────────
+model SaleReturn {
+  id            Int      @id @default(autoincrement())
+  saleId        Int      @map("sale_id")
+  itemId        Int      @map("item_id")
+  refundAmount  Float    @map("refund_amount")
+  returnReason  String   @map("return_reason")
+  returnDate    String   @map("return_date") // YYYY-MM-DD format string
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  sale          SaleRecord @relation(fields: [saleId], references: [id])
+  item          Item        @relation(fields: [itemId], references: [id])
+
+  @@map("sale_returns")
+}
+
+// ──────────────────────────────────────────────
+// 17. operation_log — 操作日志
+// ──────────────────────────────────────────────
+model OperationLog {
+  id          Int      @id @default(autoincrement())
+  action      String                  // create_item, sell_item, return_sale, edit_item, delete_item, allocate_batch
+  targetType  String                  // item, sale, batch, customer, supplier
+  targetId    Int?                    // target entity id
+  detail      String?                 // JSON string of key changes
+  operator    String   @default("admin")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([action])
+  @@index([targetType])
+  @@index([createdAt])
+  @@map("operation_log")
 }

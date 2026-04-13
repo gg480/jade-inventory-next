@@ -39,9 +39,59 @@ export async function GET(req: Request) {
     take: size,
   });
 
+  // Aggregate total spending per customer
+  const customerIds = items.map(c => c.id);
+  const spendingAgg = await db.saleRecord.groupBy({
+    by: ['customerId'],
+    where: { customerId: { in: customerIds } },
+    _sum: { actualPrice: true },
+    _count: { id: true },
+  });
+
+  const spendingMap = new Map<number, { totalSpending: number; orderCount: number }>();
+  for (const agg of spendingAgg) {
+    if (agg.customerId) {
+      spendingMap.set(agg.customerId, {
+        totalSpending: agg._sum.actualPrice || 0,
+        orderCount: agg._count.id,
+      });
+    }
+  }
+
+  // Calculate stats
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const [totalCustomers, newThisMonth, totalSpendingAll] = await Promise.all([
+    db.customer.count({ where: { isActive: true } }),
+    db.customer.count({ where: { isActive: true, createdAt: { gte: new Date(monthStart) } } }),
+    db.saleRecord.aggregate({ _sum: { actualPrice: true } }),
+  ]);
+
+  const avgOrderValue = totalSpendingAll._sum.actualPrice
+    ? Math.round((totalSpendingAll._sum.actualPrice / Math.max(totalCustomers, 1)) * 100) / 100
+    : 0;
+
+  const itemsWithSpending = items.map(c => {
+    const spending = spendingMap.get(c.id) || { totalSpending: 0, orderCount: 0 };
+    return {
+      ...c,
+      totalSpending: spending.totalSpending,
+      orderCount: spending.orderCount,
+    };
+  });
+
   return NextResponse.json({
     code: 0,
-    data: { items, pagination: { total, page, size, pages: Math.ceil(total / size) } },
+    data: {
+      items: itemsWithSpending,
+      pagination: { total, page, size, pages: Math.ceil(total / size) },
+      stats: {
+        totalCustomers,
+        newThisMonth,
+        totalSpending: totalSpendingAll._sum.actualPrice || 0,
+        avgOrderValue,
+      },
+    },
     message: 'ok',
   });
 }

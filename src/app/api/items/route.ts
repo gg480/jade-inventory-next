@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logAction } from '@/lib/log';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -11,6 +12,8 @@ export async function GET(req: Request) {
   const batchId = searchParams.get('batch_id');
   const counter = searchParams.get('counter');
   const keyword = searchParams.get('keyword');
+  const sortBy = searchParams.get('sort_by') || 'created_at';
+  const sortOrder = searchParams.get('sort_order') || 'desc';
 
   const where: any = { isDeleted: false };
   if (materialId) where.materialId = parseInt(materialId);
@@ -27,6 +30,24 @@ export async function GET(req: Request) {
     ];
   }
 
+  // Build order by clause
+  const validSortFields = ['created_at', 'selling_price', 'cost_price', 'purchase_date', 'sku_code', 'name'];
+  const field = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+  const direction = sortOrder === 'asc' ? 'asc' : 'desc';
+
+  // Map field names to Prisma field names
+  const fieldMap: Record<string, string> = {
+    created_at: 'createdAt',
+    selling_price: 'sellingPrice',
+    cost_price: 'costPrice',
+    purchase_date: 'purchaseDate',
+    sku_code: 'skuCode',
+    name: 'name',
+  };
+  const orderByField = fieldMap[field] || 'createdAt';
+  const orderBy: any = {};
+  orderBy[orderByField] = direction;
+
   const total = await db.item.count({ where });
   const items = await db.item.findMany({
     where,
@@ -36,9 +57,9 @@ export async function GET(req: Request) {
       spec: true,
       tags: true,
       images: { where: { isCover: true }, take: 1 },
-      batch: { select: { purchaseDate: true, batchCode: true } },
+      batch: { select: { purchaseDate: true, batchCode: true, totalCost: true, quantity: true } },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy,
     skip: (page - 1) * size,
     take: size,
   });
@@ -50,6 +71,10 @@ export async function GET(req: Request) {
     const ageDays = effectivePurchaseDate
       ? Math.floor((today.getTime() - new Date(effectivePurchaseDate).getTime()) / (1000 * 60 * 60 * 24))
       : null;
+    // For batch items without allocated cost, show estimated cost
+    const estimatedCost = (!item.allocatedCost && item.batchId && item.batch)
+      ? Math.round((item.batch.totalCost / item.batch.quantity) * 100) / 100
+      : null;
     return {
       ...item,
       purchaseDate: effectivePurchaseDate,
@@ -57,6 +82,7 @@ export async function GET(req: Request) {
       typeName: item.type?.name,
       ageDays,
       coverImage: item.images[0]?.filename || null,
+      estimatedCost,
     };
   });
 
@@ -151,6 +177,15 @@ export async function POST(req: Request) {
         } : {}),
       },
       include: { material: true, type: true, spec: true, tags: true },
+    });
+
+    // Log create_item
+    await logAction('create_item', 'item', item.id, {
+      skuCode: item.skuCode,
+      name: item.name,
+      materialId: finalMaterialId,
+      costPrice: costPrice ?? null,
+      sellingPrice,
     });
 
     return NextResponse.json({ code: 0, data: item, message: 'ok' });

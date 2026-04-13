@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logAction } from '@/lib/log';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,6 +51,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const { tagIds, spec, ...data } = body;
 
   try {
+    // Get original item for logging
+    const original = await db.item.findUnique({ where: { id: parseInt(id) } });
+
     // Update tags if provided
     if (tagIds !== undefined) {
       await db.itemTag.deleteMany({ where: { itemId: parseInt(id) } });
@@ -73,6 +77,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       include: { material: true, type: true, spec: true, tags: true },
     });
 
+    // Log edit_item with changed fields
+    if (original) {
+      const changes: Record<string, { from: unknown; to: unknown }> = {};
+      const trackedFields = ['skuCode', 'name', 'materialId', 'typeId', 'costPrice', 'allocatedCost', 'sellingPrice', 'floorPrice', 'status', 'counter', 'origin', 'certNo', 'notes', 'supplierId', 'purchaseDate'];
+      for (const field of trackedFields) {
+        const oldVal = (original as any)[field];
+        const newVal = (item as any)[field];
+        if (oldVal !== newVal) {
+          changes[field] = { from: oldVal, to: newVal };
+        }
+      }
+      if (Object.keys(changes).length > 0) {
+        await logAction('edit_item', 'item', item.id, changes);
+      }
+    }
+
     return NextResponse.json({ code: 0, data: item, message: 'ok' });
   } catch (e: any) {
     return NextResponse.json({ code: 500, data: null, message: `更新失败: ${e.message}` }, { status: 500 });
@@ -82,9 +102,20 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    const item = await db.item.findUnique({ where: { id: parseInt(id) } });
     await db.item.update({ where: { id: parseInt(id) }, data: { isDeleted: true } });
+
+    // Log delete_item
+    if (item) {
+      await logAction('delete_item', 'item', item.id, {
+        skuCode: item.skuCode,
+        name: item.name,
+        status: item.status,
+      });
+    }
+
     return NextResponse.json({ code: 0, data: null, message: 'ok' });
   } catch (e: any) {
-    return NextResponse.json({ code: 500, data: null, message: '删除失败' }, { status: 500 });
+    return NextResponse.json({ code: 500, data: null, message: `删除失败: ${e.message}` }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logAction } from '@/lib/log';
 
 // POST /api/batches/[id]/allocate — Trigger cost allocation
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -66,7 +67,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   // Apply allocation + pricing engine
-  const results = [];
+  const results: any[] = [];
   for (let i = 0; i < items.length; i++) {
     const allocatedCost = allocatedCosts[i];
     const floorPrice = Math.round(allocatedCost * (1 + operatingCostRate) * 100) / 100;
@@ -85,6 +86,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
     results.push({ skuCode: items[i].skuCode, allocatedCost, floorPrice, suggestedSellingPrice });
   }
+
+  // Log allocate_batch
+  await logAction('allocate_batch', 'batch', batchId, {
+    batchCode: batch.batchCode,
+    method: batch.costAllocMethod,
+    itemCount: items.length,
+    totalCost: batch.totalCost,
+  });
 
   return NextResponse.json({ code: 0, data: { items: results }, message: '分摊完成' });
 }

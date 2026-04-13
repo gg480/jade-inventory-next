@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { logAction } from '@/lib/log';
 
 // Auto-generate sale number
 async function generateSaleNo(): Promise<string> {
@@ -78,6 +79,15 @@ export async function POST(req: Request) {
 
   // Update item status
   await db.item.update({ where: { id: itemId }, data: { status: 'sold' } });
+
+  // Log sell_item
+  await logAction('sell_item', 'sale', record.id, {
+    saleNo,
+    itemSku: item.skuCode,
+    actualPrice,
+    channel,
+    saleDate,
+  });
 
   return NextResponse.json({ code: 0, data: record, message: 'ok' });
 }
