@@ -8,6 +8,8 @@ import ItemCreateDialog from './item-create-dialog';
 import ItemDetailDialog from './item-detail-dialog';
 import ItemEditDialog from './item-edit-dialog';
 import LabelPrintDialog from './label-print-dialog';
+import BarcodeScanner from './barcode-scanner';
+import { MATERIAL_CATEGORIES } from './settings-tab';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
-  Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUpDown, ArrowUp, ArrowDown,
+  Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUpDown, ArrowUp, ArrowDown, Camera,
 } from 'lucide-react';
 
 // ========== Inventory Tab ==========
@@ -30,7 +32,7 @@ function InventoryTab() {
   const [materials, setMaterials] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, size: 20, pages: 0 });
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ materialId: '', status: 'in_stock', keyword: '', counter: '' });
+  const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '' });
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -44,8 +46,15 @@ function InventoryTab() {
   const [scanSku, setScanSku] = useState('');
   const [scanLoading, setScanLoading] = useState(false);
   const [printLabelItem, setPrintLabelItem] = useState<any>(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   useEffect(() => { dictsApi.getMaterials().then(setMaterials).catch(() => {}); }, []);
+
+  // 根据大类筛选材质
+  const filteredMaterials = materials.filter((m: any) => {
+    if (!filters.materialCategory) return true;
+    return m.category === filters.materialCategory;
+  });
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -113,6 +122,24 @@ function InventoryTab() {
     }
   }
 
+  async function handleBarcodeScan(code: string) {
+    setShowScanner(false);
+    setScanLoading(true);
+    try {
+      const item = await itemsApi.lookupBySku(code.trim());
+      if (item.status === 'in_stock') {
+        setSaleDialog({ open: true, item });
+        setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' });
+      } else {
+        toast.error(`货品 ${item.skuCode} 当前状态为「${item.status === 'sold' ? '已售' : item.status === 'returned' ? '已退' : item.status}」，无法出库`);
+      }
+    } catch {
+      toast.error(`未找到条码「${code}」对应的货品`);
+    } finally {
+      setScanLoading(false);
+    }
+  }
+
   function toggleSortOrder() {
     setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
   }
@@ -147,6 +174,25 @@ function InventoryTab() {
             />
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={handleScanSku} disabled={scanLoading || !scanSku.trim()}>
               {scanLoading ? '查询中...' : '出库'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 md:hidden border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3"
+              onClick={() => setShowScanner(true)}
+              disabled={scanLoading}
+            >
+              <Camera className="h-4 w-4 mr-1" /> 扫码
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 hidden md:flex border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              onClick={() => setShowScanner(true)}
+              disabled={scanLoading}
+              title="摄像头扫码"
+            >
+              <Camera className="h-4 w-4" />
             </Button>
           </div>
         </CardContent>
@@ -183,12 +229,24 @@ function InventoryTab() {
       {/* Filters + Actions */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <div className="space-y-1"><Label className="text-xs">关键词</Label><Input placeholder="SKU/名称/证书" value={filters.keyword} onChange={e => setFilters(f => ({ ...f, keyword: e.target.value }))} className="h-9" /></div>
+            <div className="space-y-1"><Label className="text-xs">材质大类</Label>
+              <Select value={filters.materialCategory} onValueChange={v => {
+                const cat = v === '_all' ? '' : v;
+                setFilters(f => ({ ...f, materialCategory: cat, materialId: '' }));
+              }}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="全部大类" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_all">全部大类</SelectItem>
+                  {MATERIAL_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1"><Label className="text-xs">材质</Label>
               <Select value={filters.materialId} onValueChange={v => setFilters(f => ({ ...f, materialId: v }))}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="全部" /></SelectTrigger>
-                <SelectContent><SelectItem value="all">全部材质</SelectItem>{materials.map(m => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
+                <SelectTrigger className="h-9"><SelectValue placeholder="全部材质" /></SelectTrigger>
+                <SelectContent><SelectItem value="all">全部材质</SelectItem>{filteredMaterials.map(m => <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-1"><Label className="text-xs">状态</Label>
@@ -200,7 +258,7 @@ function InventoryTab() {
             <div className="space-y-1"><Label className="text-xs">柜台</Label><Input type="number" placeholder="柜台号" value={filters.counter} onChange={e => setFilters(f => ({ ...f, counter: e.target.value }))} className="h-9" /></div>
             <div className="flex items-end gap-2">
               <Button size="sm" onClick={() => { setPagination(p => ({ ...p, page: 1 })); fetchItems(); }} className="h-9"><Search className="h-3 w-3 mr-1" />搜索</Button>
-              <Button size="sm" variant="outline" onClick={() => setFilters({ materialId: '', status: 'in_stock', keyword: '', counter: '' })} className="h-9">重置</Button>
+              <Button size="sm" variant="outline" onClick={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '' })} className="h-9">重置</Button>
             </div>
           </div>
           <div className="flex items-center justify-between mt-3">
@@ -390,6 +448,9 @@ function InventoryTab() {
 
       {/* Label Print Dialog */}
       <LabelPrintDialog item={printLabelItem} open={printLabelItem !== null} onOpenChange={open => { if (!open) setPrintLabelItem(null); }} />
+
+      {/* Barcode Scanner Dialog */}
+      <BarcodeScanner open={showScanner} onClose={() => setShowScanner(false)} onScan={handleBarcodeScan} />
     </div>
   );
 }

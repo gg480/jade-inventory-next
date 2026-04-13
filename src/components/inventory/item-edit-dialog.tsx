@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { itemsApi, dictsApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, StatusBadge } from './shared';
+import { parseSpecFields, SPEC_FIELD_LABEL_MAP } from './settings-tab';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,26 +65,38 @@ function ItemEditDialog({ itemId, open, onOpenChange, onSuccess }: { itemId: num
     }
   }, [open, itemId]);
 
-  const specFieldLabels: Record<string, string> = {
-    weight: '克重(g)', metalWeight: '金重(g)', size: '尺寸', braceletSize: '圈口',
-    beadCount: '颗数', beadDiameter: '珠径', ringSize: '戒圈',
-  };
-
   const selectedType = types.find((t: any) => String(t.id) === String(item?.typeId));
-  let specFields: string[] = [];
-  try { specFields = selectedType?.specFields ? JSON.parse(selectedType.specFields) : []; } catch { specFields = []; }
+  const specFieldsObj = parseSpecFields(selectedType?.specFields);
+  const specFieldKeys = Object.keys(specFieldsObj);
 
   function toggleTag(tagId: number) {
     const ids = form.tagIds.includes(tagId) ? form.tagIds.filter(id => id !== tagId) : [...form.tagIds, tagId];
     setForm(f => ({ ...f, tagIds: ids }));
   }
 
+  // 校验必填字段
+  function validateRequiredFields(): string | null {
+    // 柜台号必填
+    if (!form.counter) return '请输入柜台号';
+    // 器型必填规格字段
+    for (const field of specFieldKeys) {
+      if (specFieldsObj[field]?.required && !(form as any)[field]) {
+        const label = SPEC_FIELD_LABEL_MAP[field] || field;
+        return `请输入${label}`;
+      }
+    }
+    return null;
+  }
+
   async function handleSave() {
     if (!itemId) return;
+    const validationError = validateRequiredFields();
+    if (validationError) { toast.error(validationError); return; }
+
     setSaving(true);
     try {
       const spec: Record<string, any> = {};
-      specFields.forEach(f => { if ((form as any)[f]) spec[f] = (form as any)[f]; });
+      specFieldKeys.forEach(f => { if ((form as any)[f]) spec[f] = (form as any)[f]; });
       await itemsApi.updateItem(itemId, {
         name: form.name || undefined,
         sellingPrice: form.sellingPrice,
@@ -134,44 +147,66 @@ function ItemEditDialog({ itemId, open, onOpenChange, onSuccess }: { itemId: num
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label className="text-xs">产地</Label><Input value={form.origin} onChange={e => setForm(f => ({ ...f, origin: e.target.value }))} className="h-9" /></div>
-              <div className="space-y-1"><Label className="text-xs">柜台号</Label><Input value={form.counter} onChange={e => setForm(f => ({ ...f, counter: e.target.value }))} className="h-9" /></div>
+              <div className="space-y-1"><Label className="text-xs">柜台号 <span className="text-red-500">*</span></Label><Input value={form.counter} onChange={e => setForm(f => ({ ...f, counter: e.target.value }))} className="h-9" /></div>
             </div>
             <div className="space-y-1"><Label className="text-xs">证书号</Label><Input value={form.certNo} onChange={e => setForm(f => ({ ...f, certNo: e.target.value }))} className="h-9" /></div>
 
             {/* Dynamic spec fields */}
-            {specFields.length > 0 && (
+            {specFieldKeys.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
-                {specFields.map((field: string) => (
-                  <div key={field} className="space-y-1">
-                    <Label className="text-xs">{specFieldLabels[field] || field}</Label>
-                    <Input
-                      type={field === 'beadCount' ? 'number' : 'text'}
-                      value={(form as any)[field] || ''}
-                      onChange={e => setForm({ ...form, [field]: e.target.value })}
-                      className="h-9"
-                      placeholder={specFieldLabels[field] || field}
-                    />
-                  </div>
-                ))}
+                {specFieldKeys.map((field: string) => {
+                  const isRequired = specFieldsObj[field]?.required ?? false;
+                  const label = SPEC_FIELD_LABEL_MAP[field] || field;
+                  return (
+                    <div key={field} className="space-y-1">
+                      <Label className="text-xs">
+                        {label}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+                      </Label>
+                      <Input
+                        type={field === 'beadCount' ? 'number' : 'text'}
+                        value={(form as any)[field] || ''}
+                        onChange={e => setForm({ ...form, [field]: e.target.value })}
+                        className="h-9"
+                        placeholder={label}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             <div className="space-y-1"><Label className="text-xs">备注</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="可选" className="h-16" /></div>
 
-            {/* Tags */}
-            {tags.length > 0 && (
-              <div className="space-y-1">
-                <Label className="text-xs">标签</Label>
-                <div className="flex flex-wrap gap-2">
-                  {tags.filter((t: any) => t.isActive).map((tag: any) => (
-                    <label key={tag.id} className="flex items-center gap-1 cursor-pointer">
-                      <Checkbox checked={form.tagIds.includes(tag.id)} onCheckedChange={() => toggleTag(tag.id)} />
-                      <span className="text-xs">{tag.name}</span>
-                    </label>
+            {/* Tags - Grouped */}
+            {tags.length > 0 && (() => {
+              const activeTags = tags.filter((t: any) => t.isActive);
+              const groups = activeTags.reduce((acc: any, tag: any) => {
+                const g = tag.groupName || '未分组';
+                if (!acc[g]) acc[g] = [];
+                acc[g].push(tag);
+                return acc;
+              }, {});
+              const groupKeys = Object.keys(groups);
+              const singleGroup = groupKeys.length === 1 && groupKeys[0] === '未分组';
+              return (
+                <div className="space-y-2">
+                  <Label className="text-xs">标签</Label>
+                  {groupKeys.map(group => (
+                    <div key={group}>
+                      {!singleGroup && <p className="text-xs font-medium text-muted-foreground mb-1">{group}</p>}
+                      <div className="flex flex-wrap gap-2">
+                        {groups[group].map((tag: any) => (
+                          <label key={tag.id} className="flex items-center gap-1 cursor-pointer">
+                            <Checkbox checked={form.tagIds.includes(tag.id)} onCheckedChange={() => toggleTag(tag.id)} />
+                            <span className="text-xs">{tag.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         ) : (
           <div className="py-8 text-center text-muted-foreground">未找到货品信息</div>

@@ -222,6 +222,30 @@ export const pricingApi = {
     request<any>('/pricing', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+// ========== Import ==========
+export const importApi = {
+  importItems: async (file: File, options?: { autoCreate?: boolean; skipExisting?: boolean }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('autoCreate', String(options?.autoCreate ?? true));
+    formData.append('skipExisting', String(options?.skipExisting ?? true));
+    const res = await fetch(`${BASE}/import/items`, { method: 'POST', body: formData });
+    const json = await res.json();
+    if (json.code !== 0 && json.code !== 200) throw new Error(json.message || '导入失败');
+    return json.data;
+  },
+  importSales: async (file: File, options?: { autoCreate?: boolean }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('autoCreate', String(options?.autoCreate ?? true));
+    const res = await fetch(`${BASE}/import/sales`, { method: 'POST', body: formData });
+    const json = await res.json();
+    if (json.code !== 0 && json.code !== 200) throw new Error(json.message || '导入失败');
+    return json.data;
+  },
+  downloadTemplate: (type: 'items' | 'sales') => `${BASE}/import/template?type=${type}`,
+};
+
 // ========== Export ==========
 export const exportApi = {
   inventory: (params?: Record<string, any>) => {

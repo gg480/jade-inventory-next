@@ -13,10 +13,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { name, subType, origin, costPerGram, sortOrder } = body;
+  const { name, category, subType, origin, costPerGram, sortOrder } = body;
   try {
     const item = await db.dictMaterial.create({
-      data: { name, subType, origin, costPerGram, sortOrder: sortOrder ?? 0 },
+      data: { name, category, subType, origin, costPerGram, sortOrder: sortOrder ?? 0 },
     });
     return NextResponse.json({ code: 0, data: item, message: 'ok' });
   } catch (e: any) {

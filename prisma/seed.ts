@@ -21,74 +21,74 @@ async function main() {
   }
   console.log('✅ 系统配置已插入 (4条)');
 
-  // 2. 材质 (36种)
+  // 2. 材质 (36种) — 含 category 大类
   const materials = [
-    { name: '黄金', subType: 'k999', sortOrder: 1 },
-    { name: '银', subType: '990', costPerGram: 25, sortOrder: 2 },
-    { name: 'k铂金', sortOrder: 3 },
-    { name: '铂金', sortOrder: 4 },
-    { name: '18K金', costPerGram: 780, sortOrder: 5 },
-    { name: '翡翠', origin: '缅甸', sortOrder: 6 },
-    { name: '和田玉', sortOrder: 7 },
-    { name: '珍珠', subType: '淡水珠', origin: '浙江', sortOrder: 8 },
-    { name: '朱砂', sortOrder: 9 },
-    { name: '蜜蜡', sortOrder: 10 },
-    { name: '碧玺', sortOrder: 11 },
-    { name: '青金石', sortOrder: 12 },
-    { name: '黑曜石', sortOrder: 13 },
-    { name: '金曜石', sortOrder: 14 },
-    { name: '玛瑙', sortOrder: 15 },
-    { name: '琥珀', sortOrder: 16 },
-    { name: '锆石', origin: '梧州', sortOrder: 17 },
-    { name: '斑彩螺', origin: '意大利', sortOrder: 18 },
-    { name: '金虎眼', sortOrder: 19 },
-    { name: '虎眼', sortOrder: 20 },
-    { name: '粉晶', sortOrder: 21 },
-    { name: '紫水晶', sortOrder: 22 },
-    { name: '莹石', sortOrder: 23 },
-    { name: '绿幽灵', sortOrder: 24 },
-    { name: '白幽灵', sortOrder: 25 },
-    { name: '彩幽灵', sortOrder: 26 },
-    { name: '金发晶', sortOrder: 27 },
-    { name: '钛晶', sortOrder: 28 },
-    { name: '巴西黄水晶', sortOrder: 29 },
-    { name: '人工黄水晶', sortOrder: 30 },
-    { name: '红幽灵', sortOrder: 31 },
-    { name: '蓝晶石', sortOrder: 32 },
-    { name: '海蓝宝', sortOrder: 33 },
-    { name: '天河石', sortOrder: 34 },
-    { name: '红绿宝石共生', sortOrder: 35 },
-    { name: '车花透辉石', sortOrder: 36 },
+    { name: '黄金', category: '贵金属', subType: 'k999', sortOrder: 1 },
+    { name: '银', category: '贵金属', subType: '990', costPerGram: 25, sortOrder: 2 },
+    { name: 'k铂金', category: '贵金属', sortOrder: 3 },
+    { name: '铂金', category: '贵金属', sortOrder: 4 },
+    { name: '18K金', category: '贵金属', costPerGram: 780, sortOrder: 5 },
+    { name: '翡翠', category: '玉', origin: '缅甸', sortOrder: 6 },
+    { name: '和田玉', category: '玉', sortOrder: 7 },
+    { name: '珍珠', category: '其他', subType: '淡水珠', origin: '浙江', sortOrder: 8 },
+    { name: '朱砂', category: '文玩', sortOrder: 9 },
+    { name: '蜜蜡', category: '文玩', sortOrder: 10 },
+    { name: '碧玺', category: '水晶', sortOrder: 11 },
+    { name: '青金石', category: '水晶', sortOrder: 12 },
+    { name: '黑曜石', category: '水晶', sortOrder: 13 },
+    { name: '金曜石', category: '水晶', sortOrder: 14 },
+    { name: '玛瑙', category: '水晶', sortOrder: 15 },
+    { name: '琥珀', category: '文玩', sortOrder: 16 },
+    { name: '锆石', category: '其他', origin: '梧州', sortOrder: 17 },
+    { name: '斑彩螺', category: '其他', origin: '意大利', sortOrder: 18 },
+    { name: '金虎眼', category: '水晶', sortOrder: 19 },
+    { name: '虎眼', category: '水晶', sortOrder: 20 },
+    { name: '粉晶', category: '水晶', sortOrder: 21 },
+    { name: '紫水晶', category: '水晶', sortOrder: 22 },
+    { name: '莹石', category: '水晶', sortOrder: 23 },
+    { name: '绿幽灵', category: '水晶', sortOrder: 24 },
+    { name: '白幽灵', category: '水晶', sortOrder: 25 },
+    { name: '彩幽灵', category: '水晶', sortOrder: 26 },
+    { name: '金发晶', category: '水晶', sortOrder: 27 },
+    { name: '钛晶', category: '水晶', sortOrder: 28 },
+    { name: '巴西黄水晶', category: '水晶', sortOrder: 29 },
+    { name: '人工黄水晶', category: '水晶', sortOrder: 30 },
+    { name: '红幽灵', category: '水晶', sortOrder: 31 },
+    { name: '蓝晶石', category: '水晶', sortOrder: 32 },
+    { name: '海蓝宝', category: '水晶', sortOrder: 33 },
+    { name: '天河石', category: '水晶', sortOrder: 34 },
+    { name: '红绿宝石共生', category: '水晶', sortOrder: 35 },
+    { name: '车花透辉石', category: '水晶', sortOrder: 36 },
   ];
   for (const m of materials) {
     await prisma.dictMaterial.upsert({
       where: { name: m.name },
-      update: {},
+      update: { category: m.category },
       create: m,
     });
   }
-  console.log('✅ 材质已插入 (36种)');
+  console.log('✅ 材质已插入/更新 (36种, 含大类)');
 
-  // 3. 器型 (9种)
+  // 3. 器型 (9种) — 新 specFields 格式
   const types = [
-    { name: '手镯', specFields: JSON.stringify(['weight', 'bracelet_size']), sortOrder: 1 },
-    { name: '挂件', specFields: JSON.stringify(['weight', 'size']), sortOrder: 2 },
-    { name: '吊坠', specFields: JSON.stringify(['weight', 'size']), sortOrder: 3 },
-    { name: '手串/手链', specFields: JSON.stringify(['weight', 'bead_count', 'bead_diameter']), sortOrder: 4 },
-    { name: '项链', specFields: JSON.stringify(['weight', 'bead_count', 'bead_diameter']), sortOrder: 5 },
-    { name: '脚链', specFields: JSON.stringify(['weight', 'bead_count', 'bead_diameter']), sortOrder: 6 },
-    { name: '戒指', specFields: JSON.stringify(['weight', 'ring_size']), sortOrder: 7 },
-    { name: '耳饰', specFields: JSON.stringify(['weight']), sortOrder: 8 },
-    { name: '摆件', specFields: JSON.stringify(['weight', 'size']), sortOrder: 9 },
+    { name: '手镯', specFields: JSON.stringify({ weight: { required: false }, braceletSize: { required: true } }), sortOrder: 1 },
+    { name: '挂件', specFields: JSON.stringify({ weight: { required: false } }), sortOrder: 2 },
+    { name: '吊坠', specFields: JSON.stringify({ weight: { required: false } }), sortOrder: 3 },
+    { name: '手串/手链', specFields: JSON.stringify({ weight: { required: false }, beadCount: { required: false }, beadDiameter: { required: true } }), sortOrder: 4 },
+    { name: '项链', specFields: JSON.stringify({ weight: { required: false }, beadDiameter: { required: true } }), sortOrder: 5 },
+    { name: '脚链', specFields: JSON.stringify({ weight: { required: false }, beadCount: { required: false }, beadDiameter: { required: false } }), sortOrder: 6 },
+    { name: '戒指', specFields: JSON.stringify({ weight: { required: false }, metalWeight: { required: false }, ringSize: { required: true } }), sortOrder: 7 },
+    { name: '耳饰', specFields: JSON.stringify({ weight: { required: false } }), sortOrder: 8 },
+    { name: '摆件', specFields: JSON.stringify({ weight: { required: false }, size: { required: false } }), sortOrder: 9 },
   ];
   for (const t of types) {
     await prisma.dictType.upsert({
       where: { name: t.name },
-      update: {},
+      update: { specFields: t.specFields },
       create: t,
     });
   }
-  console.log('✅ 器型已插入 (9种)');
+  console.log('✅ 器型已插入/更新 (9种, 新格式)');
 
   // 4. 标签 (22个, 4组)
   const tags = [
