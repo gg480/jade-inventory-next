@@ -1879,3 +1879,106 @@ Stage Summary:
 - 6项功能增强（退货对话框 + 客户排序 + 批次CSV导出 + 渠道分布图 + 快速操作菜单 + 设置数据概览）
 - 6 files changed, 395 insertions(+), 58 deletions(-)
 - 所有代码验证通过
+
+---
+
+## Task 22: 销售渠道分布图 + 批次CSV导出 + 库存健康度 + 销售批量选择 + 编辑增强 + 数据概览 (2026-04-14)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（ce92b0e..53a1c1f main → main）
+- ✅ 7项功能增强/修复全部完成（分两个批次执行）
+- ⚠️ agent-browser QA受限（容器OOM，已知问题）
+
+### 本轮完成的改动
+
+#### 1. Dashboard 销售渠道分布图 (dashboard-tab.tsx + 新API)
+- 新增 API: `GET /api/dashboard/sales-by-channel`
+  - 按渠道分组（门店/微信/其他），返回 channel, label, count, totalRevenue, totalProfit
+- api.ts 新增 `getSalesByChannel()` 方法
+- Dashboard 新增"销售渠道分布" PieChart 卡片
+  - 门店=蓝色(#0284c7), 微信=绿色(#059669), 其他=灰色(#94a3b8)
+  - 右侧图例显示渠道名称、数量、金额、百分比及进度条
+
+#### 2. Dashboard 库存健康度评分卡片 (dashboard-tab.tsx)
+- 新增"库存健康度"卡片，基于4个维度计算0-100分：
+  - 压货率(30%)、售出率(30%)、利润率(20%)、目标达成(20%)
+- CSS `conic-gradient` 圆形进度环
+- 颜色分级：≥80翡翠绿、50-79琥珀、<50红色
+- 显示"健康/良好/需关注"标签 + 4项子指标明细
+
+#### 3. 销售记录批量选择与操作 (sales-tab.tsx)
+- 桌面表格新增 Checkbox 列（含全选表头）
+- 移动端卡片新增 Checkbox（右上角，ring高亮选中状态）
+- 浮动操作栏：`fixed bottom-14 md:bottom-0`，emerald-600背景，带滑入动画
+- "已选择 N 条记录" + "批量导出CSV"/"取消选择"按钮
+- 批量导出仅导出选中记录
+
+#### 4. 货品编辑对话框字段变更增强 (item-edit-dialog.tsx)
+- `getChangedFieldsCount()` 函数计算精确变更数量
+- 横幅从"有字段已修改"增强为"有 **N** 个字段已修改"
+
+#### 5. 批次CSV导出增强 (batches-tab.tsx)
+- CSV列名更新为中文：批次编号, 材质, 供应商, 数量, 已录入, 进度%, 总成本, 单价, 创建日期
+- 新增进度百分比和单价计算字段
+
+#### 6. 设置页数据概览5卡片 (settings-tab.tsx)
+- 从4卡片扩展为5卡片响应式网格（`grid-cols-2 md:grid-cols-5`）
+- 5个统计卡片：货品总数(Package)、销售总数(ShoppingCart)、客户总数(Users)、批次总数(Layers)、数据库信息(Database)
+- 每个卡片 `border-l-4` 彩色边框标记，支持暗色模式
+
+#### 7. 库存快速操作菜单退货选项 (inventory-tab.tsx)
+- 桌面端和移动端 DropdownMenu 新增"退货"选项（RotateCcw图标）
+- 仅在库状态时显示，触发现有退货确认对话框
+
+### 关键文件变更
+- `src/app/api/dashboard/sales-by-channel/route.ts` — 新建，渠道分布API
+- `src/lib/api.ts` — 新增 getSalesByChannel 方法
+- `src/components/inventory/dashboard-tab.tsx` — 渠道分布图 + 健康度卡片
+- `src/components/inventory/sales-tab.tsx` — 批量选择 + 浮动操作栏
+- `src/components/inventory/item-edit-dialog.tsx` — 变更计数增强
+- `src/components/inventory/batches-tab.tsx` — CSV导出增强
+- `src/components/inventory/settings-tab.tsx` — 数据概览5卡片
+- `src/components/inventory/inventory-tab.tsx` — 快速操作退货选项
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ GitHub 推送成功 (ce92b0e..53a1c1f)
+
+### 未解决问题/风险
+- ⚠️ 容器内存限制（Chrome + Next.js dev server 无法同时运行，agent-browser QA受限）
+
+### 下一阶段优先建议
+1. 🔴 器型必填参数联动（手镯→圈口, 戒指→尺寸, 手串/项链→珠子大小）
+2. 🔴 数据导入（~2000条存量数据CSV批量导入）
+3. 🟡 登录认证增强（JWT持久化到数据库）
+4. 🟡 批量标签打印
+5. 🟡 批量编辑功能
+6. 🟡 图片缩略图生成
+7. 🟡 手机端摄像头扫码快速出库优化
+8. 🟢 数据备份自动化
+
+---
+
+Task ID: 22
+Agent: cron-agent
+Task: QA + 7项功能增强
+
+Work Log:
+- 读取 /home/z/my-project/worklog.md 了解完整项目历史（Task 9-21）
+- bun run lint → 0 errors, 0 warnings
+- agent-browser QA → 确认容器OOM限制（已知问题，跳过）
+- full-stack-developer 子代理批次1：完成4项功能（渠道分布图+批次CSV+快速操作+数据概览）
+- full-stack-developer 子代理批次2：完成3项功能（健康度卡片+销售批量选择+编辑增强）
+- 最终 lint → 0 errors, 0 warnings
+- Git commit + GitHub push → 成功 (ce92b0e..53a1c1f)
+- 更新 worklog.md
+
+Stage Summary:
+- 7项功能增强/修复（销售渠道分布图 + 库存健康度 + 销售批量选择 + 编辑增强 + 批次CSV + 数据概览 + 快速操作退货）
+- 新增1个API端点（sales-by-channel）
+- 11 files changed, 655 insertions, 126 deletions
+- ESLint 0 errors, 0 warnings
+- GitHub 推送成功
+
+---
