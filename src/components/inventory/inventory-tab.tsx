@@ -29,7 +29,30 @@ import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
   ShoppingCart, Tag, MapPin, X, Gem, CheckSquare, ChevronDown, ChevronUp, SlidersHorizontal,
+  Info, FileText, Certificate, CalendarDays, Target,
 } from 'lucide-react';
+
+// ========== Tag Color Map ==========
+const TAG_COLOR_PALETTE = [
+  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+  'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+];
+const TAG_COLOR_CACHE: Record<string, string> = {};
+function getTagColor(tagName: string): string {
+  if (!TAG_COLOR_CACHE[tagName]) {
+    let hash = 0;
+    for (let i = 0; i < tagName.length; i++) {
+      hash += tagName.charCodeAt(i);
+    }
+    TAG_COLOR_CACHE[tagName] = TAG_COLOR_PALETTE[Math.abs(hash) % TAG_COLOR_PALETTE.length];
+  }
+  return TAG_COLOR_CACHE[tagName];
+}
 
 // ========== Active Filter Tags Component ==========
 function ActiveFilterTags({ filters, materials, allBatches, allCounters, onClearAll, onClear }: {
@@ -149,9 +172,33 @@ function InventoryTab() {
   // Delete confirmation dialog
   const [deleteConfirmItem, setDeleteConfirmItem] = useState<any>(null);
 
+  // Slide-in detail panel
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+
   useEffect(() => { dictsApi.getMaterials().then(setMaterials).catch(() => {}); }, []);
   useEffect(() => { customersApi.getCustomers().then((d: any) => setCustomers(d?.items || d || [])).catch(() => {}); }, []);
   useEffect(() => { batchesApi.getBatches({ page: 1, size: 1000 }).then(d => setAllBatches(d.items || [])).catch(() => {}); }, []);
+
+  // Listen for escape key to close detail panel
+  useEffect(() => {
+    const handler = () => setSelectedItemId(null);
+    window.addEventListener('escape-press', handler);
+    return () => window.removeEventListener('escape-press', handler);
+  }, []);
+
+  // Listen for shortcut-new-item to open create dialog
+  useEffect(() => {
+    const handler = () => setShowCreate(true);
+    window.addEventListener('shortcut-new-item', handler);
+    return () => window.removeEventListener('shortcut-new-item', handler);
+  }, []);
+
+  // Listen for shortcut-export to trigger CSV export
+  useEffect(() => {
+    const handler = () => handleExportCSV();
+    window.addEventListener('shortcut-export', handler);
+    return () => window.removeEventListener('shortcut-export', handler);
+  }, [handleExportCSV]);
 
   // Extract unique counters from loaded items
   const allCounters = useMemo(() => {
@@ -838,6 +885,7 @@ function InventoryTab() {
                     <SortableHead field="sku_code">SKU</SortableHead>
                     <SortableHead field="name">名称</SortableHead>
                     <TableHead>材质</TableHead><TableHead>器型</TableHead><TableHead>所属批次</TableHead>
+                    <TableHead>标签</TableHead>
                     <SortableHead field="cost_price" align="right">成本</SortableHead>
                     <SortableHead field="selling_price" align="right">售价</SortableHead>
                     <SortableHead field="purchase_date">采购日期</SortableHead>
@@ -846,7 +894,7 @@ function InventoryTab() {
                 </TableHeader>
                 <TableBody>
                   {sortedItems.map((item, idx) => (
-                    <TableRow key={item.id} className={`group hover:bg-muted/50 transition-all duration-150 border-l-2 border-l-transparent hover:border-l-emerald-400 ${idx % 2 === 1 ? 'even:bg-muted/20' : ''} ${selectedIds.has(item.id) ? 'bg-emerald-50 dark:bg-emerald-950/20 hover:border-l-emerald-500' : item.status === 'sold' ? 'hover:border-l-gray-400' : item.status === 'returned' ? 'hover:border-l-red-400' : ''}`}>
+                    <TableRow key={item.id} className={`group hover:bg-muted/50 transition-all duration-150 border-l-2 border-l-transparent hover:border-l-emerald-400 ${idx % 2 === 1 ? 'even:bg-muted/20' : ''} ${selectedIds.has(item.id) ? 'bg-emerald-50 dark:bg-emerald-950/20 hover:border-l-emerald-500' : item.status === 'sold' ? 'hover:border-l-gray-400' : item.status === 'returned' ? 'hover:border-l-red-400' : ''} cursor-pointer`} onClick={() => setSelectedItemId(item.id)}>
                       <TableCell className="w-10 px-3">
                         <Checkbox
                           checked={selectedIds.has(item.id)}
@@ -876,6 +924,15 @@ function InventoryTab() {
                           <Layers className="h-2.5 w-2.5 mr-1" />{item.batchCode}
                         </Badge>
                       ) : <span className="text-muted-foreground">—</span>}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const tgs: string[] = item.tags ? (Array.isArray(item.tags) ? item.tags : typeof item.tags === 'string' ? item.tags.split(',').filter(Boolean) : []) : [];
+                          if (tgs.length === 0) return <span className="text-muted-foreground">—</span>;
+                          return <div className="flex flex-wrap gap-1 max-w-[160px]">{tgs.slice(0, 3).map((t: string) => (
+                            <Badge key={t} variant="outline" className={`text-[10px] h-5 px-1.5 ${getTagColor(t)}`}>{t}</Badge>
+                          ))}{tgs.length > 3 && <span className="text-[10px] text-muted-foreground">+{tgs.length - 3}</span>}</div>;
+                        })()}
+                      </TableCell>
                       <TableCell className="text-right">{item.allocatedCost ? formatPrice(item.allocatedCost) : item.estimatedCost ? <span className="text-muted-foreground" title="预估成本">{formatPrice(item.estimatedCost)}~</span> : formatPrice(item.costPrice)}</TableCell>
                       <TableCell className="text-right font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{item.purchaseDate || '-'}</TableCell>
@@ -910,7 +967,7 @@ function InventoryTab() {
         {/* Mobile Card View */}
         <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
           {sortedItems.map(item => (
-            <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/20' : ''}`}>
+            <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/20' : ''} cursor-pointer`} onClick={() => setSelectedItemId(item.id)}>
               <CardContent className="p-4 space-y-3">
                 {/* Header: Thumbnail + Checkbox + SKU + Status */}
                 <div className="flex items-center gap-3">
@@ -947,6 +1004,19 @@ function InventoryTab() {
                     </>
                   )}
                 </div>
+                {/* Tags */}
+                {(() => {
+                  const tgs: string[] = item.tags ? (Array.isArray(item.tags) ? item.tags : typeof item.tags === 'string' ? item.tags.split(',').filter(Boolean) : []) : [];
+                  if (tgs.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1">
+                      {tgs.slice(0, 4).map((t: string) => (
+                        <Badge key={t} variant="outline" className={`text-[10px] h-4 px-1.5 ${getTagColor(t)}`}>{t}</Badge>
+                      ))}
+                      {tgs.length > 4 && <span className="text-[10px] text-muted-foreground">+{tgs.length - 4}</span>}
+                    </div>
+                  );
+                })()}
                 {/* Price row: cost + selling + age */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1406,6 +1476,218 @@ function InventoryTab() {
 
       {/* Barcode Scanner Dialog */}
       <BarcodeScanner open={showScanner} onClose={() => setShowScanner(false)} onScan={handleBarcodeScan} />
+
+      {/* ===== Slide-in Detail Panel ===== */}
+      {selectedItemId !== null && (() => {
+        const item = sortedItems.find(i => i.id === selectedItemId);
+        if (!item) return null;
+        const cost = item.allocatedCost || item.estimatedCost || item.costPrice || 0;
+        const margin = item.sellingPrice > 0 ? ((item.sellingPrice - cost) / item.sellingPrice * 100) : 0;
+        const itemTags: string[] = item.tags ? (Array.isArray(item.tags) ? item.tags : typeof item.tags === 'string' ? item.tags.split(',').filter(Boolean) : []) : [];
+        const specFields = item.specFields ? (typeof item.specFields === 'string' ? (() => { try { return JSON.parse(item.specFields); } catch { return {}; } })() : item.specFields) : {};
+        return (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200"
+              onClick={() => setSelectedItemId(null)}
+            />
+            {/* Panel - Desktop: right side slide */}
+            <div className="hidden md:block fixed top-0 right-0 bottom-0 w-[320px] bg-card border-l border-border z-40 shadow-xl animate-in slide-in-from-right duration-300 overflow-y-auto custom-scrollbar">
+              {/* Header */}
+              <div className="sticky top-0 bg-card border-b border-border p-4 flex items-start justify-between gap-2 z-10">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base truncate">{item.name || item.skuCode}</h3>
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{item.skuCode}</p>
+                </div>
+                <button onClick={() => setSelectedItemId(null)} className="shrink-0 p-1 rounded-md hover:bg-muted transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {/* Cover Image */}
+              {item.coverImage && (
+                <div className="px-4 pt-4">
+                  <img src={item.coverImage} alt="" className="w-full aspect-square object-cover rounded-lg bg-muted" />
+                </div>
+              )}
+              {/* Actions */}
+              <div className="px-4 py-3 flex items-center gap-2 border-b border-border">
+                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => { setSelectedItemId(null); setEditItemId(item.id); }}>
+                  <Pencil className="h-3 w-3 mr-1" />编辑
+                </Button>
+                {item.status === 'in_stock' && (
+                  <Button size="sm" className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
+                    setSelectedItemId(null);
+                    setSaleDialog({ open: true, item });
+                    setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' });
+                  }}>
+                    <DollarSignIcon className="h-3 w-3 mr-1" />快速出库
+                  </Button>
+                )}
+              </div>
+              {/* Details */}
+              <div className="px-4 py-4 space-y-4">
+                {/* Status */}
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={item.status} />
+                  {item.ageDays != null && (
+                    <span className={`text-xs ${item.ageDays > 90 ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                      库龄 {item.ageDays}天
+                    </span>
+                  )}
+                </div>
+                {/* Price Info */}
+                <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">成本</span>
+                    <span className="font-medium">{formatPrice(cost)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">售价</span>
+                    <span className="font-bold text-emerald-600">{formatPrice(item.sellingPrice)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">毛利率</span>
+                    <span className={`font-medium ${margin >= 30 ? 'text-emerald-600' : margin >= 0 ? 'text-amber-600' : 'text-red-600'}`}>
+                      {margin.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+                {/* Material & Type */}
+                <div className="space-y-2 text-sm">
+                  {item.materialName && (
+                    <div className="flex items-center gap-2"><Gem className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">材质:</span><span>{item.materialName}</span></div>
+                  )}
+                  {item.typeName && (
+                    <div className="flex items-center gap-2"><FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">器型:</span><span>{item.typeName}</span></div>
+                  )}
+                  {item.batchCode && (
+                    <div className="flex items-center gap-2"><Layers className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">批次:</span><Badge variant="outline" className="font-mono text-xs">{item.batchCode}</Badge></div>
+                  )}
+                  {item.counter != null && (
+                    <div className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">柜台:</span><span>{item.counter}号柜</span></div>
+                  )}
+                  {item.purchaseDate && (
+                    <div className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">采购日期:</span><span>{item.purchaseDate}</span></div>
+                  )}
+                  {item.certNo && (
+                    <div className="flex items-center gap-2"><Certificate className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">证书编号:</span><span className="font-mono text-xs">{item.certNo}</span></div>
+                  )}
+                </div>
+                {/* Spec Fields */}
+                {Object.keys(specFields).length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium flex items-center gap-1.5"><Info className="h-3.5 w-3.5 text-muted-foreground" />规格参数</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {Object.entries(specFields).map(([key, val]) => {
+                        const specLabelMap: Record<string, string> = { weight: '克重', metalWeight: '金重', size: '尺寸', braceletSize: '圈口', beadCount: '颗数', beadDiameter: '珠径', ringSize: '戒圈' };
+                        const displayVal = typeof val === 'object' ? (val as any)?.value || '' : val;
+                        return (
+                          <div key={key} className="text-xs p-1.5 bg-muted/50 rounded">
+                            <span className="text-muted-foreground">{specLabelMap[key] || key}:</span> {displayVal}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {/* Tags */}
+                {itemTags.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-purple-500" />标签</p>
+                    <div className="flex flex-wrap gap-1">
+                      {itemTags.map((tag: string) => (
+                        <span key={tag} className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getTagColor(tag)}`}>{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Notes */}
+                {item.notes && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">备注</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Panel - Mobile: bottom slide */}
+            <div className="md:hidden fixed inset-x-0 bottom-0 z-40 bg-card rounded-t-2xl border-t border-border shadow-xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] overflow-y-auto custom-scrollbar">
+              {/* Drag indicator */}
+              <div className="sticky top-0 bg-card pt-2 pb-1 px-4 z-10 flex justify-center">
+                <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+              </div>
+              {/* Header */}
+              <div className="px-4 pb-3 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-base truncate">{item.name || item.skuCode}</h3>
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">{item.skuCode}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <StatusBadge status={item.status} />
+                  <button onClick={() => setSelectedItemId(null)} className="p-1 rounded-md hover:bg-muted transition-colors">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              {/* Cover Image */}
+              {item.coverImage && (
+                <div className="px-4">
+                  <img src={item.coverImage} alt="" className="w-40 h-40 object-cover rounded-lg bg-muted" />
+                </div>
+              )}
+              {/* Actions */}
+              <div className="px-4 py-3 flex items-center gap-2">
+                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => { setSelectedItemId(null); setEditItemId(item.id); }}>
+                  <Pencil className="h-3 w-3 mr-1" />编辑
+                </Button>
+                {item.status === 'in_stock' && (
+                  <Button size="sm" className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
+                    setSelectedItemId(null);
+                    setSaleDialog({ open: true, item });
+                    setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' });
+                  }}>
+                    <DollarSignIcon className="h-3 w-3 mr-1" />快速出库
+                  </Button>
+                )}
+              </div>
+              {/* Details */}
+              <div className="px-4 pb-8 space-y-4">
+                <div className="flex items-center gap-4 text-sm">
+                  <div><span className="text-muted-foreground">成本</span><br/><span className="font-medium">{formatPrice(cost)}</span></div>
+                  <div><span className="text-muted-foreground">售价</span><br/><span className="font-bold text-emerald-600">{formatPrice(item.sellingPrice)}</span></div>
+                  <div><span className="text-muted-foreground">毛利率</span><br/><span className={`font-medium ${margin >= 30 ? 'text-emerald-600' : margin >= 0 ? 'text-amber-600' : 'text-red-600'}`}>{margin.toFixed(1)}%</span></div>
+                </div>
+                <div className="space-y-1.5 text-sm">
+                  {item.materialName && <p><span className="text-muted-foreground">材质:</span> {item.materialName}</p>}
+                  {item.typeName && <p><span className="text-muted-foreground">器型:</span> {item.typeName}</p>}
+                  {item.batchCode && <p><span className="text-muted-foreground">批次:</span> <Badge variant="outline" className="font-mono text-xs">{item.batchCode}</Badge></p>}
+                  {item.counter != null && <p><span className="text-muted-foreground">柜台:</span> {item.counter}号柜</p>}
+                  {item.purchaseDate && <p><span className="text-muted-foreground">采购日期:</span> {item.purchaseDate}</p>}
+                  {item.certNo && <p><span className="text-muted-foreground">证书:</span> <span className="font-mono text-xs">{item.certNo}</span></p>}
+                </div>
+                {Object.keys(specFields).length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {Object.entries(specFields).map(([key, val]) => {
+                      const specLabelMap: Record<string, string> = { weight: '克重', metalWeight: '金重', size: '尺寸', braceletSize: '圈口', beadCount: '颗数', beadDiameter: '珠径', ringSize: '戒圈' };
+                      const displayVal = typeof val === 'object' ? (val as any)?.value || '' : val;
+                      return <span key={key} className="text-xs px-2 py-0.5 bg-muted/50 rounded">{specLabelMap[key] || key}: {displayVal}</span>;
+                    })}
+                  </div>
+                )}
+                {itemTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {itemTags.map((tag: string) => (
+                      <span key={tag} className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getItemTagColor(tag)}`}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+                {item.notes && <p className="text-sm text-muted-foreground">{item.notes}</p>}
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }

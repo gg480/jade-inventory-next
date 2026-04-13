@@ -13,11 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 import {
   Package, ShoppingCart, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight,
   BarChart3, PieChart, AlertTriangle, CheckCircle, Gem, Layers, Tag, RefreshCw,
   Activity, Flame, Trophy, Users, CalendarDays, RotateCcw, Crown, Sparkles,
+  Target,
 } from 'lucide-react';
 
 import {
@@ -97,6 +99,15 @@ function DashboardTab() {
   const [distFilter, setDistFilter] = useState<PeriodFilter>('year');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
+  const [monthlyTarget, setMonthlyTarget] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sales_target');
+      return stored ? parseFloat(stored) : 100000;
+    }
+    return 100000;
+  });
+  const [showTargetDialog, setShowTargetDialog] = useState(false);
+  const [targetInput, setTargetInput] = useState('');
 
   // Load batch entry progress on mount
   useEffect(() => {
@@ -379,7 +390,7 @@ function DashboardTab() {
     <div className="space-y-6">
       {/* ====== 1. Overview Cards ====== */}
       {summary && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
@@ -457,6 +468,31 @@ function DashboardTab() {
                 {animPaidBack}
               </p>
               <p className="text-xs text-muted-foreground mt-1">共 {batchProfit.length} 个批次</p>
+            </CardContent>
+          </Card>
+          {/* Monthly Sales Target Card */}
+          <Card className="card-glow relative overflow-hidden border-l-4 border-l-violet-500 hover:scale-[1.02] transition-transform duration-200 cursor-pointer shadow-sm hover:shadow-md" onClick={() => { setTargetInput(String(monthlyTarget)); setShowTargetDialog(true); }}>
+            <CardContent className="p-4">
+              <div className="absolute -right-2 -bottom-2 opacity-10"><Target className="h-20 w-20 text-violet-500" /></div>
+              <p className="text-sm text-muted-foreground">本月目标</p>
+              <div className="flex items-center gap-3 mt-1">
+                <div
+                  className="w-[52px] h-[52px] rounded-full shrink-0 transition-all duration-700 ease-out"
+                  style={{
+                    background: `conic-gradient(${(summary?.monthRevenue || 0) / monthlyTarget >= 0.75 ? '#059669' : (summary?.monthRevenue || 0) / monthlyTarget >= 0.5 ? '#d97706' : '#dc2626'} ${Math.min((summary?.monthRevenue || 0) / monthlyTarget, 1) * 100}%, hsl(var(--muted) / 0.3) 0%)`,
+                  }}
+                />
+                <div>
+                  <p className="text-xl font-extrabold tabular-nums">{formatPrice(summary?.monthRevenue || 0)}</p>
+                  <p className="text-xs text-muted-foreground">目标 {formatPrice(monthlyTarget)}</p>
+                  {summary && (summary.monthRevenue || 0) < monthlyTarget && (
+                    <p className="text-xs text-amber-600 mt-0.5">还差 {formatPrice(monthlyTarget - (summary.monthRevenue || 0))}</p>
+                  )}
+                  {summary && (summary.monthRevenue || 0) >= monthlyTarget && (
+                    <p className="text-xs text-emerald-600 mt-0.5">🎉 已达标!</p>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -1266,6 +1302,46 @@ function DashboardTab() {
           </CardContent>
         </Card>
       </div>
+      {/* Monthly Sales Target Dialog */}
+      <Dialog open={showTargetDialog} onOpenChange={setShowTargetDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Target className="h-5 w-5 text-violet-600" />设置本月销售目标</DialogTitle>
+          <DialogDescription>设置月度销售额目标，进度将在看板顶部显示</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1">
+            <Label>目标金额 (元)</Label>
+            <Input type="number" value={targetInput} onChange={e => setTargetInput(e.target.value)} placeholder="如: 100000" min="0" step="1000" />
+          </div>
+          {targetInput && parseFloat(targetInput) > 0 && summary && (
+            <div className="p-3 bg-muted/50 rounded-lg text-sm">
+              <p className="text-muted-foreground">当前进度</p>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{
+                    width: `${Math.min((summary.monthRevenue || 0) / parseFloat(targetInput) * 100, 100)}%`,
+                    backgroundColor: (summary.monthRevenue || 0) / parseFloat(targetInput) >= 0.75 ? '#059669' : (summary.monthRevenue || 0) / parseFloat(targetInput) >= 0.5 ? '#d97706' : '#dc2626',
+                  }} />
+                </div>
+                <span className="text-xs font-medium tabular-nums">{((summary.monthRevenue || 0) / parseFloat(targetInput) * 100).toFixed(1)}%</span>
+              </div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowTargetDialog(false)}>取消</Button>
+          <Button onClick={() => {
+            const val = parseFloat(targetInput);
+            if (isNaN(val) || val <= 0) { toast.error('请输入有效的目标金额'); return; }
+            setMonthlyTarget(val);
+            localStorage.setItem('sales_target', String(val));
+            toast.success(`本月目标已设置为 ${formatPrice(val)}`);
+            setShowTargetDialog(false);
+          }} className="bg-emerald-600 hover:bg-emerald-700">保存</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }

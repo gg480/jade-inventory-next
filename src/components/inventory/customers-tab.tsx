@@ -53,19 +53,18 @@ function getVipLevel(totalSpending: number) {
 function MiniSpendingChart({ data }: { data: { month: string; amount: number }[] }) {
   const maxAmount = Math.max(...data.map(d => d.amount), 1);
   return (
-    <div className="flex items-end gap-0.5 h-20">
+    <div className="flex items-end gap-1 h-[80px]">
       {data.map((d, i) => {
-        const height = Math.max((d.amount / maxAmount) * 100, 2);
-        const isCurrentMonth = i === data.length - 1;
+        const heightPct = Math.max((d.amount / maxAmount) * 100, 5);
+        const monthLabel = `${parseInt(d.month.split('-')[1])}月`;
         return (
-          <div key={d.month} className="flex-1 flex flex-col items-center gap-0.5 min-w-0" title={`${d.month}: ${formatPrice(d.amount)}`}>
+          <div key={d.month} className="flex-1 flex flex-col items-center gap-1 min-w-0 group/bar" title={`${d.month}: ${formatPrice(d.amount)}`}>
+            <span className="text-[9px] text-muted-foreground opacity-0 group-hover/bar:opacity-100 transition-opacity font-medium whitespace-nowrap">{formatPrice(d.amount)}</span>
             <div
-              className={`w-full rounded-t transition-all duration-300 ${isCurrentMonth ? 'bg-emerald-500' : 'bg-emerald-300 dark:bg-emerald-800'}`}
-              style={{ height: `${height}%` }}
+              className="w-full rounded-t-sm bg-gradient-to-t from-emerald-500 to-emerald-400 transition-all duration-300 min-h-[4px]"
+              style={{ height: `${heightPct}%` }}
             />
-            {i % 3 === 0 && (
-              <span className="text-[8px] text-muted-foreground truncate w-full text-center">{d.month.slice(5)}</span>
-            )}
+            <span className="text-[9px] text-muted-foreground whitespace-nowrap">{monthLabel}</span>
           </div>
         );
       })}
@@ -270,9 +269,9 @@ function CustomerProfileDialog({ customer, open, onClose, onEdit, onTagsUpdated 
             {monthlySpending.length > 0 && monthlySpending.some((d: any) => d.amount > 0) && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium flex items-center gap-1.5">
-                  <Calendar className="h-4 w-4 text-sky-600" />月度消费趋势
+                  <Calendar className="h-4 w-4 text-sky-600" />近6月消费趋势
                 </h4>
-                <MiniSpendingChart data={monthlySpending} />
+                <MiniSpendingChart data={monthlySpending.slice(-6)} />
               </div>
             )}
 
@@ -713,6 +712,13 @@ function CustomersTab() {
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">无法加载详情</p>
+                      )}
+                      {/* Mini Purchase History Chart */}
+                      {customerDetail.monthlySpending && customerDetail.monthlySpending.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">近6月消费趋势</p>
+                          <MiniSpendingChart data={(customerDetail.monthlySpending || []).slice(-6)} />
+                        </div>
                       )}
                     </div>
                   )}

@@ -216,8 +216,46 @@ export default function JadeInventoryPage() {
     };
 
     function handleKeyDown(e: KeyboardEvent) {
-      // Ignore if user is typing in an input/textarea
       const target = e.target as HTMLElement;
+
+      // Enter to trigger search when in search input
+      if (e.key === 'Enter' && target.tagName === 'INPUT' && !e.metaKey && !e.ctrlKey) {
+        const placeholder = (target as HTMLInputElement).placeholder || '';
+        if (placeholder.includes('SKU') || placeholder.includes('搜索') || placeholder.includes('客户')) {
+          target.closest('form')?.requestSubmit?.();
+          e.preventDefault();
+          return;
+        }
+      }
+
+      // Escape: close any open dialog/panel
+      if (e.key === 'Escape' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        // Dispatch custom event for child components to listen to
+        window.dispatchEvent(new CustomEvent('escape-press'));
+        return;
+      }
+
+      // Ctrl/Cmd + N: open new item create dialog (inventory tab)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        if (activeTab === 'inventory') {
+          setActiveTab('inventory');
+          // Dispatch event for inventory tab to listen
+          window.dispatchEvent(new CustomEvent('shortcut-new-item'));
+          setAnimKey(k => k + 1);
+        }
+        return;
+      }
+
+      // Ctrl/Cmd + E: open export dialog (inventory tab)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('shortcut-export'));
+        return;
+      }
+
+      // Ignore if user is typing in an input/textarea
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) {
         return;
       }
@@ -235,7 +273,6 @@ export default function JadeInventoryPage() {
         setActiveTab('inventory');
         setAnimKey(k => k + 1);
         // Focus search input after a brief delay for tab to render
-        // First attempt at 200ms with multiple selectors, fallback at 500ms
         const focusSearch = () => {
           const selectors = [
             'input[placeholder*="SKU"]',
@@ -265,7 +302,7 @@ export default function JadeInventoryPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setActiveTab]);
+  }, [activeTab, setActiveTab]);
 
   const renderTab = () => {
     switch (activeTab) {

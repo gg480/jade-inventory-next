@@ -123,6 +123,20 @@ function SettingsTab() {
   const [skipExisting, setSkipExisting] = useState(true);
   const [previewData, setPreviewData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
 
+  // System config (localStorage)
+  const defaultSettings = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, targetMargin: 30 };
+  const [systemConfig, setSystemConfig] = useState(defaultSettings);
+
+  // Load settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('app_settings');
+      if (stored) {
+        setSystemConfig({ ...defaultSettings, ...JSON.parse(stored) });
+      }
+    } catch { /* use defaults */ }
+  }, []);
+
   useEffect(() => {
     async function fetchAll() {
       setLoading(true);
@@ -507,6 +521,45 @@ function SettingsTab() {
             <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Settings className="h-4 w-4 text-gray-500" />系统配置</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {/* System Config (localStorage) */}
+                <div className="p-3 bg-violet-50 dark:bg-violet-950/30 rounded-lg border border-violet-200 dark:border-violet-800 space-y-3">
+                  <p className="font-medium text-sm flex items-center gap-2"><Settings className="h-4 w-4 text-violet-600" />本地系统配置</p>
+                  <p className="text-xs text-muted-foreground">这些配置保存在本地浏览器，不会同步到服务器</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">店铺名称</Label>
+                      <Input value={systemConfig.storeName} onChange={e => setSystemConfig(c => ({ ...c, storeName: e.target.value }))} className="h-8 text-sm" placeholder="翡翠珠宝" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">货币符号</Label>
+                      <Input value={systemConfig.currencySymbol} onChange={e => setSystemConfig(c => ({ ...c, currencySymbol: e.target.value }))} className="h-8 text-sm w-24" placeholder="¥" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">低库存预警天数</Label>
+                      <Input type="number" value={systemConfig.lowStockDays} onChange={e => setSystemConfig(c => ({ ...c, lowStockDays: parseInt(e.target.value) || 90 }))} className="h-8 text-sm w-24" min="1" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">目标毛利率 (%)</Label>
+                      <Input type="number" value={systemConfig.targetMargin} onChange={e => setSystemConfig(c => ({ ...c, targetMargin: parseInt(e.target.value) || 30 }))} className="h-8 text-sm w-24" min="0" max="100" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs" onClick={() => {
+                      localStorage.setItem('app_settings', JSON.stringify(systemConfig));
+                      toast.success('设置已保存');
+                    }}>
+                      <CheckCircle className="h-3 w-3 mr-1" />保存设置
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
+                      const defaults = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, targetMargin: 30 };
+                      setSystemConfig(defaults);
+                      localStorage.removeItem('app_settings');
+                      toast.success('已恢复默认设置');
+                    }}>
+                      恢复默认
+                    </Button>
+                  </div>
+                </div>
                 {/* Warning days config */}
                 <div className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
                   <div className="flex items-center gap-2">

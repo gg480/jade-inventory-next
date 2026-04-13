@@ -112,8 +112,10 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
 function ShortcutsHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const shortcuts = [
     { keys: '⌘/Ctrl + K', description: '聚焦搜索栏' },
-    { keys: '⌘/Ctrl + N', description: '新增入库' },
-    { keys: 'Esc', description: '关闭对话框' },
+    { keys: '⌘/Ctrl + N', description: '新增入库（库存页）' },
+    { keys: '⌘/Ctrl + E', description: '导出数据（库存页）' },
+    { keys: 'Enter', description: '在搜索框内触发搜索' },
+    { keys: 'Esc', description: '关闭对话框/面板' },
     { keys: '?', description: '显示快捷键帮助' },
     { keys: '1-7', description: '切换标签页 (Dashboard/库存/销售/批次/客户/设置/日志)' },
   ];
