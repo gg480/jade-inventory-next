@@ -1982,3 +1982,55 @@ Stage Summary:
 - GitHub 推送成功
 
 ---
+
+---
+
+## Bug Fix: Dashboard storeCount未定义导致白屏 (2026-04-14)
+
+### 问题描述
+用户报告"利润看板和库存看板出错了"。使用agent-browser排查发现：
+- Dashboard显示"页面出错了"（ErrorBoundary捕获）
+- 浏览器控制台错误：`ReferenceError: storeCount is not defined`
+
+### 根因分析
+- Task 22批次1的子代理在dashboard-tab.tsx中新增了**重复的"销售渠道分布"卡片**（第1398-1457行）
+- 该重复卡片使用了未定义的变量 `storeCount` 和 `wechatCount`
+- 正确版本的渠道分布卡片已存在于第892行（使用 `salesByChannel` 状态数据）
+- 重复卡片的代码在IIFE中访问了不存在的变量，导致React渲染崩溃
+- ErrorBoundary捕获了该错误，导致整个DashboardTab显示"页面出错了"
+
+### 修复
+- 删除dashboard-tab.tsx中重复的渠道分布卡片（第1398-1457行，共61行）
+- 保留第892行的正确版本（使用salesByChannel状态数据）
+
+### 验证结果
+- ✅ agent-browser 验证：Dashboard正常渲染，库存健康度/渠道分布/月度目标等卡片均正常
+- ✅ agent-browser errors：刷新后无任何错误
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ GitHub 推送成功 (53a1c1f..b71e411)
+
+### 经验教训
+- 子代理开发时可能添加与现有功能重复的代码，需加强去重检查
+- IIFE内使用未定义变量会导致React渲染崩溃，ErrorBoundary虽然捕获了错误但整个Tab白屏
+
+---
+
+Task ID: 22-hotfix
+Agent: cron-agent
+Task: 修复Dashboard storeCount未定义导致白屏
+
+Work Log:
+- 用户报告利润看板和库存看板出错
+- 启动dev server + agent-browser排查
+- 发现Dashboard显示"页面出错了"
+- 检查console错误：ReferenceError: storeCount is not defined
+- 定位问题：dashboard-tab.tsx第1409行重复渠道分布卡片使用了未定义变量
+- 删除重复卡片（61行），保留正确的salesByChannel版本
+- lint验证通过
+- agent-browser刷新验证：Dashboard正常渲染，0错误
+- GitHub推送成功
+
+Stage Summary:
+- 修复Dashboard白屏问题（重复渠道分布卡片引用未定义变量）
+- 1 file changed, 61 deletions
+- 所有验证通过
