@@ -30,8 +30,9 @@ import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
   ShoppingCart, Tag, MapPin, X, Gem, CheckSquare, ChevronDown, ChevronUp, SlidersHorizontal,
-  Info, FileText, Certificate, CalendarDays, Target,
+  Info, FileText, Certificate, CalendarDays, Target, MoreHorizontal, Copy,
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // ========== Tag Color Map ==========
 const TAG_COLOR_PALETTE = [
@@ -1005,22 +1006,40 @@ function InventoryTab() {
                       <TableCell className="text-sm text-muted-foreground">{item.purchaseDate || '-'}</TableCell>
                       <TableCell><StatusBadge status={item.status} /></TableCell>
                       <TableCell className={item.ageDays > 90 ? 'text-red-600 font-medium' : ''}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setDetailItemId(item.id)} title="查看详情"><Eye className="h-3 w-3" /></Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-sky-600" onClick={() => setPrintLabelItem(item)} title="打印标签"><Printer className="h-3 w-3" /></Button>
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-amber-600" onClick={() => setEditItemId(item.id)} title="编辑"><Pencil className="h-3 w-3" /></Button>
-                          {item.status === 'in_stock' && (
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600" onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' }); }}>
-                              <DollarSignIcon className="h-3 w-3" /> 出库
-                            </Button>
-                          )}
-                          {item.status === 'sold' && (
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600" onClick={() => setReturnConfirmItem({ open: true, item })} title="退货">
-                              <RotateCcw className="h-3 w-3" /> 退货
-                            </Button>
-                          )}
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => handleDelete(item.id)} title="删除"><Trash2 className="h-3 w-3" /></Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={e => e.stopPropagation()}>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setEditItemId(item.id); }}>
+                                <Pencil className="h-3.5 w-3.5 mr-2" />
+                                <span>编辑</span>
+                              </DropdownMenuItem>
+                              {item.status === 'in_stock' && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' }); }}>
+                                  <ShoppingCart className="h-3.5 w-3.5 mr-2" />
+                                  <span>出库</span>
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="text-red-600 focus:text-red-600">
+                                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                <span>删除</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.skuCode || '').then(() => toast.success('SKU已复制')).catch(() => toast.error('复制失败')); }}>
+                                <Copy className="h-3.5 w-3.5 mr-2" />
+                                <span>复制SKU</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDetailItemId(item.id); }}>
+                                <Eye className="h-3.5 w-3.5 mr-2" />
+                                <span>查看详情</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1104,22 +1123,34 @@ function InventoryTab() {
                   </div>
                   <span className={`text-xs ${item.ageDays != null && item.ageDays > 90 ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</span>
                 </div>
-                {/* Action buttons */}
-                <div className="flex items-center gap-1 flex-wrap">
+                {/* Action buttons with DropdownMenu */}
+                <div className="flex items-center gap-1 flex-wrap" onClick={e => e.stopPropagation()}>
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setDetailItemId(item.id)}><Eye className="h-3 w-3 mr-1" />详情</Button>
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-sky-600" onClick={() => setPrintLabelItem(item)}><Printer className="h-3 w-3 mr-1" />标签</Button>
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-amber-600" onClick={() => setEditItemId(item.id)}><Pencil className="h-3 w-3 mr-1" />编辑</Button>
-                  {item.status === 'in_stock' && (
-                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-emerald-600" onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' }); }}>
-                      <DollarSignIcon className="h-3 w-3 mr-1" />出库
-                    </Button>
-                  )}
-                  {item.status === 'sold' && (
-                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-orange-600" onClick={() => setReturnConfirmItem({ open: true, item })}>
-                      <RotateCcw className="h-3 w-3 mr-1" />退货
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-red-600" onClick={() => handleDelete(item.id)}><Trash2 className="h-3 w-3" /></Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline" className="h-7 px-1.5 text-xs">
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem onClick={() => setEditItemId(item.id)}>
+                        <Pencil className="h-3.5 w-3.5 mr-2" /><span>编辑</span>
+                      </DropdownMenuItem>
+                      {item.status === 'in_stock' && (
+                        <DropdownMenuItem onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' }); }}>
+                          <ShoppingCart className="h-3.5 w-3.5 mr-2" /><span>出库</span>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-red-600 focus:text-red-600">
+                        <Trash2 className="h-3.5 w-3.5 mr-2" /><span>删除</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(item.skuCode || '').then(() => toast.success('SKU已复制')).catch(() => toast.error('复制失败')); }}>
+                        <Copy className="h-3.5 w-3.5 mr-2" /><span>复制SKU</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardContent>
             </Card>

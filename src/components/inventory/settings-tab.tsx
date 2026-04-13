@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // ========== 材质大类选项 ==========
 const MATERIAL_CATEGORIES = [
@@ -140,6 +141,8 @@ function SettingsTab() {
     batchesCount: null as number | null,
   });
   const [lastBackupFromStorage, setLastBackupFromStorage] = useState<string | null>(null);
+  const [dbSize, setDbSize] = useState<string | null>(null);
+  const [dbSizeLoading, setDbSizeLoading] = useState(false);
 
   // System config (localStorage)
   const defaultSettings = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, targetMargin: 30 };
@@ -165,6 +168,7 @@ function SettingsTab() {
   // Fetch data statistics
   useEffect(() => {
     async function fetchStats() {
+      setDbSizeLoading(true);
       try {
         const [itemsRes, salesRes, customersRes, batchesRes] = await Promise.allSettled([
           itemsApi.getItems({ page: 1, size: 1 }),
@@ -178,7 +182,16 @@ function SettingsTab() {
           customersCount: customersRes.status === 'fulfilled' ? (customersRes.value.pagination?.total ?? null) : null,
           batchesCount: batchesRes.status === 'fulfilled' ? (batchesRes.value.pagination?.total ?? null) : null,
         });
-      } catch { /* silently fail */ }
+        // Fetch DB size
+        try {
+          const sizeRes = await fetch('/api/config');
+          const sizeJson = await sizeRes.json();
+          if (sizeJson.code === 0) {
+            const sizeStr = sizeJson.data?.find?.((c: any) => c.key === 'db_size')?.value;
+            if (sizeStr) setDbSize(sizeStr);
+          }
+        } catch { /* ignore */ }
+      } catch { /* silently fail */ } finally { setDbSizeLoading(false); }
     }
     fetchStats();
   }, []);
@@ -371,6 +384,69 @@ function SettingsTab() {
 
   return (
     <div className="space-y-4">
+      {/* ===== Data Overview Section ===== */}
+      <Card className="border-l-4 border-l-emerald-400 hover:shadow-sm transition-shadow duration-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2"><Grid className="h-4 w-4 text-emerald-500" />数据概览</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-emerald-950/5 hover:shadow-md hover:scale-[1.02] transition-all duration-200 border border-emerald-200 dark:border-emerald-800">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center"><Gem className="h-4 w-4 text-emerald-600" /></div>
+                  <span className="text-sm text-muted-foreground">总货品数</span>
+                </div>
+                {dbSizeLoading || dataStats.itemsCount == null ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  <p className="text-2xl font-bold text-emerald-700">{dataStats.itemsCount ?? 0}</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden bg-gradient-to-br from-sky-50 to-white dark:from-sky-950/20 dark:to-sky-950/5 hover:shadow-md hover:scale-[1.02] transition-all duration-200 border border-sky-200 dark:border-sky-800">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center"><Users className="h-4 w-4 text-sky-600" /></div>
+                  <span className="text-sm text-muted-foreground">总客户数</span>
+                </div>
+                {dbSizeLoading || dataStats.customersCount == null ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  <p className="text-2xl font-bold text-sky-700">{dataStats.customersCount ?? 0}</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden bg-gradient-to-br from-teal-50 to-white dark:from-teal-950/20 dark:to-teal-950/5 hover:shadow-md hover:scale-[1.02] transition-all duration-200 border border-teal-200 dark:border-teal-800">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center"><Layers className="h-4 w-4 text-teal-600" /></div>
+                  <span className="text-sm text-muted-foreground">总供应商</span>
+                </div>
+                {dbSizeLoading || dataStats.batchesCount == null ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  <p className="text-2xl font-bold text-teal-700">{dataStats.batchesCount ?? 0}</p>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-amber-950/5 hover:shadow-md hover:scale-[1.02] transition-all duration-200 border border-amber-200 dark:border-amber-800">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center"><Database className="h-4 w-4 text-amber-600" /></div>
+                  <span className="text-sm text-muted-foreground">数据库大小</span>
+                </div>
+                {dbSizeLoading ? (
+                  <Skeleton className="h-7 w-24" />
+                ) : (
+                  <p className="text-2xl font-bold text-amber-700">{dbSize || '计算中...'}</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList className="grid grid-cols-6 w-full">
           <TabsTrigger value="dicts">字典管理</TabsTrigger>

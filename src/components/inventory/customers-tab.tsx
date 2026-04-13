@@ -16,9 +16,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Users, Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, Crown, Sparkles, TrendingUp, Shield, ShieldCheck,
-  Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock, FileDown,
+  Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock, FileDown, ArrowUpDown,
+  DollarSign as DollarSignIcon, ShoppingCart as ShoppingCartIcon, ArrowDownAZ,
 } from 'lucide-react';
 
 // Tag color palette
@@ -417,6 +419,15 @@ function CustomersTab() {
   const [editForm, setEditForm] = useState({ name: '', phone: '', wechat: '', address: '', notes: '', tags: '' });
   const [profileCustomer, setProfileCustomer] = useState<any>(null);
   const [deleteCustomerConfirm, setDeleteCustomerConfirm] = useState<any>(null);
+  const [sortBy, setSortBy] = useState<string>('lastPurchaseDate');
+  const SORT_OPTIONS = [
+    { value: 'lastPurchaseDate', label: '最近购买', icon: Clock, order: 'desc' },
+    { value: 'totalSpent', label: '消费总额', icon: DollarSignIcon, order: 'desc' },
+    { value: 'orderCount', label: '购买次数', icon: ShoppingCartIcon, order: 'desc' },
+    { value: 'name', label: '名称', icon: ArrowDownAZ, order: 'asc' },
+  ];
+  const currentSort = SORT_OPTIONS.find(s => s.value === sortBy) || SORT_OPTIONS[0];
+  const SortIcon = currentSort.icon;
 
   // Debounce keyword changes
   useEffect(() => {
@@ -578,6 +589,28 @@ function CustomersTab() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input name="search" data-testid="customer-search" placeholder="搜索客户（姓名/电话/微信）" value={keyword} onChange={e => setKeyword(e.target.value)} className="w-64 h-9 pl-8" />
           </div>
+          {/* Sort Dropdown */}
+          <Select value={sortBy} onValueChange={v => setSortBy(v)}>
+            <SelectTrigger className="h-9 w-[140px]">
+              <div className="flex items-center gap-1.5">
+                <SortIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map(opt => {
+                const OptIcon = opt.icon;
+                return (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <div className="flex items-center gap-2">
+                      <OptIcon className="h-3.5 w-3.5" />
+                      <span>{opt.label}</span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
           {!loading && keyword && (
             <span className="text-xs text-muted-foreground">找到 {pagination.total} 个客户</span>
           )}
@@ -612,7 +645,19 @@ function CustomersTab() {
         )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in-0 duration-200">
-          {customers.map(c => {
+          {[...customers].sort((a, b) => {
+            const sort = SORT_OPTIONS.find(s => s.value === sortBy);
+            const order = sort?.order || 'desc';
+            let cmp = 0;
+            switch (sortBy) {
+              case 'lastPurchaseDate': cmp = ((a.lastPurchaseDate || '').localeCompare(b.lastPurchaseDate || '')); break;
+              case 'totalSpent': cmp = ((a.totalSpending || 0) - (b.totalSpending || 0)); break;
+              case 'orderCount': cmp = ((a.orderCount || 0) - (b.orderCount || 0)); break;
+              case 'name': cmp = ((a.name || '').localeCompare(b.name || '')); break;
+              default: cmp = 0;
+            }
+            return order === 'desc' ? -cmp : cmp;
+          }).map(c => {
             const vip = getVipLevel(c.totalSpending || 0);
             const VipIcon = vip.icon;
             const customerTags = Array.isArray(c.tags) ? c.tags : [];

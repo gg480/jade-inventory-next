@@ -19,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
-  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag,
+  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag, AlertTriangle,
 } from 'lucide-react';
 
 import {
@@ -67,6 +67,13 @@ function SalesTab() {
   // Return dialog state
   const [returnDialog, setReturnDialog] = useState<{ open: boolean; sale: any }>({ open: false, sale: null });
   const [returnForm, setReturnForm] = useState({ refundAmount: 0, returnReason: '', returnDate: new Date().toISOString().slice(0, 10) });
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const RETURN_REASONS = [
+    { value: '质量问题', label: '质量问题', color: 'text-red-600' },
+    { value: '尺寸不合适', label: '尺寸不合适', color: 'text-amber-600' },
+    { value: '客户反悔', label: '客户反悔', color: 'text-sky-600' },
+    { value: '其他', label: '其他', color: 'text-gray-600' },
+  ];
 
   // Expanded sale row
   const [expandedSaleId, setExpandedSaleId] = useState<number | null>(null);
@@ -624,43 +631,123 @@ function SalesTab() {
       {/* Bundle Sale Dialog */}
       <BundleSaleDialog open={showBundle} onOpenChange={setShowBundle} onSuccess={fetchSales} />
 
-      {/* Return Dialog */}
+      {/* Enhanced Return Dialog */}
       <Dialog open={returnDialog.open} onOpenChange={open => setReturnDialog({ open, sale: open ? returnDialog.sale : null })}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>销售退货</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><RotateCcw className="h-5 w-5 text-orange-600" />销售退货</DialogTitle>
             <DialogDescription>
-              退货单号: {returnDialog.sale?.saleNo}
+              退货单号: <span className="font-mono">{returnDialog.sale?.saleNo}</span>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Item Card with Thumbnail */}
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl border border-border hover:border-orange-300 dark:hover:border-orange-700 transition-colors">
+              <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                {returnDialog.sale?.itemImage ? (
+                  <img src={returnDialog.sale.itemImage} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <Gem className="h-6 w-6 text-muted-foreground/40" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <p className="font-medium text-sm truncate">{returnDialog.sale?.itemName || returnDialog.sale?.itemSku || '-'}</p>
+                <p className="text-xs text-muted-foreground font-mono">{returnDialog.sale?.itemSku}</p>
+                <div className="flex items-center gap-3 text-xs">
+                  {returnDialog.sale?.materialName && <span className="text-muted-foreground">{returnDialog.sale.materialName}</span>}
+                  {returnDialog.sale?.typeName && <span className="text-muted-foreground">· {returnDialog.sale.typeName}</span>}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-xs text-muted-foreground">成交价</p>
+                <p className="text-lg font-bold text-emerald-600">{formatPrice(returnDialog.sale?.actualPrice || 0)}</p>
+              </div>
+            </div>
+
+            {/* Sale Meta Info */}
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="p-2 bg-muted/30 rounded-lg text-center">
+                <p className="text-muted-foreground">销售日期</p>
+                <p className="font-medium mt-0.5">{returnDialog.sale?.saleDate || '-'}</p>
+              </div>
+              {returnDialog.sale?.customerName && (
+                <div className="p-2 bg-muted/30 rounded-lg text-center">
+                  <p className="text-muted-foreground">客户</p>
+                  <p className="font-medium mt-0.5 truncate">{returnDialog.sale.customerName}</p>
+                </div>
+              )}
+              {returnDialog.sale?.customerPhone && (
+                <div className="p-2 bg-muted/30 rounded-lg text-center">
+                  <p className="text-muted-foreground">电话</p>
+                  <p className="font-medium mt-0.5">{returnDialog.sale.customerPhone}</p>
+                </div>
+              )}
+            </div>
+
             {/* Warning Banner */}
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
-              ⚠️ 退货后货品将恢复为在库状态
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>退货后货品将恢复为退货状态，请确认信息无误</span>
             </div>
-            <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
-              <p><span className="text-muted-foreground">货品名称:</span> {returnDialog.sale?.itemName || '-'}</p>
-              <p><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{returnDialog.sale?.itemSku}</span></p>
-              <p><span className="text-muted-foreground">成交价:</span> <span className="font-medium text-emerald-600">{formatPrice(returnDialog.sale?.actualPrice || 0)}</span></p>
-              <p><span className="text-muted-foreground">销售日期:</span> {returnDialog.sale?.saleDate}</p>
-              {returnDialog.sale?.customerName && <p><span className="text-muted-foreground">客户:</span> {returnDialog.sale.customerName}</p>}
+
+            {/* Refund Amount */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">退款金额 (¥)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">¥</span>
+                <Input type="number" className="pl-7 h-10 text-base font-medium" value={returnForm.refundAmount} onChange={e => setReturnForm(f => ({ ...f, refundAmount: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              {returnDialog.sale && returnForm.refundAmount > returnDialog.sale.actualPrice && (
+                <p className="text-xs text-red-500">⚠️ 退款金额不能超过成交价 {formatPrice(returnDialog.sale.actualPrice)}</p>
+              )}
             </div>
-            <div className="space-y-1">
-              <Label>退款金额 (¥)</Label>
-              <Input type="number" value={returnForm.refundAmount} onChange={e => setReturnForm(f => ({ ...f, refundAmount: parseFloat(e.target.value) || 0 }))} />
+
+            {/* Return Reason Dropdown */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">退货原因</Label>
+              <Select value={returnForm.returnReason || '_custom'} onValueChange={v => setReturnForm(f => ({ ...f, returnReason: v === '_custom' ? '' : v }))}>
+                <SelectTrigger className="h-10"><SelectValue placeholder="请选择退货原因" /></SelectTrigger>
+                <SelectContent>
+                  {RETURN_REASONS.map(r => (
+                    <SelectItem key={r.value} value={r.value}>
+                      <span className={r.color}>{r.label}</span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="_custom">自定义原因...</SelectItem>
+                </SelectContent>
+              </Select>
+              {!returnForm.returnReason && (
+                <Input
+                  className="mt-2 h-9 text-sm"
+                  placeholder="输入自定义退货原因..."
+                  value={returnForm.returnReason === '_custom' ? '' : ''}
+                  onChange={e => setReturnForm(f => ({ ...f, returnReason: e.target.value }))}
+                />
+              )}
             </div>
-            <div className="space-y-1">
-              <Label>退货原因</Label>
-              <Textarea value={returnForm.returnReason} onChange={e => setReturnForm(f => ({ ...f, returnReason: e.target.value }))} placeholder="请输入退货原因" rows={3} />
-            </div>
-            <div className="space-y-1">
-              <Label>退货日期</Label>
-              <Input type="date" value={returnForm.returnDate} onChange={e => setReturnForm(f => ({ ...f, returnDate: e.target.value }))} />
+
+            {/* Return Date */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">退货日期</Label>
+              <Input type="date" className="h-10" value={returnForm.returnDate} onChange={e => setReturnForm(f => ({ ...f, returnDate: e.target.value }))} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setReturnDialog({ open: false, sale: null })}>取消</Button>
-            <Button onClick={handleReturn} className="bg-orange-600 hover:bg-orange-700" disabled={returnForm.refundAmount <= 0 || returnDialog.sale?.returnedAt}>{returnDialog.sale?.returnedAt ? '已退货' : '确认退货'}</Button>
+            <Button
+              onClick={async () => {
+                setReturnSubmitting(true);
+                try {
+                  await handleReturn();
+                } finally {
+                  setReturnSubmitting(false);
+                }
+              }}
+              className="bg-orange-600 hover:bg-orange-700"
+              disabled={returnForm.refundAmount <= 0 || returnSubmitting || returnDialog.sale?.returnedAt || (returnDialog.sale && returnForm.refundAmount > returnDialog.sale.actualPrice)}
+            >
+              {returnSubmitting ? '处理中...' : returnDialog.sale?.returnedAt ? '已退货' : '确认退货'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
