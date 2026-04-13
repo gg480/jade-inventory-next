@@ -674,6 +674,26 @@ function InventoryTab() {
                 <SelectContent><SelectItem value="all">全部</SelectItem><SelectItem value="in_stock">在库</SelectItem><SelectItem value="sold">已售</SelectItem><SelectItem value="returned">已退</SelectItem></SelectContent>
               </Select>
             </div>
+            <div className="space-y-1 hidden md:block"><Label className="text-xs">快捷筛选</Label>
+              <div className="flex items-center gap-1">
+                {[
+                  { key: 'all', label: '全部' },
+                  { key: 'in_stock', label: '在库' },
+                  { key: 'sold', label: '已售' },
+                  { key: 'returned', label: '已退' },
+                ].map(s => (
+                  <Button
+                    key={s.key}
+                    size="sm"
+                    variant={filters.status === s.key ? 'default' : 'outline'}
+                    className={`h-8 text-xs px-2.5 rounded-full ${filters.status === s.key ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 border-0' : ''}`}
+                    onClick={() => setFilters(f => ({ ...f, status: s.key }))}
+                  >
+                    {s.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
             <div className="space-y-1"><Label className="text-xs">柜台</Label><Input type="number" placeholder="柜台号" value={filters.counter} onChange={e => setFilters(f => ({ ...f, counter: e.target.value }))} className="h-9" /></div>
             <div className="space-y-1"><Label className="text-xs">批次</Label>
               <Select value={filters.batchId || 'all'} onValueChange={v => setFilters(f => ({ ...f, batchId: v === 'all' ? '' : v }))}>

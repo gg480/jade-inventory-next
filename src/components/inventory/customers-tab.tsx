@@ -18,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   Users, Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, Crown, Sparkles, TrendingUp, Shield, ShieldCheck,
-  Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock,
+  Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock, FileDown,
 } from 'lucide-react';
 
 // Tag color palette
@@ -491,6 +491,48 @@ function CustomersTab() {
     });
   }
 
+  function handleExportCSV() {
+    if (customers.length === 0) {
+      toast.error('没有可导出的客户数据');
+      return;
+    }
+    const headers = ['客户编号', '姓名', '电话', '微信', '标签', '总消费', '购买次数', 'VIP等级', '最近购买', '地址', '备注'];
+    const rows = customers.map((c: any) => {
+      const vip = getVipLevel(c.totalSpending || 0);
+      const tags = Array.isArray(c.tags) ? c.tags.join('、') : (c.tags || '');
+      return [
+        c.customerCode || '',
+        c.name || '',
+        c.phone || '',
+        c.wechat || '',
+        tags,
+        c.totalSpending || 0,
+        c.orderCount || 0,
+        vip.label,
+        c.lastPurchaseDate || '',
+        c.address || '',
+        c.notes || '',
+      ];
+    });
+    const csvContent = '\uFEFF' + [headers, ...rows].map(row => row.map((cell: any) => {
+      const str = String(cell);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `客户数据_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`已导出 ${customers.length} 条客户数据`);
+  }
+
   if (loading && customers.length === 0) return <LoadingSkeleton />;
 
   return (
@@ -550,9 +592,14 @@ function CustomersTab() {
             </select>
           )}
         </div>
-        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowCreate(true)}>
-          <Plus className="h-3 w-3 mr-1" /> 新增客户
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handleExportCSV} disabled={customers.length === 0}>
+            <FileDown className="h-3 w-3 mr-1" />导出CSV
+          </Button>
+          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowCreate(true)}>
+            <Plus className="h-3 w-3 mr-1" /> 新增客户
+          </Button>
+        </div>
       </div>
 
       {customers.length === 0 ? (

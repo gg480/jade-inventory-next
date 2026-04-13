@@ -45,14 +45,14 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
     return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
-  const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
-    { id: 'dashboard', label: '看板', icon: BarChart3 },
-    { id: 'inventory', label: '库存', icon: Package },
-    { id: 'sales', label: '销售', icon: ShoppingCart },
-    { id: 'batches', label: '批次', icon: Layers },
-    { id: 'customers', label: '客户', icon: Users },
-    { id: 'logs', label: '日志', icon: ScrollText },
-    { id: 'settings', label: '设置', icon: Settings },
+  const tabs: { id: TabId; label: string; icon: React.ElementType; title: string }[] = [
+    { id: 'dashboard', label: '看板', icon: BarChart3, title: '利润看板 - 销售统计和数据分析' },
+    { id: 'inventory', label: '库存', icon: Package, title: '库存管理 - 货品入库、出库和查询' },
+    { id: 'sales', label: '销售', icon: ShoppingCart, title: '销售记录 - 销售数据和分析' },
+    { id: 'batches', label: '批次', icon: Layers, title: '批次管理 - 批量采购和录入' },
+    { id: 'customers', label: '客户', icon: Users, title: '客户管理 - 客户信息和VIP体系' },
+    { id: 'logs', label: '日志', icon: ScrollText, title: '操作日志 - 系统操作记录查询' },
+    { id: 'settings', label: '设置', icon: Settings, title: '系统设置 - 配置和数据管理' },
   ];
 
   return (
@@ -63,6 +63,7 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
           const active = activeTab === tab.id;
           return (
             <button key={tab.id} onClick={() => onTabChange(tab.id)}
+              title={tab.title}
               className={`flex-1 flex flex-col items-center justify-center h-full text-[10px] font-medium transition-all gap-0.5 ${active ? 'text-emerald-600' : 'text-muted-foreground'}`}
             >
               <div className={`relative transition-transform ${active ? 'scale-110' : ''}`}>
@@ -143,14 +144,14 @@ function ShortcutsHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 // ========== Desktop Top Navigation ==========
 function DesktopNav({ activeTab, onTabChange, onLogout }: { activeTab: TabId; onTabChange: (t: TabId) => void; onLogout?: () => void }) {
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
-    { id: 'dashboard', label: '利润看板', icon: LayoutDashboard },
-    { id: 'inventory', label: '库存管理', icon: Package },
-    { id: 'sales', label: '销售记录', icon: ShoppingCart },
-    { id: 'batches', label: '批次管理', icon: Layers },
-    { id: 'customers', label: '客户管理', icon: Users },
-    { id: 'logs', label: '操作日志', icon: ScrollText },
-    { id: 'settings', label: '系统设置', icon: Settings },
+  const tabs: { id: TabId; label: string; icon: React.ElementType; title: string }[] = [
+    { id: 'dashboard', label: '利润看板', icon: LayoutDashboard, title: '利润看板 - 销售统计和数据分析' },
+    { id: 'inventory', label: '库存管理', icon: Package, title: '库存管理 - 货品入库、出库和查询' },
+    { id: 'sales', label: '销售记录', icon: ShoppingCart, title: '销售记录 - 销售数据和分析' },
+    { id: 'batches', label: '批次管理', icon: Layers, title: '批次管理 - 批量采购和录入' },
+    { id: 'customers', label: '客户管理', icon: Users, title: '客户管理 - 客户信息和VIP体系' },
+    { id: 'logs', label: '操作日志', icon: ScrollText, title: '操作日志 - 系统操作记录查询' },
+    { id: 'settings', label: '系统设置', icon: Settings, title: '系统设置 - 配置和数据管理' },
   ];
 
   return (
@@ -168,6 +169,7 @@ function DesktopNav({ activeTab, onTabChange, onLogout }: { activeTab: TabId; on
                 const active = activeTab === tab.id;
                 return (
                   <button key={tab.id} onClick={() => onTabChange(tab.id)}
+                    title={tab.title}
                     className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-out flex items-center gap-1.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${active ? 'text-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 dark:text-emerald-300 dark:from-emerald-950/40 dark:to-teal-950/40 border-b-2 border-emerald-500 shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                   >
                     <Icon className="h-4 w-4" />{tab.label}

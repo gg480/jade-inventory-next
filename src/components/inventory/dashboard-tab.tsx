@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 import {
-  Package, ShoppingCart, TrendingUp, DollarSign, ArrowUpRight, ArrowDownRight,
+  Package, ShoppingCart, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight,
   BarChart3, PieChart, AlertTriangle, CheckCircle, Gem, Layers, Tag, RefreshCw,
   Activity, Flame, Trophy, Users, CalendarDays, RotateCcw,
 } from 'lucide-react';
@@ -353,7 +353,22 @@ function DashboardTab() {
           <Card className="card-glow relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-20 w-20 text-sky-500" /></div>
-              <p className="text-sm text-muted-foreground">本月销售</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">本月销售</p>
+                {momData?.changes?.revenue != null ? (() => {
+                  const change = momData.changes.revenue;
+                  const isUp = change > 0;
+                  const isDown = change < 0;
+                  return (
+                    <span className={`text-xs inline-flex items-center gap-0.5 ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                      {isUp ? <TrendingUp className="h-3 w-3" /> : isDown ? <TrendingDown className="h-3 w-3" /> : null}
+                      {isUp ? `↑${change.toFixed(0)}%` : isDown ? `↓${Math.abs(change).toFixed(0)}%` : '—'}
+                    </span>
+                  );
+                })() : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </div>
               <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">{formatPrice(summary.monthRevenue)}</p>
               <p className="text-xs text-muted-foreground mt-1">{summary.monthSoldCount} 件，毛利 {formatPrice(summary.monthProfit)}</p>
             </CardContent>

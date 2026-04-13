@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText, Plus, Pencil, Trash2, ShoppingCart, RotateCcw, LogIn } from 'lucide-react';
+import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText, Plus, Pencil, Trash2, ShoppingCart, RotateCcw, LogIn, Copy, Check } from 'lucide-react';
 import Pagination from './pagination';
 
 // Action type config with labels, colors, icons and border colors
@@ -104,6 +104,7 @@ function LogsTab() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const fetchLogs = useCallback(async (page = pagination.page) => {
     setLoading(true);
@@ -158,6 +159,15 @@ function LogsTab() {
     return d.toLocaleString('zh-CN', {
       month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  function handleCopyDetail(text: string, id: number) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1500);
+    }).catch(() => {
+      toast.error('复制失败');
     });
   }
 
@@ -254,7 +264,18 @@ function LogsTab() {
                         <TableCell className="text-sm">{TARGET_TYPE_LABELS[log.targetType] || log.targetType || '-'}</TableCell>
                         <TableCell className="text-sm font-mono">{log.targetId || '-'}</TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-xs truncate" title={log.detail || ''}>
-                          {log.detail || '-'}
+                          <div className="flex items-center gap-1">
+                            <span className="truncate flex-1">{log.detail || '-'}</span>
+                            {log.detail && (
+                              <button
+                                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={(e) => { e.stopPropagation(); handleCopyDetail(log.detail, log.id); }}
+                                title="复制详情"
+                              >
+                                {copiedId === log.id ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                              </button>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-sm">{log.operator || '系统'}</TableCell>
                       </TableRow>
@@ -286,10 +307,19 @@ function LogsTab() {
                   </div>
                   {/* Detail */}
                   {log.detail && (
-                    <p className="text-xs text-muted-foreground bg-muted/30 rounded p-2 line-clamp-2 flex items-start gap-1">
-                      <FileText className="h-3 w-3 mt-0.5 shrink-0" />
-                      <span className="truncate">{log.detail}</span>
-                    </p>
+                    <div className="flex items-start gap-1">
+                      <p className="text-xs text-muted-foreground bg-muted/30 rounded p-2 line-clamp-2 flex items-start gap-1 flex-1">
+                        <FileText className="h-3 w-3 mt-0.5 shrink-0" />
+                        <span className="truncate">{log.detail}</span>
+                      </p>
+                      <button
+                        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-1"
+                        onClick={() => handleCopyDetail(log.detail, log.id)}
+                        title="复制详情"
+                      >
+                        {copiedId === log.id ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
                   )}
                 </CardContent>
               </Card>

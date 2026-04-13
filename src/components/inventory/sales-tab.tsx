@@ -184,6 +184,9 @@ function SalesTab() {
       case 'month': start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10); break;
       case 'quarter': start = new Date(today.getFullYear(), today.getMonth() - 2, 1).toISOString().slice(0, 10); break;
       case 'year': start = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10); break;
+      case 'days30': start = new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10); break;
+      case 'days90': start = new Date(today.getTime() - 90 * 86400000).toISOString().slice(0, 10); break;
+      case 'thisYear': start = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10); break;
       default: start = ''; end = '';
     }
     setFilters(f => ({ ...f, startDate: start, endDate: end }));
@@ -261,6 +264,22 @@ function SalesTab() {
               { key: 'month', label: '本月' },
               { key: 'quarter', label: '本季度' },
               { key: 'year', label: '本年' },
+            ].map(p => (
+              <Button
+                key={p.key}
+                size="sm"
+                variant={datePreset === p.key ? 'default' : 'outline'}
+                className={`h-7 text-xs ${datePreset === p.key ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                onClick={() => handleDatePreset(p.key)}
+              >
+                {p.label}
+              </Button>
+            ))}
+            <div className="w-px h-5 bg-border mx-1" />
+            {[
+              { key: 'days30', label: '近30天' },
+              { key: 'days90', label: '近90天' },
+              { key: 'thisYear', label: '今年' },
             ].map(p => (
               <Button
                 key={p.key}

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { batchesApi, exportApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton } from './shared';
+import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, ConfirmDialog } from './shared';
 import BatchCreateDialog from './batch-create-dialog';
 import BatchDetailDialog from './batch-detail-dialog';
 import Pagination from './pagination';
@@ -33,7 +33,7 @@ function BatchesTab() {
   const [editForm, setEditForm] = useState({ totalCost: 0, quantity: 0, purchaseDate: '', supplierName: '', note: '' });
 
   // Delete dialog
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; batch: any }>({ open: false, batch: null });
+  const [deleteBatch, setDeleteBatch] = useState<any>(null);
 
   const fetchBatches = useCallback(async () => {
     setLoading(true);
@@ -76,11 +76,11 @@ function BatchesTab() {
   }
 
   async function handleDelete() {
-    if (!deleteDialog.batch) return;
+    if (!deleteBatch) return;
     try {
-      await batchesApi.deleteBatch(deleteDialog.batch.id);
+      await batchesApi.deleteBatch(deleteBatch.id);
       toast.success('批次删除成功');
-      setDeleteDialog({ open: false, batch: null });
+      setDeleteBatch(null);
       fetchBatches();
     } catch (e: any) {
       toast.error(e.message || '删除失败');
@@ -207,7 +207,7 @@ function BatchesTab() {
                             {b.itemsCount === b.quantity && b.soldCount === 0 && (
                               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleAllocate(b.id)}>分摊</Button>
                             )}
-                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => setDeleteDialog({ open: true, batch: b })} title="删除"><Trash2 className="h-3 w-3" /></Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => setDeleteBatch(b)} title="删除"><Trash2 className="h-3 w-3" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -288,7 +288,7 @@ function BatchesTab() {
                     {b.itemsCount === b.quantity && b.soldCount === 0 && (
                       <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => handleAllocate(b.id)}>分摊</Button>
                     )}
-                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-red-600" onClick={() => setDeleteDialog({ open: true, batch: b })}><Trash2 className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-red-600" onClick={() => setDeleteBatch(b)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 </CardContent>
               </Card>
@@ -325,28 +325,15 @@ function BatchesTab() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog.open} onOpenChange={open => setDeleteDialog({ open, batch: open ? deleteDialog.batch : null })}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-red-600 flex items-center gap-2"><Trash2 className="h-5 w-5" />确认删除批次</DialogTitle>
-            <DialogDescription>此操作不可撤销，确定要删除这个批次吗？关联的货品不会被删除。</DialogDescription>
-          </DialogHeader>
-          {deleteDialog.batch && (
-            <div className="py-2">
-              <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg text-sm space-y-1">
-                <p><span className="text-muted-foreground">批次编号:</span> <span className="font-mono">{deleteDialog.batch.batchCode}</span></p>
-                <p><span className="text-muted-foreground">材质:</span> {deleteDialog.batch.materialName}</p>
-                <p><span className="text-muted-foreground">总成本:</span> {formatPrice(deleteDialog.batch.totalCost)}</p>
-                <p><span className="text-muted-foreground">已录入:</span> {deleteDialog.batch.itemsCount || 0}/{deleteDialog.batch.quantity} 件</p>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialog({ open: false, batch: null })}>取消</Button>
-            <Button onClick={handleDelete} className="bg-red-600 hover:bg-red-700">确认删除</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteBatch !== null}
+        onOpenChange={open => { if (!open) setDeleteBatch(null); }}
+        title="确认删除批次"
+        description={deleteBatch ? `确定要删除批次「${deleteBatch.batchCode}」(${deleteBatch.materialName})？此操作不可撤销，关联的货品不会被删除。` : ''}
+        confirmText="确认删除"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
