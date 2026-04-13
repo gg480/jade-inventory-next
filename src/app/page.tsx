@@ -292,6 +292,19 @@ export default function JadeInventoryPage() {
         return;
       }
 
+      // Alt+1~5: switch to first 5 tabs
+      if (e.altKey && !e.metaKey && !e.ctrlKey) {
+        const altTabMap: Record<string, TabId> = {
+          '1': 'dashboard', '2': 'inventory', '3': 'sales',
+          '4': 'batches', '5': 'customers',
+        };
+        if (altTabMap[e.key]) {
+          e.preventDefault();
+          handleTabChange(altTabMap[e.key]);
+          return;
+        }
+      }
+
       // ? key: show shortcuts help
       if (e.key === '?' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();

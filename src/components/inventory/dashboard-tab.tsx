@@ -19,7 +19,7 @@ import {
   Package, ShoppingCart, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight,
   BarChart3, PieChart, AlertTriangle, CheckCircle, Gem, Layers, Tag, RefreshCw,
   Activity, Flame, Trophy, Users, CalendarDays, RotateCcw, Crown, Sparkles,
-  Target, Store,
+  Target, Store, LayoutGrid,
 } from 'lucide-react';
 
 import {
@@ -970,6 +970,29 @@ function DashboardTab() {
             )}
           </CardContent>
         </Card>
+        {/* Inventory Value by Material Category - Horizontal Bar Chart */}
+        <Card className="hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><LayoutGrid className="h-4 w-4 text-teal-600" />库存货值分布（材质明细）</CardTitle></CardHeader>
+          <CardContent>
+            {inventoryValueByCategory.length === 0 ? (
+              <EmptyState icon={BarChart3} title="暂无数据" desc="还没有在库货品" />
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={inventoryValueByCategory.sort((a: any, b: any) => (b.totalValue || 0) - (a.totalValue || 0))} layout="vertical" margin={{ left: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
+                  <YAxis type="category" dataKey="category" width={60} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => formatPrice(v)} />
+                  <Bar dataKey="totalValue" radius={[0, 4, 4, 0]} name="货值">
+                    {inventoryValueByCategory.sort((a: any, b: any) => (b.totalValue || 0) - (a.totalValue || 0)).map((_, i) => (
+                      <Cell key={i} fill={['#059669', '#0d9488', '#0ea5e9', '#0284c7', '#f59e0b', '#d97706', '#8b5cf6', '#06b6d4'][i % 8]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* ====== 5. Monthly Sales Trend ====== */}
@@ -1022,6 +1045,34 @@ function DashboardTab() {
           </CardContent>
         </Card>
       )}
+
+      {/* ====== Monthly Sales Comparison (月度销售对比) ====== */}
+      {trend.length > 0 && (() => {
+        const last6 = trend.slice(-6);
+        return (
+          <Card className="hover:shadow-md transition-shadow duration-300">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-emerald-600" />
+                月度销售对比（近6个月）
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={last6}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="yearMonth" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number) => formatPrice(v)} />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#059669" radius={[4, 4, 0, 0]} name="营收" />
+                  <Bar dataKey="profit" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="毛利" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* ====== Sales Heatmap (销售热力图) ====== */}
       <Card className="border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">

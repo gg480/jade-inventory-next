@@ -17,11 +17,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
-  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag, AlertTriangle, X, Package,
+  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag, AlertTriangle, X, Package, XIcon, Eye,
 } from 'lucide-react';
 
 import {
@@ -85,6 +86,9 @@ function SalesTab() {
 
   // Print receipt dialog
   const [printSale, setPrintSale] = useState<any>(null);
+
+  // Sale detail panel
+  const [detailSale, setDetailSale] = useState<any>(null);
 
   // Today stats
   const [todayStats, setTodayStats] = useState<{ count: number; revenue: number; profit: number } | null>(null);
@@ -497,6 +501,9 @@ function SalesTab() {
                         </TableCell>
                         <TableCell className="text-center" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600 hover:text-emerald-700" onClick={() => setDetailSale(sale)} title="查看详情">
+                              <Eye className="h-3 w-3 mr-1" />详情
+                            </Button>
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-sky-600 hover:text-sky-700" onClick={() => handlePrintReceipt(sale)} title="打印小票">
                               <Printer className="h-3 w-3 mr-1" />小票
                             </Button>
@@ -603,6 +610,9 @@ function SalesTab() {
                   )}
                   {/* Action buttons */}
                   <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}>
+                    <Button size="sm" variant="outline" className="h-7 px-3 text-xs text-emerald-600" onClick={() => setDetailSale(sale)}>
+                      <Eye className="h-3 w-3 mr-1" />详情
+                    </Button>
                     <Button size="sm" variant="outline" className="h-7 px-3 text-xs text-sky-600" onClick={() => handlePrintReceipt(sale)}>
                       <Printer className="h-3 w-3 mr-1" />小票
                     </Button>
@@ -940,6 +950,170 @@ function SalesTab() {
           }
         }
       `}</style>
+
+      {/* Sale Detail Slide Panel */}
+      {detailSale && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 z-40 animate-in fade-in-0 duration-200"
+            onClick={() => setDetailSale(null)}
+          />
+          {/* Panel */}
+          <div className="fixed top-0 right-0 h-full z-50 w-full md:w-[400px] bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-300 ease-out overflow-y-auto">
+            <div className="sticky top-0 bg-card/95 backdrop-blur-sm border-b border-border px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-emerald-600" />
+                销售详情
+              </h2>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setDetailSale(null)}>
+                <XIcon className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Item Image + Basic Info */}
+              <div className="flex items-start gap-4">
+                <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                  {detailSale.itemImage ? (
+                    <img src={detailSale.itemImage} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <Gem className="h-8 w-8 text-muted-foreground/40" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <h3 className="font-semibold text-base truncate">{detailSale.itemName || detailSale.itemSku || '-'}</h3>
+                  <p className="text-xs text-muted-foreground font-mono">{detailSale.itemSku}</p>
+                  {detailSale.materialName && (
+                    <p className="text-xs text-muted-foreground">{detailSale.materialName} {detailSale.typeName ? `· ${detailSale.typeName}` : ''}</p>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Sale Info Grid */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">销售日期</p>
+                  <p className="font-medium">{detailSale.saleDate || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">销售单号</p>
+                  <p className="font-medium font-mono text-xs">{detailSale.saleNo || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">客户</p>
+                  <p className="font-medium">{detailSale.customerName || '散客'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">渠道</p>
+                  <div className="mt-0.5">{formatChannelBadge(detailSale.channel) || '-'}</div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">柜台号</p>
+                  <p className="font-medium">{detailSale.counter || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">支付方式</p>
+                  <div className="mt-0.5">{formatPaymentBadge(detailSale.note) || <span className="text-muted-foreground">未指定</span>}</div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Price Breakdown */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">价格明细</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">成本价</span>
+                    <span className="font-medium">{formatPrice(detailSale.costPrice)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">成交价</span>
+                    <span className="font-bold text-emerald-600 text-lg">{formatPrice(detailSale.actualPrice)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">毛利</span>
+                    <span className={`font-bold ${(detailSale.grossProfit || 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {(detailSale.grossProfit || 0) >= 0 ? '+' : ''}{formatPrice(detailSale.grossProfit || 0)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">毛利率</span>
+                    <Badge
+                      variant="outline"
+                      className={`font-medium ${
+                        (detailSale.actualPrice || 0) > 0
+                          ? ((detailSale.grossProfit || 0) / detailSale.actualPrice) * 100 > 30
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300'
+                            : ((detailSale.grossProfit || 0) / detailSale.actualPrice) * 100 > 10
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-300'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 border-gray-300'
+                      }`}
+                    >
+                      {detailSale.actualPrice > 0 ? `${(((detailSale.grossProfit || 0) / detailSale.actualPrice) * 100).toFixed(1)}%` : '0.0%'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Info */}
+              {(detailSale.customerName || detailSale.customerPhone) && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-1.5"><User className="h-4 w-4" />客户信息</h4>
+                    <div className="space-y-2 text-sm">
+                      {detailSale.customerName && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">姓名</span>
+                          <span className="font-medium">{detailSale.customerName}</span>
+                        </div>
+                      )}
+                      {detailSale.customerPhone && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">电话</span>
+                          <a href={`tel:${detailSale.customerPhone}`} className="font-medium text-sky-600 hover:underline">{detailSale.customerPhone}</a>
+                        </div>
+                      )}
+                      {detailSale.customerVipLevel && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">VIP等级</span>
+                          <span className="font-medium">{detailSale.customerVipLevel}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Note */}
+              {detailSale.note && (
+                <>
+                  <Separator />
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">备注</p>
+                    <p className="text-sm">{getPaymentNote(detailSale.note)}</p>
+                  </div>
+                </>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 pt-2">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => { setDetailSale(null); handlePrintReceipt(detailSale); }}>
+                  <Printer className="h-3 w-3 mr-1" />打印小票
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 text-orange-600" onClick={() => { setDetailSale(null); openReturnDialog(detailSale); }} disabled={detailSale.returnedAt}>
+                  <RotateCcw className="h-3 w-3 mr-1" />{detailSale.returnedAt ? '已退货' : '退货'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

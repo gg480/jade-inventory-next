@@ -973,8 +973,8 @@ function InventoryTab() {
                             >
                               <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all" loading="lazy" />
                             </button>
-                            <div className="absolute left-12 top-0 z-10 hidden group-hover/img:block pointer-events-none">
-                              <img src={item.coverImage} alt="" className="w-[120px] h-[120px] rounded-lg object-cover shadow-lg border border-border bg-background" />
+                            <div className="absolute left-14 top-0 z-10 hidden group-hover/img:block pointer-events-none">
+                              <img src={item.coverImage} alt="" className="w-[200px] h-[200px] rounded-lg object-cover shadow-lg border border-border bg-background" />
                             </div>
                           </div>
                         ) : (
@@ -983,7 +983,16 @@ function InventoryTab() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{item.skuCode}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:text-emerald-600 transition-colors cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.skuCode || '').then(() => toast.success('SKU已复制到剪贴板')).catch(() => toast.error('复制失败')); }}
+                          title="点击复制SKU"
+                        >
+                          {item.skuCode}
+                        </button>
+                      </TableCell>
                       <TableCell>{item.name || item.skuCode}</TableCell>
                       <TableCell>{item.materialName}</TableCell>
                       <TableCell>{item.typeName || '-'}</TableCell>
@@ -1082,7 +1091,11 @@ function InventoryTab() {
                         checked={selectedIds.has(item.id)}
                         onCheckedChange={() => toggleSelect(item.id)}
                       />
-                      <span className="font-mono text-xs text-muted-foreground truncate">{item.skuCode}</span>
+                      <span
+                        className="font-mono text-xs text-muted-foreground hover:text-emerald-600 transition-colors truncate cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(item.skuCode || '').then(() => toast.success('SKU已复制到剪贴板')).catch(() => toast.error('复制失败')); }}
+                        title="点击复制SKU"
+                      >{item.skuCode}</span>
                     </div>
                     <p className="font-medium text-sm truncate mt-0.5">{item.name || item.skuCode}</p>
                   </div>
