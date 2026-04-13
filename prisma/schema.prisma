@@ -96,7 +96,9 @@ model Customer {
   name         String
   phone        String?
   wechat       String?
+  address      String?
   notes        String?
+  tags         String?  // JSON string: ["翡翠收藏家","VIP","婚戒客户"]
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
 

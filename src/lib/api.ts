@@ -122,6 +122,8 @@ export const customersApi = {
     request<any>('/customers', { method: 'POST', body: JSON.stringify(data) }),
   updateCustomer: (id: number, data: any) =>
     request<any>(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCustomer: (id: number) =>
+    request<any>(`/customers/${id}`, { method: 'DELETE' }),
 };
 
 // ========== Suppliers ==========

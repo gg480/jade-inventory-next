@@ -110,7 +110,7 @@ function DashboardTab() {
       const params: any = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
-      const [s, bp, pc, pch, t, sa, dt, dm, ctr, prc, prs, wd, ad, mom, to, hm, ts, cf] = await Promise.all([
+      const results = await Promise.allSettled([
         dashboardApi.getSummary({ aging_days: minDays }),
         dashboardApi.getBatchProfit({}),
         dashboardApi.getProfitByCategory(params),
@@ -130,24 +130,34 @@ function DashboardTab() {
         dashboardApi.getTopSellers({ limit: 5 }),
         dashboardApi.getCustomerFrequency(),
       ]);
-      setSummary(s);
-      setBatchProfit(bp || []);
-      setProfitByCategory(pc || []);
-      setProfitByChannel(pch || []);
-      setTrend(t || []);
-      setStockAging(sa || { items: [], totalItems: 0, totalValue: 0 });
-      setDistByType(dt || null);
-      setDistByMaterial(dm || null);
-      setProfitByCounter(ctr || []);
-      setPriceRangeCost(prc || []);
-      setPriceRangeSelling(prs || []);
-      setWeightDist(wd || null);
-      setAgeDist(ad || []);
-      setMomData(mom || null);
-      setTurnoverData(to || []);
-      setHeatmapData(hm || null);
-      setTopSellers(ts || []);
-      setCustomerFreq(cf || null);
+      // Helper to safely extract fulfilled values
+      const val = <T,>(idx: number, fallback: T) =>
+        results[idx].status === 'fulfilled' ? results[idx].value as T : fallback;
+
+      setSummary(val(0, null));
+      setBatchProfit(val(1, []));
+      setProfitByCategory(val(2, []));
+      setProfitByChannel(val(3, []));
+      setTrend(val(4, []));
+      setStockAging(val(5, { items: [], totalItems: 0, totalValue: 0 }));
+      setDistByType(val(6, null));
+      setDistByMaterial(val(7, null));
+      setProfitByCounter(val(8, []));
+      setPriceRangeCost(val(9, []));
+      setPriceRangeSelling(val(10, []));
+      setWeightDist(val(11, null));
+      setAgeDist(val(12, []));
+      setMomData(val(13, null));
+      setTurnoverData(val(14, []));
+      setHeatmapData(val(15, null));
+      setTopSellers(val(16, []));
+      setCustomerFreq(val(17, null));
+
+      // Log any rejected promises for debugging
+      const failed = results.map((r, i) => r.status === 'rejected' ? i : -1).filter(i => i >= 0);
+      if (failed.length > 0) {
+        console.warn(`Dashboard: ${failed.length} API call(s) failed: indices ${failed.join(', ')}`);
+      }
     } catch {
       toast.error('加载看板数据失败');
     } finally {
@@ -156,24 +166,6 @@ function DashboardTab() {
   }, [minDays, getDateRange, warningDaysLoaded]);
 
   useEffect(() => { if (warningDaysLoaded) fetchData(); }, [fetchData, warningDaysLoaded]);
-
-  if (loading) return <LoadingSkeleton />;
-
-  const channelLabelMap: Record<string, string> = { store: '门店', wechat: '微信' };
-  const batchStatusLabelMap: Record<string, string> = { new: '未开始', selling: '销售中', paid_back: '已回本', cleared: '清仓完毕' };
-  const batchStatusColorMap: Record<string, string> = { new: '#94a3b8', selling: '#0ea5e9', paid_back: '#059669', cleared: '#059669' };
-
-  // Batch payback pie data
-  const batchPieData = Object.entries(
-    batchProfit.reduce((acc: any, b: any) => {
-      const label = batchStatusLabelMap[b.status] || b.status;
-      acc[label] = (acc[label] || 0) + 1;
-      return acc;
-    }, {})
-  ).map(([name, value]) => ({ name, value: value as number }));
-
-  // Price range pie label
-  const priceLabel = ({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`;
 
   // ===== Heatmap calendar computation =====
   const heatmapCalendar = useMemo(() => {
@@ -249,6 +241,24 @@ function DashboardTab() {
     if (!topSellers.length) return 1;
     return Math.max(...topSellers.map((s: any) => Math.abs(s.margin)), 1);
   }, [topSellers]);
+
+  if (loading) return <LoadingSkeleton />;
+
+  const channelLabelMap: Record<string, string> = { store: '门店', wechat: '微信' };
+  const batchStatusLabelMap: Record<string, string> = { new: '未开始', selling: '销售中', paid_back: '已回本', cleared: '清仓完毕' };
+  const batchStatusColorMap: Record<string, string> = { new: '#94a3b8', selling: '#0ea5e9', paid_back: '#059669', cleared: '#059669' };
+
+  // Batch payback pie data
+  const batchPieData = Object.entries(
+    batchProfit.reduce((acc: any, b: any) => {
+      const label = batchStatusLabelMap[b.status] || b.status;
+      acc[label] = (acc[label] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([name, value]) => ({ name, value: value as number }));
+
+  // Price range pie label
+  const priceLabel = ({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`;
 
   return (
     <div className="space-y-6">

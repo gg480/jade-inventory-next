@@ -93,6 +93,8 @@ function SettingsTab() {
   const [editMaterial, setEditMaterial] = useState<any>(null);
   const [materialForm, setMaterialForm] = useState({ name: '', category: '', subType: '', origin: '', costPerGram: '' });
   const [showCreateType, setShowCreateType] = useState(false);
+  const [editType, setEditType] = useState<any>(null);
+  const [deleteType, setDeleteType] = useState<any>(null);
   // typeForm.specFields now stores Record<string, { required: boolean }>
   const [typeForm, setTypeForm] = useState<{ name: string; specFields: Record<string, { required: boolean }> }>({ name: '', specFields: {} });
   const [showCreateTag, setShowCreateTag] = useState(false);
@@ -195,6 +197,34 @@ function SettingsTab() {
       const t = await dictsApi.getTypes(true);
       setTypes(t || []);
     } catch (e: any) { toast.error(e.message || '创建失败'); }
+  }
+
+  async function handleUpdateType() {
+    if (!editType) return;
+    try {
+      await dictsApi.updateType(editType.id, { name: typeForm.name, specFields: JSON.stringify(typeForm.specFields) });
+      toast.success('器型更新成功');
+      setEditType(null);
+      setTypeForm({ name: '', specFields: {} });
+      const t = await dictsApi.getTypes(true);
+      setTypes(t || []);
+    } catch (e: any) { toast.error(e.message || '更新失败'); }
+  }
+
+  async function handleDeleteType() {
+    if (!deleteType) return;
+    try {
+      await dictsApi.deleteType(deleteType.id);
+      toast.success('器型已删除/停用');
+      setDeleteType(null);
+      const t = await dictsApi.getTypes(true);
+      setTypes(t || []);
+    } catch (e: any) { toast.error(e.message || '删除失败'); }
+  }
+
+  function openEditTypeDialog(t: any) {
+    setEditType(t);
+    setTypeForm({ name: t.name || '', specFields: parseSpecFields(t.specFields) });
   }
 
   async function handleCreateTag() {
@@ -327,15 +357,21 @@ function SettingsTab() {
             <CardContent>
               <div className="max-h-48 overflow-y-auto custom-scrollbar">
                 <Table>
-                  <TableHeader><TableRow><TableHead>名称</TableHead><TableHead>规格字段</TableHead><TableHead>状态</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>名称</TableHead><TableHead>规格字段</TableHead><TableHead>状态</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {types.map(t => (
                       <TableRow key={t.id} className={!t.isActive ? 'opacity-50' : ''}>
                         <TableCell className="font-medium">{t.name}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatSpecFieldsDisplay(t.specFields)}
-                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{formatSpecFieldsDisplay(t.specFields)}</TableCell>
                         <TableCell><Badge variant={t.isActive ? 'default' : 'secondary'} className={t.isActive ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' : ''}>{t.isActive ? '启用' : '停用'}</Badge></TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-amber-600" onClick={() => openEditTypeDialog(t)} title="编辑"><Pencil className="h-3 w-3" /></Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={async () => {
+                              try { await dictsApi.deleteType(t.id); toast.success('器型已删除/停用'); const tp = await dictsApi.getTypes(true); setTypes(tp || []); } catch (e: any) { toast.error(e.message); }
+                            }}>{t.isActive ? '停用' : '启用'}</Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -953,6 +989,85 @@ function SettingsTab() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateType(false)}>取消</Button>
             <Button onClick={handleCreateType} className="bg-emerald-600 hover:bg-emerald-700" disabled={!typeForm.name}>创建</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Type Dialog */}
+      <Dialog open={editType !== null} onOpenChange={open => { if (!open) setEditType(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>编辑器型</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label>名称 *</Label><Input value={typeForm.name} onChange={e => setTypeForm(f => ({ ...f, name: e.target.value }))} placeholder="如: 手镯" /></div>
+            <div className="space-y-2">
+              <Label>规格字段</Label>
+              <div className="space-y-2 border rounded-lg p-3">
+                {SPEC_FIELD_OPTIONS.map(field => {
+                  const isChecked = field.key in typeForm.specFields;
+                  const isRequired = typeForm.specFields[field.key]?.required ?? false;
+                  return (
+                    <div key={field.key} className="flex items-center gap-3">
+                      <Checkbox
+                        id={`edit-spec-${field.key}`}
+                        checked={isChecked}
+                        onCheckedChange={(checked) => {
+                          setTypeForm(f => {
+                            const newFields = { ...f.specFields };
+                            if (checked) {
+                              newFields[field.key] = { required: false };
+                            } else {
+                              delete newFields[field.key];
+                            }
+                            return { ...f, specFields: newFields };
+                          });
+                        }}
+                      />
+                      <Label htmlFor={`edit-spec-${field.key}`} className="text-sm flex-1 cursor-pointer">{field.label}</Label>
+                      {isChecked && (
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+                          <Checkbox
+                            checked={isRequired}
+                            onCheckedChange={(checked) => {
+                              setTypeForm(f => ({
+                                ...f,
+                                specFields: {
+                                  ...f.specFields,
+                                  [field.key]: { required: !!checked },
+                                },
+                              }));
+                            }}
+                          />
+                          必填
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">勾选需要的规格字段，并标记是否必填</p>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
+              <span className="text-sm">状态</span>
+              <Button size="sm" variant={editType?.isActive ? 'outline' : 'default'} className={editType?.isActive ? 'text-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'} onClick={async () => {
+                if (!editType) return;
+                try { await dictsApi.deleteType(editType.id); toast.success(editType.isActive ? '已停用' : '已启用'); const tp = await dictsApi.getTypes(true); setTypes(tp || []); setEditType(null); } catch (e: any) { toast.error(e.message); }
+              }}>{editType?.isActive ? '停用' : '启用'}</Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditType(null)}>取消</Button>
+            <Button onClick={handleUpdateType} className="bg-emerald-600 hover:bg-emerald-700" disabled={!typeForm.name}>保存修改</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Type Confirm Dialog */}
+      <Dialog open={deleteType !== null} onOpenChange={open => { if (!open) setDeleteType(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>确认删除</DialogTitle><DialogDescription>确定要删除器型「{deleteType?.name}」吗？此操作不可恢复。</DialogDescription></DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteType(null)}>取消</Button>
+            <Button onClick={handleDeleteType} className="bg-red-600 hover:bg-red-700">确认删除</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

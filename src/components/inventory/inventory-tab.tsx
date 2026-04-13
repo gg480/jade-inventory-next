@@ -75,6 +75,13 @@ function InventoryTab() {
 
   // Batch operation loading state
   const [batchLoading, setBatchLoading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // Batch sell individual prices
+  const [batchSellPrices, setBatchSellPrices] = useState<Record<number, number>>({});
+
+  // Delete confirmation dialog
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<any>(null);
 
   useEffect(() => { dictsApi.getMaterials().then(setMaterials).catch(() => {}); }, []);
   useEffect(() => { batchesApi.getBatches({ page: 1, size: 1000 }).then(d => setAllBatches(d.items || [])).catch(() => {}); }, []);
@@ -150,8 +157,21 @@ function InventoryTab() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('确定删除此货品？')) return;
-    try { await itemsApi.deleteItem(id); toast.success('删除成功'); fetchItems(); } catch (e: any) { toast.error(e.message); }
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    setDeleteConfirmItem(item);
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirmItem) return;
+    try {
+      await itemsApi.deleteItem(deleteConfirmItem.id);
+      toast.success('删除成功');
+      setDeleteConfirmItem(null);
+      fetchItems();
+    } catch (e: any) {
+      toast.error(e.message || '删除失败');
+    }
   }
 
   async function handleReturn() {
@@ -213,11 +233,16 @@ function InventoryTab() {
       return;
     }
     setBatchLoading(true);
+    setBatchProgress({ current: 0, total: selectedInStockItems.length });
     let successCount = 0;
     let failCount = 0;
-    for (const item of selectedInStockItems) {
+    for (let i = 0; i < selectedInStockItems.length; i++) {
+      const item = selectedInStockItems[i];
+      setBatchProgress({ current: i + 1, total: selectedInStockItems.length });
       try {
-        const price = batchSellForm.useCurrentPrice ? item.sellingPrice : item.sellingPrice;
+        const price = batchSellForm.useCurrentPrice
+          ? item.sellingPrice
+          : (batchSellPrices[item.id] ?? item.sellingPrice);
         await salesApi.createSale({
           itemId: item.id,
           actualPrice: price,
@@ -231,7 +256,9 @@ function InventoryTab() {
       }
     }
     setBatchLoading(false);
+    setBatchProgress(null);
     setBatchSellOpen(false);
+    setBatchSellPrices({});
     clearSelection();
     fetchItems();
     if (failCount === 0) {
@@ -243,9 +270,12 @@ function InventoryTab() {
 
   async function handleBatchDelete() {
     setBatchLoading(true);
+    setBatchProgress({ current: 0, total: selectedItems.length });
     let successCount = 0;
     let failCount = 0;
-    for (const item of selectedItems) {
+    for (let i = 0; i < selectedItems.length; i++) {
+      const item = selectedItems[i];
+      setBatchProgress({ current: i + 1, total: selectedItems.length });
       try {
         await itemsApi.deleteItem(item.id);
         successCount++;
@@ -254,6 +284,7 @@ function InventoryTab() {
       }
     }
     setBatchLoading(false);
+    setBatchProgress(null);
     setBatchDeleteOpen(false);
     clearSelection();
     fetchItems();
@@ -271,9 +302,12 @@ function InventoryTab() {
       return;
     }
     setBatchLoading(true);
+    setBatchProgress({ current: 0, total: selectedItems.length });
     let successCount = 0;
     let failCount = 0;
-    for (const item of selectedItems) {
+    for (let i = 0; i < selectedItems.length; i++) {
+      const item = selectedItems[i];
+      setBatchProgress({ current: i + 1, total: selectedItems.length });
       try {
         const updateData: any = {};
         if (batchPriceForm.target === 'sellingPrice') {
@@ -298,6 +332,7 @@ function InventoryTab() {
       }
     }
     setBatchLoading(false);
+    setBatchProgress(null);
     setBatchPriceOpen(false);
     setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '' });
     clearSelection();
@@ -316,9 +351,12 @@ function InventoryTab() {
       return;
     }
     setBatchLoading(true);
+    setBatchProgress({ current: 0, total: selectedItems.length });
     let successCount = 0;
     let failCount = 0;
-    for (const item of selectedItems) {
+    for (let i = 0; i < selectedItems.length; i++) {
+      const item = selectedItems[i];
+      setBatchProgress({ current: i + 1, total: selectedItems.length });
       try {
         await itemsApi.updateItem(item.id, { counter: String(counter) });
         successCount++;
@@ -327,6 +365,7 @@ function InventoryTab() {
       }
     }
     setBatchLoading(false);
+    setBatchProgress(null);
     setBatchCounterOpen(false);
     setBatchCounterForm({ counter: '' });
     clearSelection();
@@ -525,12 +564,12 @@ function InventoryTab() {
                     </TableHead>
                     <TableHead>SKU</TableHead><TableHead>名称</TableHead><TableHead>材质</TableHead><TableHead>器型</TableHead><TableHead>所属批次</TableHead>
                     <TableHead className="text-right">成本</TableHead><TableHead className="text-right">售价</TableHead>
-                    <TableHead>状态</TableHead><TableHead>库龄</TableHead><TableHead className="text-right">操作</TableHead>
+                    <TableHead>采购日期</TableHead><TableHead>状态</TableHead><TableHead>库龄</TableHead><TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map(item => (
-                    <TableRow key={item.id} className={`hover:bg-muted/50 transition-colors ${selectedIds.has(item.id) ? 'bg-primary/5' : ''}`}>
+                    <TableRow key={item.id} className={`hover:bg-muted/50 transition-colors ${selectedIds.has(item.id) ? 'bg-emerald-50 dark:bg-emerald-950/20' : ''}`}>
                       <TableCell className="w-10 px-3">
                         <Checkbox
                           checked={selectedIds.has(item.id)}
@@ -548,6 +587,7 @@ function InventoryTab() {
                       ) : <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell className="text-right">{item.allocatedCost ? formatPrice(item.allocatedCost) : item.estimatedCost ? <span className="text-muted-foreground" title="预估成本">{formatPrice(item.estimatedCost)}~</span> : formatPrice(item.costPrice)}</TableCell>
                       <TableCell className="text-right font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{item.purchaseDate || '-'}</TableCell>
                       <TableCell><StatusBadge status={item.status} /></TableCell>
                       <TableCell className={item.ageDays > 90 ? 'text-red-600 font-medium' : ''}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</TableCell>
                       <TableCell className="text-right">
@@ -579,7 +619,7 @@ function InventoryTab() {
         {/* Mobile Card View */}
         <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
           {items.map(item => (
-            <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}>
+            <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/20' : ''}`}>
               <CardContent className="p-4 space-y-3">
                 {/* Header: Checkbox + SKU + Status */}
                 <div className="flex items-center justify-between">
@@ -744,6 +784,18 @@ function InventoryTab() {
             <DialogDescription>将选中的在库货品批量出库销售</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Progress indicator */}
+            {batchProgress && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>处理进度</span>
+                  <span>{batchProgress.current} / {batchProgress.total}</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+                </div>
+              </div>
+            )}
             {/* Selected items list */}
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">选中货品（{selectedInStockItems.length} 件可出库）</Label>
@@ -753,7 +805,17 @@ function InventoryTab() {
                     <div key={item.id} className={`flex items-center justify-between text-sm py-1 px-2 rounded ${item.status === 'in_stock' ? 'bg-muted/50' : 'bg-muted/20 opacity-50'}`}>
                       <span className="font-mono text-xs">{item.skuCode}</span>
                       <span className="truncate mx-2 text-xs">{item.name || item.skuCode}</span>
-                      <span className="font-medium text-emerald-600 whitespace-nowrap">{formatPrice(item.sellingPrice)}</span>
+                      {!batchSellForm.useCurrentPrice && item.status === 'in_stock' ? (
+                        <Input
+                          type="number"
+                          className="h-7 w-24 text-xs text-right"
+                          value={batchSellPrices[item.id] ?? item.sellingPrice}
+                          onChange={e => setBatchSellPrices(prev => ({ ...prev, [item.id]: parseFloat(e.target.value) || 0 }))}
+                          disabled={batchLoading}
+                        />
+                      ) : (
+                        <span className="font-medium text-emerald-600 whitespace-nowrap">{formatPrice(item.sellingPrice)}</span>
+                      )}
                       {item.status !== 'in_stock' && <span className="text-xs text-red-500 ml-1">(非在库)</span>}
                     </div>
                   ))}
@@ -763,20 +825,24 @@ function InventoryTab() {
             {/* Common fields */}
             <div className="space-y-1">
               <Label>销售渠道</Label>
-              <Select value={batchSellForm.channel} onValueChange={v => setBatchSellForm(f => ({ ...f, channel: v }))}>
+              <Select value={batchSellForm.channel} onValueChange={v => setBatchSellForm(f => ({ ...f, channel: v }))} disabled={batchLoading}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="store">门店</SelectItem><SelectItem value="wechat">微信</SelectItem></SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
               <Label>销售日期</Label>
-              <Input type="date" value={batchSellForm.saleDate} onChange={e => setBatchSellForm(f => ({ ...f, saleDate: e.target.value }))} />
+              <Input type="date" value={batchSellForm.saleDate} onChange={e => setBatchSellForm(f => ({ ...f, saleDate: e.target.value }))} disabled={batchLoading} />
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
                 id="useCurrentPrice"
                 checked={batchSellForm.useCurrentPrice}
-                onCheckedChange={(checked) => setBatchSellForm(f => ({ ...f, useCurrentPrice: !!checked }))}
+                onCheckedChange={(checked) => {
+                  setBatchSellForm(f => ({ ...f, useCurrentPrice: !!checked }));
+                  if (checked) setBatchSellPrices({});
+                }}
+                disabled={batchLoading}
               />
               <Label htmlFor="useCurrentPrice" className="text-sm cursor-pointer">使用当前售价作为成交价</Label>
             </div>
@@ -784,15 +850,18 @@ function InventoryTab() {
               <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg text-sm">
                 <p className="text-muted-foreground">预计总营收：</p>
                 <p className="text-lg font-bold text-emerald-600">
-                  {formatPrice(selectedInStockItems.reduce((sum, i) => sum + (i.sellingPrice || 0), 0))}
+                  {formatPrice(selectedInStockItems.reduce((sum, i) => {
+                    if (batchSellForm.useCurrentPrice) return sum + (i.sellingPrice || 0);
+                    return sum + (batchSellPrices[i.id] ?? (i.sellingPrice || 0));
+                  }, 0))}
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBatchSellOpen(false)}>取消</Button>
+            <Button variant="outline" onClick={() => setBatchSellOpen(false)} disabled={batchLoading}>取消</Button>
             <Button onClick={handleBatchSell} disabled={batchLoading || selectedInStockItems.length === 0} className="bg-emerald-600 hover:bg-emerald-700">
-              {batchLoading ? '处理中...' : `确认出库 ${selectedInStockItems.length} 件`}
+              {batchLoading ? `处理中 ${batchProgress ? `${batchProgress.current}/${batchProgress.total}` : '...'}` : `确认出库 ${selectedInStockItems.length} 件`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -810,21 +879,36 @@ function InventoryTab() {
               此操作将永久删除选中的 <span className="text-red-600 font-bold">{selectedIds.size}</span> 件货品，此操作不可撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* Progress indicator */}
+          {batchProgress && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>删除进度</span>
+                <span>{batchProgress.current} / {batchProgress.total}</span>
+              </div>
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full transition-all duration-300" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+              </div>
+            </div>
+          )}
           <ScrollArea className="max-h-48">
             <div className="space-y-1 py-2">
-              {selectedItems.map(item => (
+              {selectedItems.slice(0, 5).map(item => (
                 <div key={item.id} className="flex items-center justify-between text-sm py-1 px-2 rounded bg-red-50 dark:bg-red-950/20">
                   <span className="font-mono text-xs">{item.skuCode}</span>
                   <span className="truncate mx-2 text-xs">{item.name || item.skuCode}</span>
                   <span className="font-medium whitespace-nowrap">{formatPrice(item.sellingPrice)}</span>
                 </div>
               ))}
+              {selectedItems.length > 5 && (
+                <p className="text-xs text-muted-foreground text-center pt-1">等 {selectedItems.length} 件</p>
+              )}
             </div>
           </ScrollArea>
           <AlertDialogFooter>
             <Button variant="outline" onClick={() => setBatchDeleteOpen(false)} disabled={batchLoading}>取消</Button>
             <Button onClick={handleBatchDelete} disabled={batchLoading} className="bg-red-600 hover:bg-red-700">
-              {batchLoading ? '删除中...' : `确认删除 ${selectedIds.size} 件`}
+              {batchLoading ? `删除中 ${batchProgress ? `${batchProgress.current}/${batchProgress.total}` : '...'}` : `确认删除 ${selectedIds.size} 件`}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -841,10 +925,22 @@ function InventoryTab() {
             <DialogDescription>对选中的 {selectedIds.size} 件货品进行价格调整</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Progress indicator */}
+            {batchProgress && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>调价进度</span>
+                  <span>{batchProgress.current} / {batchProgress.total}</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full transition-all duration-300" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs">调整方式</Label>
-                <Select value={batchPriceForm.mode} onValueChange={v => setBatchPriceForm(f => ({ ...f, mode: v }))}>
+                <Select value={batchPriceForm.mode} onValueChange={v => setBatchPriceForm(f => ({ ...f, mode: v }))} disabled={batchLoading}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percent">百分比 (%)</SelectItem>
@@ -854,7 +950,7 @@ function InventoryTab() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">调整对象</Label>
-                <Select value={batchPriceForm.target} onValueChange={v => setBatchPriceForm(f => ({ ...f, target: v }))}>
+                <Select value={batchPriceForm.target} onValueChange={v => setBatchPriceForm(f => ({ ...f, target: v }))} disabled={batchLoading}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="sellingPrice">售价</SelectItem>
@@ -872,6 +968,7 @@ function InventoryTab() {
                 placeholder={batchPriceForm.mode === 'percent' ? '如 +10 表示涨10%' : '如 500 表示加500元'}
                 value={batchPriceForm.value}
                 onChange={e => setBatchPriceForm(f => ({ ...f, value: e.target.value }))}
+                disabled={batchLoading}
               />
             </div>
             {/* Preview */}
@@ -897,9 +994,9 @@ function InventoryTab() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setBatchPriceOpen(false); setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '' }); }}>取消</Button>
+            <Button variant="outline" onClick={() => { setBatchPriceOpen(false); setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '' }); }} disabled={batchLoading}>取消</Button>
             <Button onClick={handleBatchPriceAdjust} disabled={batchLoading || !batchPriceForm.value} className="bg-amber-600 hover:bg-amber-700 text-white">
-              {batchLoading ? '处理中...' : '确认调价'}
+              {batchLoading ? `调价中 ${batchProgress ? `${batchProgress.current}/${batchProgress.total}` : '...'}` : '确认调价'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -916,6 +1013,18 @@ function InventoryTab() {
             <DialogDescription>将选中的 {selectedIds.size} 件货品统一修改到指定柜台</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Progress indicator */}
+            {batchProgress && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>修改进度</span>
+                  <span>{batchProgress.current} / {batchProgress.total}</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-sky-500 rounded-full transition-all duration-300" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+                </div>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>新柜台号</Label>
               <Input
@@ -923,13 +1032,14 @@ function InventoryTab() {
                 placeholder="输入柜台号"
                 value={batchCounterForm.counter}
                 onChange={e => setBatchCounterForm(f => ({ ...f, counter: e.target.value }))}
+                disabled={batchLoading}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setBatchCounterOpen(false); setBatchCounterForm({ counter: '' }); }}>取消</Button>
+            <Button variant="outline" onClick={() => { setBatchCounterOpen(false); setBatchCounterForm({ counter: '' }); }} disabled={batchLoading}>取消</Button>
             <Button onClick={handleBatchCounter} disabled={batchLoading || !batchCounterForm.counter} className="bg-sky-600 hover:bg-sky-700 text-white">
-              {batchLoading ? '处理中...' : '确认修改'}
+              {batchLoading ? `修改中 ${batchProgress ? `${batchProgress.current}/${batchProgress.total}` : '...'}` : '确认修改'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -966,6 +1076,38 @@ function InventoryTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Single Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmItem !== null} onOpenChange={open => { if (!open) setDeleteConfirmItem(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              确认删除
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作不可撤销，确定要删除这个货品吗？
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteConfirmItem && (
+            <div className="py-2">
+              <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg text-sm space-y-1">
+                <p><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{deleteConfirmItem.skuCode}</span></p>
+                <p><span className="text-muted-foreground">名称:</span> {deleteConfirmItem.name || deleteConfirmItem.skuCode}</p>
+                <p><span className="text-muted-foreground">材质:</span> {deleteConfirmItem.materialName}</p>
+                <p><span className="text-muted-foreground">售价:</span> <span className="font-medium text-emerald-600">{formatPrice(deleteConfirmItem.sellingPrice)}</span></p>
+                {deleteConfirmItem.batchCode && (
+                  <p><span className="text-muted-foreground">批次:</span> <span className="font-mono">{deleteConfirmItem.batchCode}</span></p>
+                )}
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmItem(null)}>取消</Button>
+            <Button onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">确认删除</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Label Print Dialog */}
       <LabelPrintDialog item={printLabelItem} open={printLabelItem !== null} onOpenChange={open => { if (!open) setPrintLabelItem(null); }} />
