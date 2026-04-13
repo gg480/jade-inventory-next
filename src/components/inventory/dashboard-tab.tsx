@@ -298,7 +298,7 @@ function DashboardTab() {
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
               <p className="text-sm text-muted-foreground">库存总计</p>
-              <p className="text-3xl font-extrabold mt-1">{summary.totalItems}</p>
+              <p className="text-3xl font-extrabold mt-1 tabular-nums">{summary.totalItems}</p>
               <p className="text-xs text-muted-foreground mt-1">库存货值 {formatPrice(summary.totalStockValue)}</p>
             </CardContent>
           </Card>
@@ -306,7 +306,7 @@ function DashboardTab() {
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-20 w-20 text-sky-500" /></div>
               <p className="text-sm text-muted-foreground">本月销售</p>
-              <p className="text-3xl font-extrabold text-emerald-600 mt-1">{formatPrice(summary.monthRevenue)}</p>
+              <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">{formatPrice(summary.monthRevenue)}</p>
               <p className="text-xs text-muted-foreground mt-1">{summary.monthSoldCount} 件，毛利 {formatPrice(summary.monthProfit)}</p>
             </CardContent>
           </Card>
@@ -314,7 +314,7 @@ function DashboardTab() {
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><AlertTriangle className="h-20 w-20 text-red-500" /></div>
               <p className="text-sm text-muted-foreground">压货预警</p>
-              <p className="text-3xl font-extrabold text-red-600 mt-1">{stockAging.totalItems || 0}</p>
+              <p className="text-3xl font-extrabold text-red-600 mt-1 tabular-nums">{stockAging.totalItems || 0}</p>
               <p className="text-xs text-muted-foreground mt-1">超过 {minDays} 天未售</p>
             </CardContent>
           </Card>
@@ -322,7 +322,7 @@ function DashboardTab() {
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><CheckCircle className="h-20 w-20 text-amber-500" /></div>
               <p className="text-sm text-muted-foreground">已回本批次</p>
-              <p className="text-3xl font-extrabold text-emerald-600 mt-1">
+              <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">
                 {batchProfit.filter(b => b.status === 'paid_back' || b.status === 'cleared').length}
               </p>
               <p className="text-xs text-muted-foreground mt-1">共 {batchProfit.length} 个批次</p>
@@ -582,11 +582,11 @@ function DashboardTab() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="counter" tickFormatter={v => `${v}号柜`} tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number, name: string) => [formatPrice(v), name === 'totalProfit' ? '利润' : '营收']}
+                  <Tooltip formatter={(v: number, name: string) => [formatPrice(v), name]}
                     labelFormatter={(v: number) => `${v}号柜台`} />
-                  <Legend formatter={(v: string) => v === 'totalRevenue' ? '营收' : '利润'} />
-                  <Bar dataKey="totalRevenue" fill="#05966930" stroke="#059669" strokeWidth={1} name="totalRevenue" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="totalProfit" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="totalProfit" />
+                  <Legend formatter={(v: string) => v} />
+                  <Bar dataKey="totalRevenue" fill="#05966930" stroke="#059669" strokeWidth={1} name="营收" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="totalProfit" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="利润" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -628,14 +628,11 @@ function DashboardTab() {
                 <XAxis dataKey="yearMonth" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                 <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v: number, name: string) => {
-                  if (name === 'salesCount') return [v, '销量'];
-                  return [formatPrice(v), name === 'revenue' ? '销售额' : '毛利'];
-                }} />
-                <Legend formatter={(v: string) => ({ revenue: '销售额', profit: '毛利', salesCount: '销量' }[v] || v)} />
-                <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#059669" fill="#05966920" strokeWidth={2} name="revenue" />
-                <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#0ea5e9" fill="#0ea5e920" strokeWidth={2} name="profit" />
-                <Line yAxisId="right" type="monotone" dataKey="salesCount" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} name="salesCount" />
+                <Tooltip formatter={(v: number, name: string) => [name === '销量' ? `${v}笔` : formatPrice(v), name]} />
+                <Legend formatter={(v: string) => v} />
+                <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#059669" fill="#05966920" strokeWidth={2} name="销售额" />
+                <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#0ea5e9" fill="#0ea5e920" strokeWidth={2} name="毛利" />
+                <Line yAxisId="right" type="monotone" dataKey="salesCount" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} name="销量" />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -658,14 +655,11 @@ function DashboardTab() {
                 <XAxis dataKey="yearMonth" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                 <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} domain={[0, 'auto']} />
-                <Tooltip formatter={(v: number, name: string) => {
-                  if (name === 'turnoverRate') return [v.toFixed(2), '周转率'];
-                  return [formatPrice(v), name === 'cogs' ? '销售成本' : '平均库存'];
-                }} />
-                <Legend formatter={(v: string) => ({ cogs: '销售成本', avgInventoryValue: '平均库存', turnoverRate: '周转率' }[v] || v)} />
-                <Bar yAxisId="left" dataKey="cogs" fill="#06b6d440" stroke="#06b6d4" strokeWidth={1} radius={[4, 4, 0, 0]} name="cogs" />
-                <Bar yAxisId="left" dataKey="avgInventoryValue" fill="#05966940" stroke="#059669" strokeWidth={1} radius={[4, 4, 0, 0]} name="avgInventoryValue" />
-                <Line yAxisId="right" type="monotone" dataKey="turnoverRate" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4, fill: '#ef4444' }} name="turnoverRate" />
+                <Tooltip formatter={(v: number, name: string) => [name === '周转率' ? v.toFixed(2) : formatPrice(v), name]} />
+                <Legend formatter={(v: string) => v} />
+                <Bar yAxisId="left" dataKey="cogs" fill="#06b6d440" stroke="#06b6d4" strokeWidth={1} radius={[4, 4, 0, 0]} name="销售成本" />
+                <Bar yAxisId="left" dataKey="avgInventoryValue" fill="#05966940" stroke="#059669" strokeWidth={1} radius={[4, 4, 0, 0]} name="平均库存" />
+                <Line yAxisId="right" type="monotone" dataKey="turnoverRate" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4, fill: '#ef4444' }} name="周转率" />
               </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
@@ -1057,10 +1051,10 @@ function DashboardTab() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 10 }} />
                   <YAxis yAxisId="right" orientation="right" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number, name: string) => name === 'totalValue' ? [formatPrice(v), '货值'] : [`${v} 件`, '件数']} />
-                  <Legend formatter={(v: string) => v === 'count' ? '件数' : '货值'} />
-                  <Bar yAxisId="left" dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="count" />
-                  <Bar yAxisId="right" dataKey="totalValue" fill="#05966940" stroke="#059669" strokeWidth={1} radius={[4, 4, 0, 0]} name="totalValue" />
+                  <Tooltip formatter={(v: number, name: string) => [name === '货值' ? formatPrice(v) : `${v} 件`, name]} />
+                  <Legend formatter={(v: string) => v} />
+                  <Bar yAxisId="left" dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="件数" />
+                  <Bar yAxisId="right" dataKey="totalValue" fill="#05966940" stroke="#059669" strokeWidth={1} radius={[4, 4, 0, 0]} name="货值" />
                 </BarChart>
               </ResponsiveContainer>
             )}

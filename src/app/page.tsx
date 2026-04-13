@@ -16,6 +16,7 @@ import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/invento
 import { Gem, Package, ShoppingCart, Zap, Clock, LogOut } from 'lucide-react';
 import { itemsApi, salesApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 import {
   Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
 } from '@/components/ui/tooltip';
@@ -292,11 +293,12 @@ export default function JadeInventoryPage() {
               <TooltipContent>退出登录</TooltipContent>
             </Tooltip>
             <span className="text-muted-foreground text-xs">按 ? 查看快捷键</span>
-            <span className="text-muted-foreground">Powered by Z.ai</span>
+            <span className="text-muted-foreground">技术支持: Z.ai</span>
           </div>
         </div>
       </footer>
       <ShortcutsHelpDialog open={showShortcuts} onOpenChange={setShowShortcuts} />
+      <Toaster richColors position="top-right" />
     </div>
   );
 }

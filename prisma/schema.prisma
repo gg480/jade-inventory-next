@@ -78,6 +78,7 @@ model Supplier {
   id       Int     @id @default(autoincrement())
   name     String
   contact  String?
+  phone    String?
   notes    String?
   isActive Boolean @default(true) @map("is_active")
 

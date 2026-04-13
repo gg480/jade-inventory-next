@@ -111,6 +111,46 @@ function SalesTab() {
     setReturnForm({ refundAmount: sale.actualPrice || 0, returnReason: '', returnDate: new Date().toISOString().slice(0, 10) });
   }
 
+  function handleExportCSV() {
+    const dataToExport = sales.length > 0 ? sales : [];
+    if (dataToExport.length === 0) {
+      toast.error('没有可导出的销售数据');
+      return;
+    }
+    const headers = ['销售日期', 'SKU', '货品名称', '客户', '售价', '成本', '利润', '渠道', '柜台号'];
+    const channelMap: Record<string, string> = { store: '门店', wechat: '微信' };
+    const rows = dataToExport.map((s: any) => [
+      s.saleDate || '',
+      s.itemSku || '',
+      s.itemName || s.itemSku || '',
+      s.customerName || '',
+      s.actualPrice || 0,
+      s.costPrice || 0,
+      s.grossProfit || 0,
+      channelMap[s.channel] || s.channel || '',
+      s.counter || '',
+    ]);
+    // Add BOM for Excel UTF-8 compatibility
+    const csvContent = '\uFEFF' + [headers, ...rows].map(row => row.map((cell: any) => {
+      const str = String(cell);
+      // Escape quotes and wrap if contains comma/quote/newline
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `销售记录_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`已导出 ${dataToExport.length} 条销售记录`);
+  }
+
   async function handleReturn() {
     if (!returnDialog.sale) return;
     try {
@@ -249,6 +289,7 @@ function SalesTab() {
           </div>
           <div className="flex items-center gap-2 mt-3">
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowBundle(true)}><Link2 className="h-3 w-3 mr-1" />套装销售</Button>
+            <Button size="sm" variant="outline" className="h-9" onClick={handleExportCSV} disabled={sales.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
             <a href={exportApi.sales()} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="outline" className="h-9"><FileDown className="h-3 w-3 mr-1" />导出</Button>
             </a>
@@ -303,7 +344,7 @@ function SalesTab() {
                       );
                     })}
                     {/* Summary Row */}
-                    <TableRow className="bg-muted/40 font-medium">
+                    <TableRow className="bg-emerald-50/50 dark:bg-emerald-950/20 font-semibold">
                       <TableCell colSpan={3}>合计 ({pagination.total} 条)</TableCell>
                       <TableCell className="text-right text-emerald-600">{formatPrice(totalRevenue)}</TableCell>
                       <TableCell></TableCell>
@@ -354,7 +395,7 @@ function SalesTab() {
               </Card>
             ))}
             {/* Summary card */}
-            <Card className="bg-muted/40">
+            <Card className="bg-emerald-50/50 dark:bg-emerald-950/20 font-semibold">
               <CardContent className="p-3 flex items-center justify-between text-sm">
                 <span className="font-medium">合计 ({pagination.total} 条)</span>
                 <div className="flex items-center gap-3">

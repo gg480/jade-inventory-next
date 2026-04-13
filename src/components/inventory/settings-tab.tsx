@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone } from 'lucide-react';
 
 // ========== 材质大类选项 ==========
 const MATERIAL_CATEGORIES = [
@@ -86,7 +86,7 @@ function SettingsTab() {
   const [showCreateSupplier, setShowCreateSupplier] = useState(false);
   const [editSupplier, setEditSupplier] = useState<any>(null);
   const [deleteSupplier, setDeleteSupplier] = useState<any>(null);
-  const [supplierForm, setSupplierForm] = useState({ name: '', contact: '', notes: '' });
+  const [supplierForm, setSupplierForm] = useState({ name: '', contact: '', phone: '', notes: '' });
 
   // Dict dialog states
   const [showCreateMaterial, setShowCreateMaterial] = useState(false);
@@ -155,12 +155,12 @@ function SettingsTab() {
   }
 
   async function handleCreateSupplier() {
-    try { await suppliersApi.createSupplier(supplierForm); toast.success('供应商创建成功'); setShowCreateSupplier(false); setSupplierForm({ name: '', contact: '', notes: '' }); fetchSuppliers(); } catch (e: any) { toast.error(e.message || '创建失败'); }
+    try { await suppliersApi.createSupplier(supplierForm); toast.success('供应商创建成功'); setShowCreateSupplier(false); setSupplierForm({ name: '', contact: '', phone: '', notes: '' }); fetchSuppliers(); } catch (e: any) { toast.error(e.message || '创建失败'); }
   }
 
   async function handleUpdateSupplier() {
     if (!editSupplier) return;
-    try { await suppliersApi.updateSupplier(editSupplier.id, supplierForm); toast.success('供应商更新成功'); setEditSupplier(null); setSupplierForm({ name: '', contact: '', notes: '' }); fetchSuppliers(); } catch (e: any) { toast.error(e.message || '更新失败'); }
+    try { await suppliersApi.updateSupplier(editSupplier.id, supplierForm); toast.success('供应商更新成功'); setEditSupplier(null); setSupplierForm({ name: '', contact: '', phone: '', notes: '' }); fetchSuppliers(); } catch (e: any) { toast.error(e.message || '更新失败'); }
   }
 
   async function handleDeleteSupplier() {
@@ -170,7 +170,7 @@ function SettingsTab() {
 
   function openEditSupplierDialog(s: any) {
     setEditSupplier(s);
-    setSupplierForm({ name: s.name || '', contact: s.contact || '', notes: s.notes || '' });
+    setSupplierForm({ name: s.name || '', contact: s.contact || '', phone: s.phone || '', notes: s.notes || '' });
   }
 
   // Dict handlers
@@ -488,6 +488,11 @@ function SettingsTab() {
                         </div>
                       </div>
                       {s.contact && <p className="text-sm text-muted-foreground">{s.contact}</p>}
+                      {s.phone && (
+                        <a href={`tel:${s.phone}`} className="text-sm text-emerald-600 hover:text-emerald-700 hover:underline inline-flex items-center gap-1 transition-colors">
+                          <Phone className="h-3 w-3" />{s.phone}
+                        </a>
+                      )}
                       {s.notes && <p className="text-sm text-muted-foreground truncate">{s.notes}</p>}
                     </div>
                   ))}
@@ -845,7 +850,10 @@ function SettingsTab() {
           <DialogHeader><DialogTitle>新增供应商</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><Label>名称 *</Label><Input value={supplierForm.name} onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))} placeholder="供应商名称" /></div>
-            <div className="space-y-1"><Label>联系人</Label><Input value={supplierForm.contact} onChange={e => setSupplierForm(f => ({ ...f, contact: e.target.value }))} placeholder="联系方式" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label>联系人</Label><Input value={supplierForm.contact} onChange={e => setSupplierForm(f => ({ ...f, contact: e.target.value }))} placeholder="联系人姓名" /></div>
+              <div className="space-y-1"><Label><span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />电话</span></Label><Input value={supplierForm.phone} onChange={e => setSupplierForm(f => ({ ...f, phone: e.target.value }))} placeholder="手机号码" /></div>
+            </div>
             <div className="space-y-1"><Label>备注</Label><Textarea value={supplierForm.notes} onChange={e => setSupplierForm(f => ({ ...f, notes: e.target.value }))} placeholder="可选" /></div>
           </div>
           <DialogFooter>
@@ -861,7 +869,10 @@ function SettingsTab() {
           <DialogHeader><DialogTitle>编辑供应商</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1"><Label>名称 *</Label><Input value={supplierForm.name} onChange={e => setSupplierForm(f => ({ ...f, name: e.target.value }))} /></div>
-            <div className="space-y-1"><Label>联系人</Label><Input value={supplierForm.contact} onChange={e => setSupplierForm(f => ({ ...f, contact: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label>联系人</Label><Input value={supplierForm.contact} onChange={e => setSupplierForm(f => ({ ...f, contact: e.target.value }))} /></div>
+              <div className="space-y-1"><Label><span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />电话</span></Label><Input value={supplierForm.phone} onChange={e => setSupplierForm(f => ({ ...f, phone: e.target.value }))} /></div>
+            </div>
             <div className="space-y-1"><Label>备注</Label><Textarea value={supplierForm.notes} onChange={e => setSupplierForm(f => ({ ...f, notes: e.target.value }))} /></div>
           </div>
           <DialogFooter>
