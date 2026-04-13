@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw, ArrowUpRight, ArrowDownRight, TrendingUp } from 'lucide-react';
+import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw, ArrowUpRight, ArrowDownRight, TrendingUp, Search } from 'lucide-react';
 
 // ========== Batch Detail Dialog ==========
 function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | null; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -29,6 +29,14 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
   const [quickAdd, setQuickAdd] = useState(false);
   const [quickForm, setQuickForm] = useState({ name: '', sellingPrice: 0, counter: '', certNo: '' });
   const [quickSaving, setQuickSaving] = useState(false);
+  // Item search filter
+  const [itemSearch, setItemSearch] = useState('');
+  const [debouncedItemSearch, setDebouncedItemSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedItemSearch(itemSearch), 200);
+    return () => clearTimeout(timer);
+  }, [itemSearch]);
 
   const fetchBatchDetail = useCallback(async (id: number) => {
     setLoading(true);
@@ -276,56 +284,93 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
 
               {/* Items List */}
               <div>
-                <p className="text-sm font-medium mb-2">批次内货品 ({enteredCount} 件)</p>
-                {batch.items && batch.items.length > 0 ? (
-                  <div className="overflow-x-auto max-h-72 overflow-y-auto border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>SKU</TableHead><TableHead>名称</TableHead><TableHead>器型</TableHead>
-                          <TableHead className="text-right">成本</TableHead><TableHead className="text-right">售价</TableHead>
-                          <TableHead>库龄</TableHead><TableHead>状态</TableHead><TableHead className="w-16">详情</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {batch.items.map((item: any) => (
-                          <TableRow
-                            key={item.id}
-                            className="hover:bg-muted/50 transition-colors cursor-pointer"
-                            onClick={() => handleItemClick(item.id)}
-                          >
-                            <TableCell className="font-mono text-xs">{item.skuCode}</TableCell>
-                            <TableCell className="text-sm">{item.name || '-'}</TableCell>
-                            <TableCell className="text-sm">{item.type?.name || '-'}</TableCell>
-                            <TableCell className="text-right text-sm">
-                              {item.allocatedCost ? (
-                                <span className="text-emerald-600 font-medium">{formatPrice(item.allocatedCost)}</span>
-                              ) : estPerItem > 0 ? (
-                                <span className="inline-flex items-center gap-1 text-muted-foreground" title="预估成本（未分摊）">~{formatPrice(estPerItem)}<InfoTip text="预估成本 = 批次总成本 ÷ 声明数量（尚未进行成本分摊）" /></span>
-                              ) : '-'}
-                            </TableCell>
-                            <TableCell className="text-right text-sm font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</TableCell>
-                            <TableCell className="text-sm">
-                              {item.createdAt ? (
-                                <span className={daysSince(item.createdAt) > 90 ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
-                                  <Clock className="h-3 w-3 inline mr-0.5" />{daysSince(item.createdAt)}天
-                                </span>
-                              ) : '-'}
-                            </TableCell>
-                            <TableCell><StatusBadge status={item.status} /></TableCell>
-                            <TableCell onClick={e => e.stopPropagation()}>
-                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleItemClick(item.id)} title="查看详情">
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium">批次内货品</p>
+                  {batch.items && batch.items.length > 0 && (
+                    <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                      {batch.items.length} 件货品
+                    </Badge>
+                  )}
+                </div>
+                {/* Search filter */}
+                {batch.items && batch.items.length > 0 && (
+                  <div className="relative mb-2">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="搜索SKU或名称..."
+                      value={itemSearch}
+                      onChange={e => setItemSearch(e.target.value)}
+                      className="h-8 pl-8 pr-8 text-sm"
+                    />
+                    {itemSearch && (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => setItemSearch('')}
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-4">该批次下暂无货品</p>
                 )}
+                {(() => {
+                  const items = batch.items || [];
+                  const filteredItems = debouncedItemSearch.trim()
+                    ? items.filter((item: any) =>
+                        (item.skuCode || '').toLowerCase().includes(debouncedItemSearch.trim().toLowerCase()) ||
+                        (item.name || '').toLowerCase().includes(debouncedItemSearch.trim().toLowerCase())
+                      )
+                    : items;
+                  return filteredItems.length > 0 ? (
+                    <div className="overflow-x-auto max-h-72 overflow-y-auto border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>SKU</TableHead><TableHead>名称</TableHead><TableHead>器型</TableHead>
+                            <TableHead className="text-right">成本</TableHead><TableHead className="text-right">售价</TableHead>
+                            <TableHead>库龄</TableHead><TableHead>状态</TableHead><TableHead className="w-16">详情</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredItems.map((item: any) => (
+                            <TableRow
+                              key={item.id}
+                              className="hover:bg-muted/50 transition-colors cursor-pointer"
+                              onClick={() => handleItemClick(item.id)}
+                            >
+                              <TableCell className="font-mono text-xs">{item.skuCode}</TableCell>
+                              <TableCell className="text-sm">{item.name || '-'}</TableCell>
+                              <TableCell className="text-sm">{item.type?.name || '-'}</TableCell>
+                              <TableCell className="text-right text-sm">
+                                {item.allocatedCost ? (
+                                  <span className="text-emerald-600 font-medium">{formatPrice(item.allocatedCost)}</span>
+                                ) : estPerItem > 0 ? (
+                                  <span className="inline-flex items-center gap-1 text-muted-foreground" title="预估成本（未分摊）">~{formatPrice(estPerItem)}<InfoTip text="预估成本 = 批次总成本 ÷ 声明数量（尚未进行成本分摊）" /></span>
+                                ) : '-'}
+                              </TableCell>
+                              <TableCell className="text-right text-sm font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</TableCell>
+                              <TableCell className="text-sm">
+                                {item.createdAt ? (
+                                  <span className={daysSince(item.createdAt) > 90 ? 'text-red-600 font-medium' : 'text-muted-foreground'}>
+                                    <Clock className="h-3 w-3 inline mr-0.5" />{daysSince(item.createdAt)}天
+                                  </span>
+                                ) : '-'}
+                              </TableCell>
+                              <TableCell><StatusBadge status={item.status} /></TableCell>
+                              <TableCell onClick={e => e.stopPropagation()}>
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => handleItemClick(item.id)} title="查看详情">
+                                  <Eye className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">{debouncedItemSearch.trim() ? '没有匹配的货品' : '该批次下暂无货品'}</p>
+                  );
+                })()}
               </div>
 
               {/* Notes */}

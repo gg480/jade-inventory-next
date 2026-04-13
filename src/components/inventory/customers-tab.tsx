@@ -22,6 +22,7 @@ import {
   Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock, FileDown, ArrowUpDown,
   DollarSign as DollarSignIcon, ShoppingCart as ShoppingCartIcon, ArrowDownAZ,
 } from 'lucide-react';
+import { AreaChart, Area, XAxis, Tooltip as RTooltip, ResponsiveContainer, Tooltip } from 'recharts';
 
 // Tag color palette
 const TAG_COLORS = [
@@ -765,6 +766,33 @@ function CustomersTab() {
                           <MiniSpendingChart data={(customerDetail.monthlySpending || []).slice(-6)} />
                         </div>
                       )}
+                      {/* Sparkline: Recent purchase amounts */}
+                      {customerDetail.saleRecords && customerDetail.saleRecords.length >= 2 && (() => {
+                        const recentSales = [...customerDetail.saleRecords]
+                          .sort((a: any, b: any) => new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime())
+                          .slice(-6)
+                          .map((sr: any) => ({ date: sr.saleDate?.slice(5) || '', amount: sr.actualPrice || 0 }));
+                        return (
+                          <div className="mt-2">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">近期消费金额</p>
+                            <div className="h-20">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={recentSales} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                                  <defs>
+                                    <linearGradient id={`spark-${c.id}`} x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                                      <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                                    </linearGradient>
+                                  </defs>
+                                  <XAxis dataKey="date" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} />
+                                  <Tooltip formatter={(v: number) => formatPrice(v)} />
+                                  <Area type="monotone" dataKey="amount" stroke="#059669" fill={`url(#spark-${c.id})`} strokeWidth={1.5} dot={false} />
+                                </AreaChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </CardContent>

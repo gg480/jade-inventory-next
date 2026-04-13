@@ -155,6 +155,12 @@ function ItemDetailDialog({ itemId, open, onOpenChange }: { itemId: number | nul
                       className="relative w-full aspect-square bg-muted rounded-lg overflow-hidden cursor-zoom-in group"
                       onClick={() => setLightboxOpen(true)}
                     >
+                      {uploading && (
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/70 backdrop-blur-sm">
+                          <div className="w-10 h-10 border-3 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-2" />
+                          <span className="text-sm text-emerald-600 font-medium">上传中...</span>
+                        </div>
+                      )}
                       <ImageWithLoading
                         src={images[selectedImageIndex]?.url}
                         alt={`货品图片 ${selectedImageIndex + 1}`}

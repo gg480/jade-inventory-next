@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { salesApi, exportApi, dashboardApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, StatusBadge, EmptyState, LoadingSkeleton } from './shared';
+import { useAppStore } from '@/lib/store';
 import BundleSaleDialog from './bundle-sale-dialog';
 import Pagination from './pagination';
 
@@ -20,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
-  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag, AlertTriangle, X,
+  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag, AlertTriangle, X, Package,
 } from 'lucide-react';
 
 import {
@@ -430,7 +431,20 @@ function SalesTab() {
 
       {/* Sales Table - Desktop */}
       {sales.length === 0 ? (
-        <EmptyState icon={ShoppingCart} title="暂无销售记录" desc="还没有任何销售记录，去库存页面进行出库操作" />
+        <div className="flex flex-col items-center justify-center py-20 px-4 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(5,150,105,0.05) 0%, rgba(6,182,212,0.05) 50%, rgba(5,150,105,0.08) 100%)' }}>
+          <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-6 animate-bounce" style={{ animationDuration: '2s' }}>
+            <ShoppingCart className="h-10 w-10 text-emerald-500" />
+          </div>
+          <h3 className="text-xl font-semibold text-foreground mb-2">暂无销售记录</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-sm text-center">开始第一笔销售吧！在库存中选择货品进行出库</p>
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => useAppStore.getState().setActiveTab('inventory')}
+          >
+            <Package className="h-4 w-4 mr-2" />
+            前往库存
+          </Button>
+        </div>
       ) : (
         <>
           <Card className="hidden md:block">
@@ -471,6 +485,15 @@ function SalesTab() {
                             {isProfit ? <ArrowUp className="h-3 w-3" /> : isLoss ? <ArrowDown className="h-3 w-3" /> : null}
                             {formatPrice(profit)}
                           </span>
+                          <div className="mt-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ height: '4px' }}>
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{
+                                width: `${Math.min(Math.max(parseFloat(marginPct), 0), 100)}%`,
+                                backgroundColor: parseFloat(marginPct) < 20 ? '#ef4444' : parseFloat(marginPct) < 40 ? '#f59e0b' : '#059669',
+                              }}
+                            />
+                          </div>
                         </TableCell>
                         <TableCell className="text-center" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">

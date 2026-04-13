@@ -1395,6 +1395,50 @@ function DashboardTab() {
         </CardContent>
       </Card>
 
+      {/* ====== 8.6 Batch Payback Progress Ranking ====== */}
+      {batchProfit.filter((b: any) => (b.itemsCount || 0) > 0).length > 0 && (
+        <Card className="hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2"><Trophy className="h-4 w-4 text-amber-500" />批次回本进度排行</CardTitle>
+              <Badge variant="outline">前5名</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[...batchProfit]
+                .filter((b: any) => (b.itemsCount || 0) > 0)
+                .sort((a: any, b: any) => (b.paybackRate || 0) - (a.paybackRate || 0))
+                .slice(0, 5)
+                .map((bp: any, idx: number) => {
+                  const progressPct = Math.min((bp.paybackRate || 0) * 100, 100);
+                  const barColor = progressPct >= 100 ? '#059669' : progressPct >= 50 ? '#0ea5e9' : '#f59e0b';
+                  return (
+                    <div key={bp.batchCode} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold w-5 text-center ${idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-gray-400' : idx === 2 ? 'text-amber-700' : 'text-muted-foreground'}`}>
+                            {idx + 1}
+                          </span>
+                          <span className="font-mono text-xs">{bp.batchCode}</span>
+                          <span className="text-xs text-muted-foreground">{bp.soldCount}/{bp.itemsCount || bp.quantity}</span>
+                        </div>
+                        <span className="text-xs font-bold tabular-nums" style={{ color: barColor }}>{progressPct.toFixed(1)}%</span>
+                      </div>
+                      <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${progressPct}%`, backgroundColor: barColor }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ====== 9. Stock Aging + Age Distribution ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">

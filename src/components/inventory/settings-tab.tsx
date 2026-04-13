@@ -73,6 +73,31 @@ function formatSpecFieldsDisplay(raw: string | null | undefined): string {
   }).join('、');
 }
 
+// ========== Relative Time Helper ==========
+function formatRelativeTime(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+
+    if (diffSecs < 60) return '刚刚';
+    if (diffMins < 60) return `${diffMins}分钟前`;
+    if (diffHours < 24) return `${diffHours}小时前`;
+    if (diffDays < 7) return `${diffDays}天前`;
+    if (diffWeeks < 4) return `${diffWeeks}周前`;
+    if (diffMonths < 12) return `${diffMonths}个月前`;
+    return `${Math.floor(diffMonths / 12)}年前`;
+  } catch {
+    return dateStr;
+  }
+}
+
 // ========== Settings Tab ==========
 function SettingsTab() {
   const [subTab, setSubTab] = useState('dicts');
@@ -844,22 +869,39 @@ function SettingsTab() {
             <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-red-500" />备份数据库</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">下载当前数据库文件（SQLite），可用于数据迁移或定期备份。</p>
+              {/* 最近备份时间卡片 */}
+              <div className="mb-4 p-3 bg-muted/50 rounded-lg border">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-emerald-500" />
+                  <span className="text-sm font-medium">最近备份时间</span>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {lastBackupFromStorage ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="font-medium text-foreground">{formatRelativeTime(lastBackupFromStorage)}</span>
+                      <span className="text-xs text-muted-foreground">({lastBackupFromStorage})</span>
+                    </span>
+                  ) : (
+                    <span className="italic">尚未备份</span>
+                  )}
+                </p>
+              </div>
               <div className="flex items-center gap-4">
                 <Button className="bg-emerald-600 hover:bg-emerald-700" asChild onClick={() => {
-                  const now = new Date().toLocaleString('zh-CN');
-                  setLastBackupTime(now);
-                  setLastBackupFromStorage(now);
-                  localStorage.setItem('last_backup_time', now);
+                  const nowIso = new Date().toISOString();
+                  const nowDisplay = new Date().toLocaleString('zh-CN');
+                  setLastBackupTime(nowDisplay);
+                  setLastBackupFromStorage(nowDisplay);
+                  localStorage.setItem('last_backup_time', nowIso);
+                  setTimeout(() => {
+                    // Estimate file size after download starts
+                    toast.success('备份下载已开始');
+                  }, 100);
                 }}>
                   <a href={backupApi.download()} download>
                     <Download className="h-4 w-4 mr-2" />下载数据库备份
                   </a>
                 </Button>
-                {lastBackupTime && (
-                  <span className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />上次备份: {lastBackupTime}
-                  </span>
-                )}
               </div>
             </CardContent>
           </Card>
