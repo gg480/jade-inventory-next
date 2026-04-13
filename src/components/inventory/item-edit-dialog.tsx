@@ -278,17 +278,23 @@ function ItemEditDialog({ itemId, open, onOpenChange, onSuccess }: { itemId: num
     return String((form as any)[field]) !== String((originalForm as any)[field]);
   }
 
-  function isFormChanged() {
-    if (!originalForm) return false;
+  // Count how many fields have changed
+  function getChangedFieldsCount() {
+    if (!originalForm) return 0;
+    let count = 0;
     const keys = Object.keys(originalForm) as (keyof typeof form)[];
     for (const key of keys) {
       if (key === 'tagIds') {
-        if (JSON.stringify(form.tagIds) !== JSON.stringify(originalForm.tagIds)) return true;
+        if (JSON.stringify(form.tagIds) !== JSON.stringify(originalForm.tagIds)) count++;
       } else {
-        if (String((form as any)[key]) !== String((originalForm as any)[key])) return true;
+        if (String((form as any)[key]) !== String((originalForm as any)[key])) count++;
       }
     }
-    return false;
+    return count;
+  }
+
+  function isFormChanged() {
+    return getChangedFieldsCount() > 0;
   }
 
   async function handleSave() {
@@ -408,7 +414,7 @@ function ItemEditDialog({ itemId, open, onOpenChange, onSuccess }: { itemId: num
             {isFormChanged() && (
               <div className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-2.5 py-1.5 rounded-md">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                有字段已修改
+                有 {getChangedFieldsCount()} 个字段已修改
               </div>
             )}
 

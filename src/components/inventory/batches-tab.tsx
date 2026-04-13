@@ -101,18 +101,24 @@ function BatchesTab() {
       toast.error('没有可导出的批次数据');
       return;
     }
-    const STATUS_MAP: Record<string, string> = { pending: '待录入', partial: '录入中', complete: '已完成', selling: '销售中', paid_back: '已回本', cleared: '清仓完毕', new: '未开始' };
-    const headers = ['批次号', '材质', '供应商', '数量', '已录入', '总成本', '采购日期', '状态'];
-    const rows = filteredBatches.map((b: any) => [
-      b.batchCode || '',
-      b.materialName || '',
-      b.supplierName || '',
-      b.quantity || 0,
-      b.itemsCount || 0,
-      b.totalCost || 0,
-      b.purchaseDate || '',
-      STATUS_MAP[b.status] || b.status || '',
-    ]);
+    const headers = ['批次编号', '材质', '供应商', '数量', '已录入', '进度%', '总成本', '单价', '创建日期'];
+    const rows = filteredBatches.map((b: any) => {
+      const qty = b.quantity || 0;
+      const itemsCount = b.itemsCount || 0;
+      const pct = qty > 0 ? Math.round((itemsCount / qty) * 100) : 0;
+      const unitPrice = qty > 0 ? Math.round((b.totalCost || 0) / qty) : 0;
+      return [
+        b.batchCode || '',
+        b.materialName || '',
+        b.supplierName || '',
+        qty,
+        itemsCount,
+        `${pct}%`,
+        b.totalCost || 0,
+        unitPrice,
+        b.purchaseDate || b.createdAt?.slice(0, 10) || '',
+      ];
+    });
     const csvContent = '\uFEFF' + [headers, ...rows].map(row => row.map((cell: any) => {
       const str = String(cell);
       if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -124,12 +130,12 @@ function BatchesTab() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `批次数據_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `批次数据_${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast.success(`已导出 ${filteredBatches.length} 条批次数據`);
+    toast.success(`已导出 ${filteredBatches.length} 条批次数据`);
   }
 
   // Client-side search filter by batchCode (before early return to satisfy hooks rules)

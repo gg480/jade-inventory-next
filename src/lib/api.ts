@@ -223,6 +223,10 @@ export const dashboardApi = {
     return request<any>(`/dashboard/aggregate${qs}`);
   },
   getInventoryValueByCategory: () => request<any[]>(`/dashboard/inventory-value-by-category`),
+  getSalesByChannel: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any[]>(`/dashboard/sales-by-channel${qs}`);
+  },
 };
 
 // ========== Metal Prices ==========

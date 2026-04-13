@@ -17,9 +17,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
-  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag, AlertTriangle,
+  CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag, AlertTriangle, X,
 } from 'lucide-react';
 
 import {
@@ -77,6 +78,9 @@ function SalesTab() {
 
   // Expanded sale row
   const [expandedSaleId, setExpandedSaleId] = useState<number | null>(null);
+
+  // Batch selection state
+  const [selectedSaleIds, setSelectedSaleIds] = useState<Set<string>>(new Set());
 
   // Print receipt dialog
   const [printSale, setPrintSale] = useState<any>(null);
@@ -155,6 +159,63 @@ function SalesTab() {
 
   function toggleExpand(saleId: number) {
     setExpandedSaleId(prev => prev === saleId ? null : saleId);
+  }
+
+  // Batch selection handlers
+  function toggleSelectSale(id: number, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    setSelectedSaleIds(prev => {
+      const next = new Set(prev);
+      if (next.has(String(id))) next.delete(String(id));
+      else next.add(String(id));
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedSaleIds.size === sales.length) {
+      setSelectedSaleIds(new Set());
+    } else {
+      setSelectedSaleIds(new Set(sales.map(s => String(s.id))));
+    }
+  }
+
+  function handleBatchExportCSV() {
+    const selectedSales = sales.filter(s => selectedSaleIds.has(String(s.id)));
+    if (selectedSales.length === 0) {
+      toast.error('没有选中的记录');
+      return;
+    }
+    const headers = ['销售日期', 'SKU', '货品名称', '客户', '售价', '成本', '利润', '渠道', '柜台号'];
+    const channelMap: Record<string, string> = { store: '门店', wechat: '微信' };
+    const rows = selectedSales.map((s: any) => [
+      s.saleDate || '',
+      s.itemSku || '',
+      s.itemName || s.itemSku || '',
+      s.customerName || '',
+      s.actualPrice || 0,
+      s.costPrice || 0,
+      s.grossProfit || 0,
+      channelMap[s.channel] || s.channel || '',
+      s.counter || '',
+    ]);
+    const csvContent = '\uFEFF' + [headers, ...rows].map(row => row.map((cell: any) => {
+      const str = String(cell);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    }).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `选中销售记录_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`已导出 ${selectedSales.length} 条选中记录`);
   }
 
   function handlePrintReceipt(sale: any) {
@@ -378,6 +439,7 @@ function SalesTab() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10"><Checkbox checked={sales.length > 0 && selectedSaleIds.size === sales.length} onCheckedChange={toggleSelectAll} /></TableHead>
                       <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>渠道</TableHead><TableHead>支付方式</TableHead><TableHead>货品</TableHead>
                       <TableHead className="text-right">成交价</TableHead>
                       <TableHead>日期</TableHead><TableHead>客户</TableHead><TableHead className="text-right">毛利</TableHead>
@@ -394,7 +456,8 @@ function SalesTab() {
                       const marginPct = sale.actualPrice > 0 ? ((profit / sale.actualPrice) * 100).toFixed(1) : '0.0';
                       return (
                       <React.Fragment key={sale.id}>
-                      <TableRow className={`hover:bg-muted/50 transition-all duration-150 cursor-pointer ${rowBg}`} onClick={() => toggleExpand(sale.id)}>
+                      <TableRow className={`hover:bg-muted/50 transition-all duration-150 cursor-pointer ${rowBg} ${selectedSaleIds.has(String(sale.id)) ? 'bg-emerald-50/60 dark:bg-emerald-950/30' : ''}`} onClick={() => toggleExpand(sale.id)}>
+                        <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedSaleIds.has(String(sale.id))} onCheckedChange={() => toggleSelectSale(sale.id)} /></TableCell>
                         <TableCell className="font-mono text-xs"><div className="flex items-center gap-1.5">{isExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}{sale.saleNo}</div></TableCell>
                         <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
                         <TableCell>{formatChannelBadge(sale.channel) || '-'}</TableCell>
@@ -422,7 +485,7 @@ function SalesTab() {
                       </TableRow>
                       {isExpanded && (
                         <TableRow>
-                          <TableCell colSpan={10} className="p-0">
+                          <TableCell colSpan={11} className="p-0">
                             <div className="bg-muted/30 border-t border-b p-4 animate-in fade-in-0 slide-in-from-top-1 duration-200">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div><span className="text-muted-foreground">货品名称:</span> <span className="font-medium">{sale.itemName || sale.itemSku}</span></div>
@@ -450,7 +513,7 @@ function SalesTab() {
                     })}
                     {/* Summary Row */}
                     <TableRow className="bg-emerald-50/50 dark:bg-emerald-950/20 font-semibold">
-                      <TableCell colSpan={4}>合计 ({pagination.total} 条)</TableCell>
+                      <TableCell colSpan={5}>合计 ({pagination.total} 条)</TableCell>
                       <TableCell className="text-right text-emerald-600">{formatPrice(totalRevenue)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
@@ -471,11 +534,12 @@ function SalesTab() {
               const isExpanded = expandedSaleId === sale.id;
               const marginPct = sale.actualPrice > 0 ? ((profit / sale.actualPrice) * 100).toFixed(1) : '0.0';
               return (
-              <Card key={sale.id} className={`hover:shadow-md transition-shadow cursor-pointer ${sale.grossProfit > 0 ? 'border-l-2 border-l-emerald-400' : sale.grossProfit < 0 ? 'border-l-2 border-l-red-400' : ''}`} onClick={() => toggleExpand(sale.id)}>
+              <Card key={sale.id} className={`hover:shadow-md transition-shadow cursor-pointer ${sale.grossProfit > 0 ? 'border-l-2 border-l-emerald-400' : sale.grossProfit < 0 ? 'border-l-2 border-l-red-400' : ''} ${selectedSaleIds.has(String(sale.id)) ? 'ring-2 ring-emerald-500 ring-offset-2' : ''}`} onClick={() => toggleExpand(sale.id)}>
                 <CardContent className="p-4 space-y-2">
-                  {/* Header: saleNo + channel */}
+                  {/* Header: saleNo + channel + checkbox */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
+                      <div onClick={e => e.stopPropagation()} className="mr-1"><Checkbox checked={selectedSaleIds.has(String(sale.id))} onCheckedChange={() => toggleSelectSale(sale.id)} className="h-4 w-4" /></div>
                       {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                       <span className="font-mono text-xs text-muted-foreground">{sale.saleNo}</span>
                     </div>
@@ -543,6 +607,28 @@ function SalesTab() {
 
       {/* Pagination */}
       <Pagination page={pagination.page} pages={pagination.pages} onPageChange={p => setPagination(prev => ({ ...prev, page: p }))} />
+
+      {/* Floating Batch Action Bar */}
+      {selectedSaleIds.size > 0 && (
+        <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-30 bg-emerald-600 dark:bg-emerald-700 text-white px-4 py-3 shadow-lg animate-in slide-in-from-bottom-2 duration-200">
+          <div className="container mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">已选择 {selectedSaleIds.size} 条记录</span>
+              <button onClick={() => setSelectedSaleIds(new Set())} className="ml-2 text-emerald-200 hover:text-white transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white" onClick={handleBatchExportCSV}>
+                <FileDown className="h-3 w-3 mr-1" />批量导出CSV
+              </Button>
+              <Button size="sm" variant="outline" className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white" onClick={() => setSelectedSaleIds(new Set())}>
+                取消选择
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Profit Trend Sparkline + Channel Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

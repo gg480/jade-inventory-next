@@ -19,7 +19,7 @@ import {
   Package, ShoppingCart, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight,
   BarChart3, PieChart, AlertTriangle, CheckCircle, Gem, Layers, Tag, RefreshCw,
   Activity, Flame, Trophy, Users, CalendarDays, RotateCcw, Crown, Sparkles,
-  Target,
+  Target, Store,
 } from 'lucide-react';
 
 import {
@@ -91,6 +91,7 @@ function DashboardTab() {
   const [inventoryValueByCategory, setInventoryValueByCategory] = useState<any[]>([]);
   const [dailySalesSparkline, setDailySalesSparkline] = useState<any[]>([]);
   const [inventoryTrendSparkline, setInventoryTrendSparkline] = useState<any[]>([]);
+  const [salesByChannel, setSalesByChannel] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -217,6 +218,7 @@ function DashboardTab() {
         dashboardApi.getCustomerFrequency(),
         dashboardApi.getInventoryValueByCategory(),
         dashboardApi.getTopCustomers(),
+        dashboardApi.getSalesByChannel(params),
         dashboardApi.getTrend({ months: 1 }),
       ]);
       const val = <T,>(idx: number, fallback: T) =>
@@ -237,8 +239,9 @@ function DashboardTab() {
       setCustomerFreq(val(12, null));
       setInventoryValueByCategory(val(13, []));
       setTopCustomers(val(14, []));
-      // Sparkline data from monthly trend (index 15)
-      const monthlyTrend = val(15, []);
+      setSalesByChannel(val(15, []));
+      // Sparkline data from monthly trend (index 16)
+      const monthlyTrend = val(16, []);
       if (Array.isArray(monthlyTrend) && monthlyTrend.length > 0) {
         // For daily sparkline, generate synthetic daily data from the monthly trend
         const lastMonth = monthlyTrend[monthlyTrend.length - 1];
@@ -498,46 +501,110 @@ function DashboardTab() {
         </div>
       )}
 
-      {/* ====== Turnover Days & Today Profit Margin Indicators ====== */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* 周转天数 */}
-        {turnoverData.length > 0 && (() => {
-          const latest = turnoverData[turnoverData.length - 1];
-          const turnoverDays = latest.turnoverRate > 0 ? Math.round(30 / latest.turnoverRate) : 0;
-          return (
-            <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.01] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
-              <CardContent className="p-4">
-                <div className="absolute -right-2 -bottom-2 opacity-10"><RotateCcw className="h-16 w-16 text-emerald-500" /></div>
-                <p className="text-sm text-muted-foreground">平均周转天数</p>
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
-                  {turnoverDays} <span className="text-sm font-normal text-muted-foreground">天</span>
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">基于最新月周转率 {latest.turnoverRate?.toFixed(2)}</p>
-              </CardContent>
-            </Card>
-          );
-        })()}
-        {/* 今日利润率 */}
-        {summary && (summary.todayRevenue || 0) > 0 && (() => {
-          const todayProfit = summary.todayProfit || 0;
-          const todayRevenue = summary.todayRevenue || 0;
-          const margin = todayRevenue > 0 ? ((todayProfit / todayRevenue) * 100).toFixed(1) : '0.0';
-          return (
-            <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.01] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
-              <CardContent className="p-4">
-                <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-16 w-16 text-emerald-500" /></div>
-                <p className="text-sm text-muted-foreground">今日利润率</p>
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
-                  {margin}<span className="text-sm font-normal text-muted-foreground">%</span>
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  营收 {formatPrice(todayRevenue)} · 利润 {formatPrice(todayProfit)}
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })()}
-      </div>
+      {/* ====== Inventory Health Score ====== */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {(() => {
+            // Calculate health score (0-100) based on 4 factors
+            const totalItems = summary.totalItems || 0;
+            const overstockCount = stockAging.totalItems || 0;
+            const monthSold = summary.monthSoldCount || 0;
+            const monthRevenue = summary.monthRevenue || 0;
+            const monthProfit = summary.monthProfit || 0;
+            const sellThroughRate = totalItems > 0 ? monthSold / totalItems : 0;
+            const profitMargin = monthRevenue > 0 ? monthProfit / monthRevenue : 0;
+            const overstockRate = totalItems > 0 ? overstockCount / totalItems : 0;
+            const targetRate = monthlyTarget > 0 ? monthRevenue / monthlyTarget : 0;
+
+            // 1. Overstock score (weight 30%): fewer overstock = healthier
+            const overstockScore = Math.max(0, 1 - overstockRate * 2.5); // 0% overstock = 100%, 40% = 0%
+            // 2. Sales velocity (weight 30%): higher sell-through = healthier
+            const velocityScore = Math.min(sellThroughRate * 5, 1); // 20% sell-through/month = perfect
+            // 3. Profit margin (weight 20%): higher margin = healthier
+            const marginScore = Math.min(profitMargin * 3, 1); // 33%+ margin = perfect
+            // 4. Revenue vs target (weight 20%): closer to target = healthier
+            const revenueScore = Math.min(targetRate * 1.2, 1); // 83%+ of target = perfect
+
+            const healthScore = Math.round(
+              overstockScore * 30 + velocityScore * 30 + marginScore * 20 + revenueScore * 20
+            );
+            const clampedScore = Math.max(0, Math.min(100, healthScore));
+
+            const scoreColor = clampedScore >= 80 ? '#059669' : clampedScore >= 50 ? '#d97706' : '#dc2626';
+            const scoreLabel = clampedScore >= 80 ? '健康' : clampedScore >= 50 ? '良好' : '需关注';
+            const scoreLabelColor = clampedScore >= 80 ? 'text-emerald-600 dark:text-emerald-400' : clampedScore >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
+
+            return (
+              <Card className="card-glow relative overflow-hidden border-l-4 hover:scale-[1.01] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md" style={{ borderLeftColor: scoreColor }}>
+                <CardContent className="p-4">
+                  <div className="absolute -right-2 -bottom-2 opacity-10"><Sparkles className="h-16 w-16" style={{ color: scoreColor }} /></div>
+                  <p className="text-sm text-muted-foreground">库存健康度</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="relative w-[64px] h-[64px] shrink-0">
+                      <div
+                        className="w-full h-full rounded-full transition-all duration-700 ease-out"
+                        style={{
+                          background: `conic-gradient(${scoreColor} ${clampedScore}%, hsl(var(--muted) / 0.3) 0%)`,
+                        }}
+                      />
+                      <div className="absolute inset-[4px] rounded-full bg-card flex items-center justify-center">
+                        <span className="text-lg font-extrabold tabular-nums" style={{ color: scoreColor }}>{clampedScore}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <p className={`text-sm font-bold ${scoreLabelColor}`}>{scoreLabel}</p>
+                      <div className="space-y-0.5 text-[10px] text-muted-foreground">
+                        <div className="flex justify-between"><span>压货率</span><span className="font-medium">{(overstockRate * 100).toFixed(0)}%</span></div>
+                        <div className="flex justify-between"><span>售出率</span><span className="font-medium">{(sellThroughRate * 100).toFixed(0)}%</span></div>
+                        <div className="flex justify-between"><span>利润率</span><span className="font-medium">{(profitMargin * 100).toFixed(0)}%</span></div>
+                        <div className="flex justify-between"><span>目标达成</span><span className="font-medium">{(targetRate * 100).toFixed(0)}%</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* 周转天数 */}
+          {turnoverData.length > 0 && (() => {
+            const latest = turnoverData[turnoverData.length - 1];
+            const turnoverDays = latest.turnoverRate > 0 ? Math.round(30 / latest.turnoverRate) : 0;
+            return (
+              <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.01] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+                <CardContent className="p-4">
+                  <div className="absolute -right-2 -bottom-2 opacity-10"><RotateCcw className="h-16 w-16 text-emerald-500" /></div>
+                  <p className="text-sm text-muted-foreground">平均周转天数</p>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
+                    {turnoverDays} <span className="text-sm font-normal text-muted-foreground">天</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">基于最新月周转率 {latest.turnoverRate?.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+            );
+          })()}
+          {/* 今日利润率 */}
+          {summary && (summary.todayRevenue || 0) > 0 && (() => {
+            const todayProfit = summary.todayProfit || 0;
+            const todayRevenue = summary.todayRevenue || 0;
+            const margin = todayRevenue > 0 ? ((todayProfit / todayRevenue) * 100).toFixed(1) : '0.0';
+            return (
+              <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.01] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+                <CardContent className="p-4">
+                  <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-16 w-16 text-emerald-500" /></div>
+                  <p className="text-sm text-muted-foreground">今日利润率</p>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
+                    {margin}<span className="text-sm font-normal text-muted-foreground">%</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    营收 {formatPrice(todayRevenue)} · 利润 {formatPrice(todayProfit)}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </div>
+      )}
 
       {/* ====== Month-over-Month Comparison (环比对比) ====== */}
       {momData && (
@@ -778,7 +845,7 @@ function DashboardTab() {
       )}
 
       {/* ====== 4. Counter Profit + Channel Profit + Inventory Value By Category ====== */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4 text-amber-600" />柜台利润分析</CardTitle></CardHeader>
           <CardContent>
@@ -818,6 +885,59 @@ function DashboardTab() {
                   <Tooltip formatter={(v: number) => formatPrice(v)} />
                 </RPieChart>
               </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+        {/* 销售渠道分布 (Revenue PieChart) */}
+        <Card className="hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Store className="h-4 w-4 text-sky-600" />销售渠道分布</CardTitle></CardHeader>
+          <CardContent>
+            {salesByChannel.length === 0 ? (
+              <EmptyState icon={PieChart} title="暂无数据" desc="还没有销售渠道数据" />
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="w-36 h-36 shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RPieChart>
+                      <Pie
+                        data={salesByChannel.map(d => ({ ...d, name: d.label, value: d.totalRevenue }))}
+                        dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} innerRadius={35}
+                        stroke="none"
+                      >
+                        {salesByChannel.map((d) => {
+                          const colorMap: Record<string, string> = { '门店': '#0284c7', '微信': '#059669', '其他': '#94a3b8' };
+                          return <Cell key={d.channel} fill={colorMap[d.label] || '#94a3b8'} />;
+                        })}
+                      </Pie>
+                      <Tooltip formatter={(v: number) => formatPrice(v)} />
+                    </RPieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 space-y-2.5">
+                  {salesByChannel.map(d => {
+                    const totalRev = salesByChannel.reduce((s: number, c: any) => s + (c.totalRevenue || 0), 0);
+                    const pct = totalRev > 0 ? ((d.totalRevenue / totalRev) * 100).toFixed(1) : '0.0';
+                    const colorMap: Record<string, string> = { '门店': 'bg-sky-500', '微信': 'bg-emerald-500', '其他': 'bg-gray-400' };
+                    const dotColor = colorMap[d.label] || 'bg-gray-400';
+                    return (
+                      <div key={d.channel} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1.5">
+                            <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
+                            <span className="font-medium">{d.label}</span>
+                            <span className="text-muted-foreground text-xs">{d.count}件</span>
+                          </div>
+                          <span className="font-medium text-emerald-600 text-xs">{formatPrice(d.totalRevenue)}</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div className={`${dotColor} rounded-full h-1.5 transition-all duration-500`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{pct}%</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

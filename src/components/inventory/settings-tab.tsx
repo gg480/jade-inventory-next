@@ -390,59 +390,70 @@ function SettingsTab() {
           <CardTitle className="text-base flex items-center gap-2"><Grid className="h-4 w-4 text-emerald-500" />数据概览</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="relative overflow-hidden bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-emerald-950/5 hover:shadow-md hover:scale-[1.02] transition-all duration-200 border border-emerald-200 dark:border-emerald-800">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center"><Gem className="h-4 w-4 text-emerald-600" /></div>
-                  <span className="text-sm text-muted-foreground">总货品数</span>
-                </div>
-                {dbSizeLoading || dataStats.itemsCount == null ? (
-                  <Skeleton className="h-7 w-20" />
-                ) : (
-                  <p className="text-2xl font-bold text-emerald-700">{dataStats.itemsCount ?? 0}</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card className="relative overflow-hidden bg-gradient-to-br from-sky-50 to-white dark:from-sky-950/20 dark:to-sky-950/5 hover:shadow-md hover:scale-[1.02] transition-all duration-200 border border-sky-200 dark:border-sky-800">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center"><Users className="h-4 w-4 text-sky-600" /></div>
-                  <span className="text-sm text-muted-foreground">总客户数</span>
-                </div>
-                {dbSizeLoading || dataStats.customersCount == null ? (
-                  <Skeleton className="h-7 w-20" />
-                ) : (
-                  <p className="text-2xl font-bold text-sky-700">{dataStats.customersCount ?? 0}</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card className="relative overflow-hidden bg-gradient-to-br from-teal-50 to-white dark:from-teal-950/20 dark:to-teal-950/5 hover:shadow-md hover:scale-[1.02] transition-all duration-200 border border-teal-200 dark:border-teal-800">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center"><Layers className="h-4 w-4 text-teal-600" /></div>
-                  <span className="text-sm text-muted-foreground">总供应商</span>
-                </div>
-                {dbSizeLoading || dataStats.batchesCount == null ? (
-                  <Skeleton className="h-7 w-20" />
-                ) : (
-                  <p className="text-2xl font-bold text-teal-700">{dataStats.batchesCount ?? 0}</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card className="relative overflow-hidden bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-amber-950/5 hover:shadow-md hover:scale-[1.02] transition-all duration-200 border border-amber-200 dark:border-amber-800">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center"><Database className="h-4 w-4 text-amber-600" /></div>
-                  <span className="text-sm text-muted-foreground">数据库大小</span>
-                </div>
-                {dbSizeLoading ? (
-                  <Skeleton className="h-7 w-24" />
-                ) : (
-                  <p className="text-2xl font-bold text-amber-700">{dbSize || '计算中...'}</p>
-                )}
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {/* 货品总数 */}
+            <div className="p-3 rounded-lg border border-border border-l-4 border-l-emerald-500 bg-muted/20">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-md bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center"><Package className="h-3.5 w-3.5 text-emerald-600" /></div>
+                <span className="text-xs text-muted-foreground">货品总数</span>
+              </div>
+              {dbSizeLoading || dataStats.itemsCount == null ? (
+                <Skeleton className="h-6 w-16" />
+              ) : (
+                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{dataStats.itemsCount ?? 0}</p>
+              )}
+            </div>
+            {/* 销售总数 */}
+            <div className="p-3 rounded-lg border border-border border-l-4 border-l-sky-500 bg-muted/20">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-md bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center"><ShoppingCart className="h-3.5 w-3.5 text-sky-600" /></div>
+                <span className="text-xs text-muted-foreground">销售总数</span>
+              </div>
+              {dbSizeLoading || dataStats.salesCount == null ? (
+                <Skeleton className="h-6 w-16" />
+              ) : (
+                <p className="text-xl font-bold text-sky-700 dark:text-sky-400">{dataStats.salesCount ?? 0}</p>
+              )}
+            </div>
+            {/* 客户总数 */}
+            <div className="p-3 rounded-lg border border-border border-l-4 border-l-amber-500 bg-muted/20">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-md bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center"><Users className="h-3.5 w-3.5 text-amber-600" /></div>
+                <span className="text-xs text-muted-foreground">客户总数</span>
+              </div>
+              {dbSizeLoading || dataStats.customersCount == null ? (
+                <Skeleton className="h-6 w-16" />
+              ) : (
+                <p className="text-xl font-bold text-amber-700 dark:text-amber-400">{dataStats.customersCount ?? 0}</p>
+              )}
+            </div>
+            {/* 批次总数 */}
+            <div className="p-3 rounded-lg border border-border border-l-4 border-l-teal-500 bg-muted/20">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-md bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center"><Layers className="h-3.5 w-3.5 text-teal-600" /></div>
+                <span className="text-xs text-muted-foreground">批次总数</span>
+              </div>
+              {dbSizeLoading || dataStats.batchesCount == null ? (
+                <Skeleton className="h-6 w-16" />
+              ) : (
+                <p className="text-xl font-bold text-teal-700 dark:text-teal-400">{dataStats.batchesCount ?? 0}</p>
+              )}
+            </div>
+            {/* 数据库信息 */}
+            <div className="p-3 rounded-lg border border-border border-l-4 border-l-violet-500 bg-muted/20">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-7 h-7 rounded-md bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center"><Database className="h-3.5 w-3.5 text-violet-600" /></div>
+                <span className="text-xs text-muted-foreground">数据库信息</span>
+              </div>
+              {dbSizeLoading ? (
+                <Skeleton className="h-6 w-20" />
+              ) : (
+                <p className="text-xl font-bold text-violet-700 dark:text-violet-400">{dbSize || '计算中...'}</p>
+              )}
+              {lastBackupFromStorage && (
+                <p className="text-[10px] text-muted-foreground mt-0.5">备份于 {lastBackupFromStorage}</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

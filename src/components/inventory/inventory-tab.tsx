@@ -30,7 +30,7 @@ import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
   ShoppingCart, Tag, MapPin, X, Gem, CheckSquare, ChevronDown, ChevronUp, SlidersHorizontal,
-  Info, FileText, Certificate, CalendarDays, Target, MoreHorizontal, Copy,
+  Info, FileText, FileCheck, CalendarDays, Target, MoreHorizontal, Copy,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -1025,6 +1025,12 @@ function InventoryTab() {
                                   <span>出库</span>
                                 </DropdownMenuItem>
                               )}
+                              {item.status === 'in_stock' && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setReturnConfirmItem({ open: true, item }); }}>
+                                  <RotateCcw className="h-3.5 w-3.5 mr-2" />
+                                  <span>退货</span>
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} className="text-red-600 focus:text-red-600">
                                 <Trash2 className="h-3.5 w-3.5 mr-2" />
                                 <span>删除</span>
@@ -1140,6 +1146,11 @@ function InventoryTab() {
                       {item.status === 'in_stock' && (
                         <DropdownMenuItem onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '', customerId: '' }); }}>
                           <ShoppingCart className="h-3.5 w-3.5 mr-2" /><span>出库</span>
+                        </DropdownMenuItem>
+                      )}
+                      {item.status === 'in_stock' && (
+                        <DropdownMenuItem onClick={() => setReturnConfirmItem({ open: true, item })}>
+                          <RotateCcw className="h-3.5 w-3.5 mr-2" /><span>退货</span>
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-red-600 focus:text-red-600">
@@ -1687,7 +1698,7 @@ function InventoryTab() {
                     <div className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">采购日期:</span><span>{item.purchaseDate}</span></div>
                   )}
                   {item.certNo && (
-                    <div className="flex items-center gap-2"><Certificate className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">证书编号:</span><span className="font-mono text-xs">{item.certNo}</span></div>
+                    <div className="flex items-center gap-2"><FileCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">证书编号:</span><span className="font-mono text-xs">{item.certNo}</span></div>
                   )}
                 </div>
                 {/* Spec Fields */}
