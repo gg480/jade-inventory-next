@@ -901,3 +901,92 @@ Stage Summary:
 - 6 files changed, 196 insertions, 128 deletions
 - ConfirmDialog 已替换2处内联确认（库存删除 + 客户删除），可在后续继续替换更多
 - 所有API和代码验证通过
+
+---
+
+## Task 16: Online/Offline Banner + Counter Validation + Dashboard Refresh + Keyboard Shortcuts + Sort Indicators + Settings Visual Enhancement (2026-06-18)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ dev server 正常运行（GET / 200）
+- 6项功能增强全部完成
+
+### 本轮完成的6项改动
+
+#### 1. Online/Offline Detection Banner (page.tsx)
+- 新增 `isOnline` 状态，通过 `navigator.onLine` 初始化
+- useEffect 监听 `online`/`offline` 事件
+- 离线时显示固定顶部的琥珀色横幅（WifiOff 图标 + "网络连接已断开，部分功能可能不可用"）
+- 离线时主内容区域添加 `pt-8` 偏移避免遮挡
+
+#### 2. Counter Required Validation (item-create-dialog.tsx)
+- 柜台号（counter）字段已添加 `placeholder="例: A-01"`
+- 验证逻辑已存在（validateRequiredFields 检查 counter 非空）
+- 红色 `*` 必填标记已存在
+- 两个模式（高货入库/通货入库）的 counter 输入均已添加 placeholder
+
+#### 3. Dashboard Manual Refresh Button (dashboard-tab.tsx)
+- 新增 `refreshing` 状态控制旋转动画
+- 新增 `handleManualRefresh` 函数，点击后调用 fetchData 并在 600ms 后停止旋转
+- 刷新按钮：`variant="outline" size="sm"` + RefreshCw 图标，点击时 `animate-spin`
+- 加载中时按钮禁用
+
+#### 4. Keyboard Shortcut Guide Enhancement (navigation.tsx + page.tsx)
+- navigation.tsx: ShortcutsHelpDialog 快捷键列表更新为更完整的描述
+  - Esc → "关闭对话框", ? → "显示快捷键帮助"
+  - 1-7 → "切换标签页 (Dashboard/库存/销售/批次/客户/设置/日志)"
+- page.tsx: Tab 映射顺序调整为 6=设置, 7=日志（与导航一致）
+- useEffect 依赖数组添加 `setActiveTab`
+
+#### 5. Inventory Tab Column Sort Indicators (inventory-tab.tsx)
+- 新增 `sortedItems` useMemo 对 items 进行客户端排序
+- 新增 `SortableHead` 组件：可点击的表头列
+- SKU/名称/成本/售价/采购日期列为可排序列
+- 点击切换排序方向，显示 ArrowUp/ArrowDown/ArrowUpDown 图标
+- 活跃排序列标题使用 `text-emerald-600 dark:text-emerald-400` 高亮
+- 桌面端表格和移动端卡片视图均使用 sortedItems
+
+#### 6. Settings Tab Visual Enhancement (settings-tab.tsx)
+- 每个设置分区 Card 添加 `border-l-4` 彩色左边框
+  - 材料管理: emerald-400 + Gem 图标
+  - 器型管理: blue-400 + Box 图标
+  - 标签管理: purple-400 + Tag 图标
+  - 贵金属市价: amber-400 + DollarSign 图标
+  - 供应商管理: teal-400 + Factory 图标
+  - 系统配置: gray-400 + Settings 图标
+  - 数据管理（备份/导入）: red-400 + ShieldCheck 图标
+- 所有 Card 添加 `hover:shadow-sm transition-shadow duration-200` 悬停效果
+- 每个 section header 添加对应颜色的 lucide 图标
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+
+### 关键文件变更
+- `src/app/page.tsx` — isOnline 状态 + 事件监听 + 离线横幅 + Tab 映射调整
+- `src/components/inventory/item-create-dialog.tsx` — counter placeholder
+- `src/components/inventory/dashboard-tab.tsx` — refreshing 状态 + handleManualRefresh + 旋转动画
+- `src/components/inventory/navigation.tsx` — ShortcutsHelpDialog 快捷键列表增强
+- `src/components/inventory/inventory-tab.tsx` — ArrowUpDown 导入 + sortedItems + SortableHead 组件 + 可点击表头
+- `src/components/inventory/settings-tab.tsx` — 彩色边框 + 图标 + hover 效果
+
+---
+
+Task ID: 16
+Agent: full-stack-developer
+Task: Online/Offline Banner + Counter Validation + Dashboard Refresh + Keyboard Shortcuts + Sort Indicators + Settings Visual Enhancement
+
+Work Log:
+- 读取所有目标文件了解现有代码结构
+- Feature 1: page.tsx 添加 isOnline 状态 + 事件监听 + 离线横幅 + WifiOff 导入
+- Feature 2: item-create-dialog.tsx 两个 counter 输入添加 placeholder="例: A-01"
+- Feature 3: dashboard-tab.tsx 添加 refreshing 状态 + handleManualRefresh + animate-spin
+- Feature 4: navigation.tsx 更新 ShortcutsHelpDialog 快捷键列表; page.tsx 调整 Tab 映射顺序
+- Feature 5: inventory-tab.tsx 添加 ArrowUpDown 导入 + sortedItems useMemo + SortableHead 组件 + 可点击表头
+- Feature 6: settings-tab.tsx 所有 Card 添加 border-l-4 彩色边框 + 图标 + hover:shadow-sm
+- bun run lint → 0 errors, 0 warnings
+- 更新 worklog.md
+
+Stage Summary:
+- 6项功能增强（离线检测横幅 + 柜台号 placeholder + Dashboard 旋转刷新 + 快捷键增强 + 排序指示器 + 设置页视觉增强）
+- 6 files changed
+- 所有代码验证通过

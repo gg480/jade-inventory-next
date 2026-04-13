@@ -13,7 +13,7 @@ const InventoryTab = lazy(() => import('@/components/inventory/inventory-tab'));
 const SettingsTab = lazy(() => import('@/components/inventory/settings-tab'));
 import LoginPage from '@/components/inventory/login-page';
 import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
-import { Gem, Package, ShoppingCart, Zap, Clock, LogOut, ArrowUp, HelpCircle } from 'lucide-react';
+import { Gem, Package, ShoppingCart, Zap, Clock, LogOut, ArrowUp, HelpCircle, WifiOff } from 'lucide-react';
 import { itemsApi, salesApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -156,9 +156,22 @@ export default function JadeInventoryPage() {
   const { activeTab, setActiveTab } = useAppStore();
   const [animKey, setAnimKey] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => typeof window !== 'undefined' ? navigator.onLine : true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Network status detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Scroll-to-top detection
   useEffect(() => {
@@ -199,7 +212,7 @@ export default function JadeInventoryPage() {
   useEffect(() => {
     const tabMap: Record<string, TabId> = {
       '1': 'dashboard', '2': 'inventory', '3': 'sales',
-      '4': 'batches', '5': 'customers', '6': 'logs', '7': 'settings',
+      '4': 'batches', '5': 'customers', '6': 'settings', '7': 'logs',
     };
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -252,7 +265,7 @@ export default function JadeInventoryPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [setActiveTab]);
 
   const renderTab = () => {
     switch (activeTab) {
@@ -275,7 +288,15 @@ export default function JadeInventoryPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout} />
-      <main className="flex-1 px-4 py-4 md:px-6 md:py-6 pb-20 md:pb-6 max-w-7xl mx-auto w-full">
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 dark:bg-amber-600 text-white text-center text-sm py-1.5 px-4 animate-in slide-in-from-top-1 duration-200">
+          <div className="flex items-center justify-center gap-2">
+            <WifiOff className="h-3.5 w-3.5" />
+            <span>网络连接已断开，部分功能可能不可用</span>
+          </div>
+        </div>
+      )}
+      <main className={`flex-1 px-4 py-4 md:px-6 md:py-6 pb-20 md:pb-6 max-w-7xl mx-auto w-full ${!isOnline ? 'pt-8' : ''}`}>
         <div key={animKey} className="tab-fade-in">
           <ErrorBoundary>
             <Suspense fallback={<LoadingSkeleton />}>

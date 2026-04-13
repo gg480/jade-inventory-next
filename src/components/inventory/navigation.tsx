@@ -88,19 +88,19 @@ function ShortcutsHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const shortcuts = [
     { keys: '⌘/Ctrl + K', description: '聚焦搜索栏' },
     { keys: '⌘/Ctrl + N', description: '新增入库' },
-    { keys: '1 ~ 7', description: '切换标签页' },
-    { keys: 'Esc', description: '关闭弹窗' },
+    { keys: 'Esc', description: '关闭对话框' },
     { keys: '?', description: '显示快捷键帮助' },
+    { keys: '1-7', description: '切换标签页 (Dashboard/库存/销售/批次/客户/设置/日志)' },
   ];
 
   const tabShortcuts = [
-    { key: '1', tab: '利润看板' },
-    { key: '2', tab: '库存管理' },
-    { key: '3', tab: '销售记录' },
-    { key: '4', tab: '批次管理' },
-    { key: '5', tab: '客户管理' },
-    { key: '6', tab: '操作日志' },
-    { key: '7', tab: '系统设置' },
+    { key: '1', tab: 'Dashboard' },
+    { key: '2', tab: '库存' },
+    { key: '3', tab: '销售' },
+    { key: '4', tab: '批次' },
+    { key: '5', tab: '客户' },
+    { key: '6', tab: '设置' },
+    { key: '7', tab: '日志' },
   ];
 
   return (

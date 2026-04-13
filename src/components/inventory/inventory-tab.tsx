@@ -27,7 +27,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
-  Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, Camera, Layers,
+  Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
   ShoppingCart, Tag, MapPin, X, Gem, CheckSquare,
 } from 'lucide-react';
 
@@ -484,6 +484,64 @@ function InventoryTab() {
     });
   }, [selectedItems, batchPriceForm]);
 
+  // Client-side sort for table display
+  const sortedItems = useMemo(() => {
+    if (!items.length) return items;
+    const sorted = [...items];
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'selling_price':
+          cmp = (a.sellingPrice || 0) - (b.sellingPrice || 0);
+          break;
+        case 'cost_price':
+          cmp = (a.allocatedCost || a.estimatedCost || a.costPrice || 0) - (b.allocatedCost || b.estimatedCost || b.costPrice || 0);
+          break;
+        case 'purchase_date':
+          cmp = (a.purchaseDate || '').localeCompare(b.purchaseDate || '');
+          break;
+        case 'sku_code':
+          cmp = (a.skuCode || '').localeCompare(b.skuCode || '');
+          break;
+        case 'name':
+          cmp = (a.name || a.skuCode || '').localeCompare(b.name || b.skuCode || '');
+          break;
+        case 'created_at':
+        default:
+          cmp = (a.createdAt || '').localeCompare(b.createdAt || '');
+          break;
+      }
+      return sortOrder === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [items, sortBy, sortOrder]);
+
+  function SortableHead({ field, children, align }: { field: string; children: React.ReactNode; align?: 'left' | 'right' }) {
+    const isActive = sortBy === field;
+    return (
+      <TableHead
+        className={`${align === 'right' ? 'text-right' : ''} cursor-pointer select-none hover:bg-muted/50 transition-colors ${isActive ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
+        onClick={() => {
+          if (sortBy === field) {
+            setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+          } else {
+            setSortBy(field);
+            setSortOrder('desc');
+          }
+        }}
+      >
+        <div className={`inline-flex items-center gap-1 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+          {children}
+          {isActive ? (
+            sortOrder === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />
+          ) : (
+            <ArrowUpDown className="h-3 w-3 opacity-40" />
+          )}
+        </div>
+      </TableHead>
+    );
+  }
+
   if (loading && items.length === 0) return <LoadingSkeleton />;
 
   const totalValue = items.reduce((sum, i) => sum + (i.allocatedCost || i.estimatedCost || i.costPrice || 0), 0);
@@ -682,13 +740,17 @@ function InventoryTab() {
                       />
                     </TableHead>
                     <TableHead className="w-12 px-2">图</TableHead>
-                    <TableHead>SKU</TableHead><TableHead>名称</TableHead><TableHead>材质</TableHead><TableHead>器型</TableHead><TableHead>所属批次</TableHead>
-                    <TableHead className="text-right">成本</TableHead><TableHead className="text-right">售价</TableHead>
-                    <TableHead>采购日期</TableHead><TableHead>状态</TableHead><TableHead>库龄</TableHead><TableHead className="text-right">操作</TableHead>
+                    <SortableHead field="sku_code">SKU</SortableHead>
+                    <SortableHead field="name">名称</SortableHead>
+                    <TableHead>材质</TableHead><TableHead>器型</TableHead><TableHead>所属批次</TableHead>
+                    <SortableHead field="cost_price" align="right">成本</SortableHead>
+                    <SortableHead field="selling_price" align="right">售价</SortableHead>
+                    <SortableHead field="purchase_date">采购日期</SortableHead>
+                    <TableHead>状态</TableHead><TableHead>库龄</TableHead><TableHead className="text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item, idx) => (
+                  {sortedItems.map((item, idx) => (
                     <TableRow key={item.id} className={`group hover:bg-muted/50 transition-all duration-150 border-l-2 border-l-transparent hover:border-l-emerald-400 ${idx % 2 === 1 ? 'even:bg-muted/20' : ''} ${selectedIds.has(item.id) ? 'bg-emerald-50 dark:bg-emerald-950/20 hover:border-l-emerald-500' : item.status === 'sold' ? 'hover:border-l-gray-400' : item.status === 'returned' ? 'hover:border-l-red-400' : ''}`}>
                       <TableCell className="w-10 px-3">
                         <Checkbox
@@ -747,7 +809,7 @@ function InventoryTab() {
 
         {/* Mobile Card View */}
         <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {items.map(item => (
+          {sortedItems.map(item => (
             <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/20' : ''}`}>
               <CardContent className="p-4 space-y-3">
                 {/* Header: Thumbnail + Checkbox + SKU + Status */}

@@ -87,6 +87,7 @@ function DashboardTab() {
   const [customerFreq, setCustomerFreq] = useState<any>(null);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [minDays, setMinDays] = useState(90);
   const [warningDaysLoaded, setWarningDaysLoaded] = useState(false);
   const [distFilter, setDistFilter] = useState<PeriodFilter>('year');
@@ -229,6 +230,13 @@ function DashboardTab() {
   }, [minDays, getDateRange, warningDaysLoaded]);
 
   useEffect(() => { if (warningDaysLoaded) fetchData(); }, [fetchData, warningDaysLoaded]);
+
+  const handleManualRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData().finally(() => {
+      setTimeout(() => setRefreshing(false), 600);
+    });
+  }, [fetchData]);
 
   // ===== Heatmap calendar computation =====
   const heatmapCalendar = useMemo(() => {
@@ -461,7 +469,7 @@ function DashboardTab() {
               </>
             )}
             <div className="ml-auto flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={fetchData}><RefreshCw className="h-3 w-3 mr-1" />刷新</Button>
+              <Button size="sm" variant="outline" onClick={handleManualRefresh} disabled={loading}><RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? 'animate-spin' : ''}`} />刷新</Button>
             </div>
           </div>
         </CardContent>

@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck } from 'lucide-react';
 
 // ========== 材质大类选项 ==========
 const MATERIAL_CATEGORIES = [
@@ -323,8 +323,8 @@ function SettingsTab() {
 
         <TabsContent value="dicts" className="mt-4 space-y-4">
           {/* Materials */}
-          <Card>
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base">材质 ({materials.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateMaterial(true); setMaterialForm({ name: '', category: '', subType: '', origin: '', costPerGram: '' }); }}><Plus className="h-3 w-3 mr-1" />新增材质</Button></div></CardHeader>
+          <Card className="border-l-4 border-l-emerald-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Gem className="h-4 w-4 text-emerald-500" />材质 ({materials.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateMaterial(true); setMaterialForm({ name: '', category: '', subType: '', origin: '', costPerGram: '' }); }}><Plus className="h-3 w-3 mr-1" />新增材质</Button></div></CardHeader>
             <CardContent>
               <div className="max-h-64 overflow-y-auto custom-scrollbar">
                 <Table>
@@ -352,8 +352,8 @@ function SettingsTab() {
             </CardContent>
           </Card>
           {/* Types */}
-          <Card>
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base">器型 ({types.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateType(true); setTypeForm({ name: '', specFields: {} }); }}><Plus className="h-3 w-3 mr-1" />新增器型</Button></div></CardHeader>
+          <Card className="border-l-4 border-l-blue-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Box className="h-4 w-4 text-blue-500" />器型 ({types.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateType(true); setTypeForm({ name: '', specFields: {} }); }}><Plus className="h-3 w-3 mr-1" />新增器型</Button></div></CardHeader>
             <CardContent>
               <div className="max-h-48 overflow-y-auto custom-scrollbar">
                 <Table>
@@ -380,8 +380,8 @@ function SettingsTab() {
             </CardContent>
           </Card>
           {/* Tags */}
-          <Card>
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base">标签 ({tags.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateTag(true); setTagForm({ name: '', groupName: '' }); }}><Plus className="h-3 w-3 mr-1" />新增标签</Button></div></CardHeader>
+          <Card className="border-l-4 border-l-purple-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4 text-purple-500" />标签 ({tags.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateTag(true); setTagForm({ name: '', groupName: '' }); }}><Plus className="h-3 w-3 mr-1" />新增标签</Button></div></CardHeader>
             <CardContent>
               {/* Group filter */}
               {Object.keys(tagGroups).length > 1 && (
@@ -431,8 +431,8 @@ function SettingsTab() {
         </TabsContent>
 
         <TabsContent value="metal" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">贵金属市价管理</CardTitle></CardHeader>
+          <Card className="border-l-4 border-l-amber-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4 text-amber-500" />贵金属市价管理</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">当前配置了克重单价的材质，市价变动时可批量重算在库货品零售价。</p>
               <div className="space-y-3">
@@ -471,8 +471,8 @@ function SettingsTab() {
         </TabsContent>
 
         <TabsContent value="suppliers" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base">供应商 ({suppliers.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateSupplier(true); setSupplierForm({ name: '', contact: '', notes: '' }); }}><Plus className="h-3 w-3 mr-1" />新增供应商</Button></div></CardHeader>
+          <Card className="border-l-4 border-l-teal-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Factory className="h-4 w-4 text-teal-500" />供应商 ({suppliers.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateSupplier(true); setSupplierForm({ name: '', contact: '', notes: '' }); }}><Plus className="h-3 w-3 mr-1" />新增供应商</Button></div></CardHeader>
             <CardContent>
               {suppliers.length === 0 ? (
                 <EmptyState icon={Factory} title="暂无供应商" desc="还没有添加任何供应商" />
@@ -503,8 +503,8 @@ function SettingsTab() {
         </TabsContent>
 
         <TabsContent value="config" className="mt-4">
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">系统配置</CardTitle></CardHeader>
+          <Card className="border-l-4 border-l-gray-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Settings className="h-4 w-4 text-gray-500" />系统配置</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {/* Warning days config */}
@@ -569,8 +569,8 @@ function SettingsTab() {
 
         <TabsContent value="backup" className="mt-4 space-y-4">
           {/* Download backup */}
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Download className="h-4 w-4 text-emerald-600" />备份数据库</CardTitle></CardHeader>
+          <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-red-500" />备份数据库</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">下载当前数据库文件（SQLite），可用于数据迁移或定期备份。</p>
               <div className="flex items-center gap-4">
@@ -589,8 +589,8 @@ function SettingsTab() {
           </Card>
 
           {/* Restore backup */}
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Upload className="h-4 w-4 text-amber-600" />恢复数据库</CardTitle></CardHeader>
+          <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-red-500" />恢复数据库</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-2">从备份文件恢复数据库。恢复前会自动保存当前数据库为安全副本。</p>
               <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800 mb-4">
@@ -607,8 +607,8 @@ function SettingsTab() {
           </Card>
 
           {/* Info card */}
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4 text-sky-600" />数据说明</CardTitle></CardHeader>
+          <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4 text-red-400" />数据说明</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>• 数据库为 SQLite 单文件，包含所有业务数据（货品、销售、客户等）</p>
@@ -621,8 +621,8 @@ function SettingsTab() {
         </TabsContent>
         <TabsContent value="import" className="mt-4 space-y-4">
           {/* Import type selector */}
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-emerald-600" />数据批量导入</CardTitle></CardHeader>
+          <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-red-500" />数据批量导入</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">上传CSV文件批量导入库存或销售数据。支持自动创建缺失的材质/器型/标签。</p>
               <div className="flex items-center gap-4 mb-4">
@@ -644,8 +644,8 @@ function SettingsTab() {
           </Card>
 
           {/* File upload area */}
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">选择文件</CardTitle></CardHeader>
+          <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Upload className="h-4 w-4 text-red-500" />选择文件</CardTitle></CardHeader>
             <CardContent>
               <div
                 className="border-2 border-dashed rounded-lg p-8 text-center hover:border-emerald-400 transition-colors cursor-pointer"
@@ -691,8 +691,8 @@ function SettingsTab() {
 
           {/* Data preview */}
           {previewData && (
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">数据预览（前5行）</CardTitle></CardHeader>
+            <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
+              <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><FileDown className="h-4 w-4 text-red-500" />数据预览（前5行）</CardTitle></CardHeader>
               <CardContent>
                 <div className="border rounded-lg overflow-x-auto">
                   <Table>
@@ -721,8 +721,8 @@ function SettingsTab() {
           )}
 
           {/* Options */}
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-base">导入选项</CardTitle></CardHeader>
+          <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Settings className="h-4 w-4 text-red-500" />导入选项</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer">
