@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { dictsApi, configApi, suppliersApi, metalApi, backupApi, importApi } from '@/lib/api';
+import { dictsApi, configApi, suppliersApi, metalApi, backupApi, importApi, itemsApi, salesApi, batchesApi, customersApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, EmptyState, LoadingSkeleton } from './shared';
 
@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers } from 'lucide-react';
 
 // ========== 材质大类选项 ==========
 const MATERIAL_CATEGORIES = [
@@ -123,11 +123,20 @@ function SettingsTab() {
   const [skipExisting, setSkipExisting] = useState(true);
   const [previewData, setPreviewData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
 
+  // Data statistics states
+  const [dataStats, setDataStats] = useState({
+    itemsCount: null as number | null,
+    salesCount: null as number | null,
+    customersCount: null as number | null,
+    batchesCount: null as number | null,
+  });
+  const [lastBackupFromStorage, setLastBackupFromStorage] = useState<string | null>(null);
+
   // System config (localStorage)
   const defaultSettings = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, targetMargin: 30 };
   const [systemConfig, setSystemConfig] = useState(defaultSettings);
 
-  // Load settings from localStorage on mount
+  // Load settings & data stats from localStorage on mount
   useEffect(() => {
     try {
       const stored = localStorage.getItem('app_settings');
@@ -135,6 +144,34 @@ function SettingsTab() {
         setSystemConfig({ ...defaultSettings, ...JSON.parse(stored) });
       }
     } catch { /* use defaults */ }
+    // Load last backup time from localStorage
+    try {
+      const backupTime = localStorage.getItem('last_backup_time');
+      if (backupTime) {
+        setLastBackupFromStorage(backupTime);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Fetch data statistics
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const [itemsRes, salesRes, customersRes, batchesRes] = await Promise.allSettled([
+          itemsApi.getItems({ page: 1, size: 1 }),
+          salesApi.getSales({ page: 1, size: 1 }),
+          customersApi.getCustomers({ page: 1, size: 1 }),
+          batchesApi.getBatches({ page: 1, size: 1 }),
+        ]);
+        setDataStats({
+          itemsCount: itemsRes.status === 'fulfilled' ? (itemsRes.value.pagination?.total ?? null) : null,
+          salesCount: salesRes.status === 'fulfilled' ? (salesRes.value.pagination?.total ?? null) : null,
+          customersCount: customersRes.status === 'fulfilled' ? (customersRes.value.pagination?.total ?? null) : null,
+          batchesCount: batchesRes.status === 'fulfilled' ? (batchesRes.value.pagination?.total ?? null) : null,
+        });
+      } catch { /* silently fail */ }
+    }
+    fetchStats();
   }, []);
 
   useEffect(() => {
@@ -621,13 +658,68 @@ function SettingsTab() {
         </TabsContent>
 
         <TabsContent value="backup" className="mt-4 space-y-4">
+          {/* Data Statistics Card */}
+          <Card className="border-l-4 border-l-emerald-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Grid className="h-4 w-4 text-emerald-500" />数据统计</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                    <Package className="h-3.5 w-3.5" />
+                    <span className="text-xs">货品总数</span>
+                  </div>
+                  <p className="text-lg font-bold">{dataStats.itemsCount ?? '...'}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                    <span className="text-xs">销售总数</span>
+                  </div>
+                  <p className="text-lg font-bold">{dataStats.salesCount ?? '...'}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                    <Users className="h-3.5 w-3.5" />
+                    <span className="text-xs">客户总数</span>
+                  </div>
+                  <p className="text-lg font-bold">{dataStats.customersCount ?? '...'}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                    <Layers className="h-3.5 w-3.5" />
+                    <span className="text-xs">批次总数</span>
+                  </div>
+                  <p className="text-lg font-bold">{dataStats.batchesCount ?? '...'}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center col-span-2 md:col-span-1">
+                  <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-1">
+                    <Database className="h-3.5 w-3.5" />
+                    <span className="text-xs">数据库</span>
+                  </div>
+                  <p className="text-sm font-medium">SQLite</p>
+                  {lastBackupFromStorage && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-center gap-0.5">
+                      <Clock className="h-2.5 w-2.5" />
+                      上次备份: {lastBackupFromStorage}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Download backup */}
           <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
             <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-red-500" />备份数据库</CardTitle></CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">下载当前数据库文件（SQLite），可用于数据迁移或定期备份。</p>
               <div className="flex items-center gap-4">
-                <Button className="bg-emerald-600 hover:bg-emerald-700" asChild onClick={() => setLastBackupTime(new Date().toLocaleString('zh-CN'))}>
+                <Button className="bg-emerald-600 hover:bg-emerald-700" asChild onClick={() => {
+                  const now = new Date().toLocaleString('zh-CN');
+                  setLastBackupTime(now);
+                  setLastBackupFromStorage(now);
+                  localStorage.setItem('last_backup_time', now);
+                }}>
                   <a href={backupApi.download()} download>
                     <Download className="h-4 w-4 mr-2" />下载数据库备份
                   </a>

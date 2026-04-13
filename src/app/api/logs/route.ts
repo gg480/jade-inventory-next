@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 
 // Operation logs API endpoint
 
@@ -11,10 +12,14 @@ export async function GET(req: Request) {
   const targetType = searchParams.get('target_type');
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
+  const search = searchParams.get('search');
 
   const where: any = {};
   if (action) where.action = action;
   if (targetType) where.targetType = targetType;
+  if (search) {
+    where.detail = { contains: search, mode: Prisma.QueryMode.insensitive };
+  }
   if (startDate || endDate) {
     where.createdAt = {};
     if (startDate) where.createdAt.gte = new Date(startDate);

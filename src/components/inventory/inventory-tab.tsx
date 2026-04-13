@@ -862,6 +862,43 @@ function InventoryTab() {
         </CardContent>
       </Card>
 
+      {/* Quick Stats Summary Bar */}
+      {!loading && filteredItems.length > 0 && (
+        <div className="animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-muted/50 rounded-lg px-4 py-3">
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">共 {filteredItems.length} 件</p>
+              <p className="text-sm font-medium tabular-nums">{pagination.total} 件总计</p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">总货值</p>
+              <p className="text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                ¥{filteredItems.reduce((s, i) => s + (i.sellingPrice || 0), 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">总成本</p>
+              <p className="text-sm font-medium tabular-nums text-amber-600 dark:text-amber-400">
+                ¥{filteredItems.reduce((s, i) => s + (i.allocatedCost || i.estimatedCost || i.costPrice || 0), 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground">潜在利润</p>
+              {(() => {
+                const totalValue = filteredItems.reduce((s, i) => s + (i.sellingPrice || 0), 0);
+                const totalCost = filteredItems.reduce((s, i) => s + (i.allocatedCost || i.estimatedCost || i.costPrice || 0), 0);
+                const profit = totalValue - totalCost;
+                return (
+                  <p className={`text-sm font-medium tabular-nums ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {profit >= 0 ? '+' : ''}¥{profit.toLocaleString('zh-CN', { maximumFractionDigits: 0 })}
+                  </p>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Items Table */}
       {sortedItems.length === 0 ? (
         <EmptyState icon={Package} title="暂无货品" desc="还没有入库任何货品，点击「新增入库」开始" />

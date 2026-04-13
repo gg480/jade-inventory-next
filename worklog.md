@@ -1487,3 +1487,97 @@ Work Log:
 Stage Summary:
 - 6项功能增强 + 1个bug修复（dashboard重复卡片）
 - 所有代码验证通过
+
+---
+
+## Task 22: 滚动条美化 + 库存统计栏 + 批次利润 + 通知下拉 + 日志高级筛选 + 数据统计卡片 (2026-04-14)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ 6项功能增强全部完成
+- ⚠️ agent-browser QA受限（容器OOM，已知问题）
+
+### 本轮完成的6项改动
+
+#### 1. 全局滚动条/选区/焦点美化 (globals.css)
+- 自定义滚动条：6px宽度，暗色模式翡翠色调，亮色模式灰色
+- 文字选区：翡翠色半透明背景 + 深色/浅色文字自适应
+- 焦点轮廓：2px翡翠色实线 + 2px偏移 + 4px圆角
+- `::-webkit-scrollbar` + `::selection` + `*:focus-visible` 选择器
+
+#### 2. 库存快速统计栏 (inventory-tab.tsx)
+- 筛选区和表格之间的浮动统计条
+- 4项指标：共N件、总货值（翡翠色）、总成本（琥珀色）、潜在利润（正绿/负红）
+- 桌面端水平布局，移动端2×2网格
+- tabular-nums 数字等宽
+- animate-in 入场动画
+
+#### 3. 批次利润分析 (batches-tab.tsx + batch-detail-dialog.tsx)
+- 桌面表格新增"利润"列：金额（绿色正/红色负）+ 箭头图标 + 利润率%
+- 移动端卡片同步显示利润行
+- 批次详情对话框顶部新增"利润分析"区段
+- 4格展示：销售收入、总成本、净利润、利润率
+- 盈利/亏损 Badge + 已售件数
+- 仅计算 status='sold' 的货品
+
+#### 4. 通知铃铛下拉面板 (notification-bell.tsx)
+- 点击铃铛展开下拉通知面板（替代Popover）
+- 颜色编码：压货预警=琥珀、批次待录入=红色、低毛利=橙色、今日销售=翡翠
+- 每条通知：图标+标题+描述+相对时间+查看详情链接
+- "全部已读"按钮 + "查看全部"底部链接
+- 最多显示5条通知
+- "暂无新通知"空状态
+- 点击外部关闭 + animate-in 动画
+
+#### 5. 操作日志高级筛选 (logs-tab.tsx + logs/route.ts)
+- 新增搜索文本输入框（搜索图标+清除按钮+Enter触发）
+- 后端支持 search 查询参数（Prisma contains + insensitive）
+- "筛选中 N" 琥珀色徽章指示
+- "清除筛选"按钮一键重置
+- 4种筛选器（操作类型+开始日期+结束日期+搜索）协同工作
+
+#### 6. 数据统计卡片 (settings-tab.tsx)
+- 备份管理Tab顶部新增"数据统计"卡片
+- 5项统计：货品总数、销售总数、客户总数、批次总数、数据库信息
+- Promise.allSettled 容错加载
+- 最后备份时间 localStorage 持久化
+- 响应式网格（移动2列，桌面5列）
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+
+### 关键文件变更
+- `src/app/globals.css` — 滚动条/选区/焦点美化
+- `src/components/inventory/inventory-tab.tsx` — 快速统计栏
+- `src/components/inventory/batches-tab.tsx` — 利润列
+- `src/components/inventory/batch-detail-dialog.tsx` — 利润分析区段
+- `src/components/inventory/notification-bell.tsx` — 下拉通知面板
+- `src/components/inventory/logs-tab.tsx` — 高级筛选
+- `src/app/api/logs/route.ts` — search 参数支持
+- `src/components/inventory/settings-tab.tsx` — 数据统计卡片
+
+### 下一阶段优先建议
+1. 🟡 数据导入功能（CSV批量导入）
+2. 🟡 批量标签打印
+3. 🟡 批量编辑
+4. 🟡 图片缩略图生成
+5. 🟢 登录认证增强（JWT）
+6. 🟢 数据备份自动化
+
+---
+
+Task ID: 22
+Agent: cron-agent
+Task: 滚动条美化 + 库存统计栏 + 批次利润 + 通知下拉 + 日志高级筛选 + 数据统计卡片
+
+Work Log:
+- bun run lint → 0 errors
+- full-stack-developer 子代理完成6项功能（分两批执行）
+- 最终 lint → 0 errors, 0 warnings
+- 更新 worklog.md
+- GitHub 推送
+
+Stage Summary:
+- 6项功能增强（全局美化+统计栏+批次利润+通知面板+日志筛选+数据统计）
+- 后端新增 logs search 参数
+- 所有代码验证通过

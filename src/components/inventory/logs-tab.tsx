@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText, Plus, Pencil, Trash2, ShoppingCart, RotateCcw, LogIn, Copy, Check } from 'lucide-react';
+import { ScrollText, RefreshCw, Filter, Clock, User, Target, FileText, Plus, Pencil, Trash2, ShoppingCart, RotateCcw, LogIn, Copy, Check, Search, X } from 'lucide-react';
 import Pagination from './pagination';
 
 // Action type config with labels, colors, icons and border colors
@@ -103,6 +103,7 @@ function LogsTab() {
   const [actionFilter, setActionFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [searchText, setSearchText] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
@@ -113,6 +114,7 @@ function LogsTab() {
       if (actionFilter) params.action = actionFilter;
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
+      if (searchText.trim()) params.search = searchText.trim();
       const data = await logsApi.getLogs(params);
       setLogs(data?.items || []);
       setPagination(data?.pagination || { total: 0, page: 1, size: 20, pages: 0 });
@@ -121,7 +123,7 @@ function LogsTab() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, actionFilter, startDate, endDate]);
+  }, [pagination.page, actionFilter, startDate, endDate, searchText]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -132,6 +134,14 @@ function LogsTab() {
     return () => clearInterval(timer);
   }, [autoRefresh, fetchLogs, pagination.page]);
 
+  // Count active filters
+  const activeFilterCount = [
+    actionFilter,
+    startDate,
+    endDate,
+    searchText.trim(),
+  ].filter(Boolean).length;
+
   function handleFilter() {
     setPagination(p => ({ ...p, page: 1 }));
     fetchLogs(1);
@@ -141,7 +151,14 @@ function LogsTab() {
     setActionFilter('');
     setStartDate('');
     setEndDate('');
+    setSearchText('');
     setPagination(p => ({ ...p, page: 1 }));
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      handleFilter();
+    }
   }
 
   function formatTime(dateStr: string) {
@@ -181,6 +198,11 @@ function LogsTab() {
           <CardTitle className="text-base flex items-center gap-2">
             <Filter className="h-4 w-4 text-emerald-600" />
             筛选条件
+            {activeFilterCount > 0 && (
+              <Badge variant="default" className="bg-amber-500 hover:bg-amber-600 h-5 px-1.5 text-[10px] font-bold">
+                筛选中 {activeFilterCount}
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -204,9 +226,36 @@ function LogsTab() {
               <span className="text-xs text-muted-foreground">结束日期</span>
               <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-36 h-9" />
             </div>
+            <div className="space-y-1">
+              <span className="text-xs text-muted-foreground">搜索</span>
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  value={searchText}
+                  onChange={e => setSearchText(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="搜索详情内容..."
+                  className="w-40 h-9 pl-7 pr-7"
+                />
+                {searchText && (
+                  <button
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    onClick={() => { setSearchText(''); }}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            </div>
             <Button size="sm" className="h-9 bg-emerald-600 hover:bg-emerald-700" onClick={handleFilter}>
-              <RefreshCw className="h-3 w-3 mr-1" />查询
+              <Search className="h-3 w-3 mr-1" />搜索
             </Button>
+            {activeFilterCount > 0 && (
+              <Button size="sm" variant="outline" className="h-9 text-xs text-amber-600 border-amber-300 hover:bg-amber-50 hover:text-amber-700" onClick={handleReset}>
+                <X className="h-3 w-3 mr-1" />清除筛选
+              </Button>
+            )}
             <Button size="sm" variant="outline" className="h-9" onClick={handleReset}>重置</Button>
             <div className="flex items-center gap-2 ml-auto">
               <Button

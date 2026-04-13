@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw, ArrowUpRight, ArrowDownRight, TrendingUp } from 'lucide-react';
 
 // ========== Batch Detail Dialog ==========
 function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | null; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -190,6 +190,51 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
                   </Button>
                 </div>
               )}
+
+              {/* Profit Summary Section */}
+              {(() => {
+                const revenue = batch.revenue || 0;
+                const cost = batch.totalCost || 0;
+                const profit = revenue - cost;
+                const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+                return (
+                  <div className="p-3 bg-muted/50 rounded-lg border space-y-2 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                    <div className="flex items-center gap-1.5 text-sm font-medium">
+                      <TrendingUp className="h-4 w-4" />
+                      利润分析
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">销售收入</p>
+                        <p className="font-bold text-sm tabular-nums">{formatPrice(revenue)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">总成本</p>
+                        <p className="font-bold text-sm tabular-nums">{formatPrice(cost)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">净利润</p>
+                        <p className={`font-bold text-sm tabular-nums inline-flex items-center gap-0.5 ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {profit >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                          {profit >= 0 ? '+' : ''}{formatPrice(profit)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">利润率</p>
+                        <p className={`font-bold text-sm tabular-nums ${margin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                          {margin.toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>已售 {batch.soldCount} 件</span>
+                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${profit >= 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                        {profit >= 0 ? '盈利' : '亏损'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Batch Info Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

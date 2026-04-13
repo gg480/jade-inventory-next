@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import {
-  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock,
+  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock, TrendingDown, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 
 // ========== Batches Tab ==========
@@ -151,7 +151,7 @@ function BatchesTab() {
                       <TableHead>批次编号</TableHead><TableHead>材质</TableHead><TableHead className="text-right">总成本</TableHead>
                       <TableHead className="text-right">单价</TableHead>
                       <TableHead className="text-right">数量</TableHead><TableHead className="text-right">已录入</TableHead><TableHead>分摊方式</TableHead><TableHead className="text-right">已售</TableHead>
-                      <TableHead className="text-right">已回款</TableHead><TableHead>回本进度</TableHead><TableHead>状态</TableHead>
+                      <TableHead className="text-right">已回款</TableHead><TableHead className="text-right">利润</TableHead><TableHead>回本进度</TableHead><TableHead>状态</TableHead>
                       <TableHead className="text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -206,6 +206,23 @@ function BatchesTab() {
                         <TableCell><Badge variant="outline">{allocMethodLabels[b.costAllocMethod] || b.costAllocMethod}</Badge></TableCell>
                         <TableCell className="text-right">{b.soldCount}/{b.quantity}</TableCell>
                         <TableCell className="text-right font-medium">{formatPrice(b.revenue)}</TableCell>
+                        <TableCell className="text-right">
+                          {(() => {
+                            const profit = (b.revenue || 0) - (b.totalCost || 0);
+                            const margin = (b.revenue || 0) > 0 ? (profit / (b.revenue || 0)) * 100 : 0;
+                            return (
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className={`inline-flex items-center gap-0.5 text-sm font-medium ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                  {profit >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                                  {formatPrice(profit)}
+                                </span>
+                                <span className={`text-[10px] tabular-nums ${margin >= 0 ? 'text-emerald-500 dark:text-emerald-400/70' : 'text-red-500 dark:text-red-400/70'}`}>
+                                  {margin.toFixed(1)}%
+                                </span>
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell><PaybackBar rate={b.paybackRate} /></TableCell>
                         <TableCell><StatusBadge status={b.status} /></TableCell>
                         <TableCell className="text-right" onClick={e => e.stopPropagation()}>
@@ -263,7 +280,7 @@ function BatchesTab() {
                       );
                     })()}
                   </div>
-                  {/* Cost + Revenue row */}
+                  {/* Cost + Revenue + Profit row */}
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs text-muted-foreground">总成本</p>
@@ -275,6 +292,24 @@ function BatchesTab() {
                       <p className="font-medium text-emerald-600">{formatPrice(b.revenue)}</p>
                     </div>
                   </div>
+                  {/* Profit row */}
+                  {(() => {
+                    const profit = (b.revenue || 0) - (b.totalCost || 0);
+                    const margin = (b.revenue || 0) > 0 ? (profit / (b.revenue || 0)) * 100 : 0;
+                    return (
+                      <div className="flex items-center justify-between px-2 py-1.5 bg-muted/40 rounded-lg">
+                        <span className="text-xs text-muted-foreground">利润</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium tabular-nums ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {profit >= 0 ? '+' : ''}{formatPrice(profit)}
+                          </span>
+                          <span className={`text-xs tabular-nums ${margin >= 0 ? 'text-emerald-500 dark:text-emerald-400/70' : 'text-red-500 dark:text-red-400/70'}`}>
+                            {margin.toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {/* Payback bar */}
                   <div className="pt-1">
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
