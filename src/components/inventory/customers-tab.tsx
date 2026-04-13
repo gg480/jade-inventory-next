@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { customersApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { formatPrice, EmptyState, LoadingSkeleton } from './shared';
+import { formatPrice, EmptyState, LoadingSkeleton, ConfirmDialog } from './shared';
 import Pagination from './pagination';
 
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,7 +15,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogDescription } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
   Users, Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, Crown, Sparkles, TrendingUp, Shield, ShieldCheck,
@@ -571,7 +570,7 @@ function CustomersTab() {
             const VipIcon = vip.icon;
             const customerTags = Array.isArray(c.tags) ? c.tags : [];
             return (
-              <Card key={c.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setProfileCustomer(c)}>
+              <Card key={c.id} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => setProfileCustomer(c)}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -718,26 +717,23 @@ function CustomersTab() {
       </Dialog>
 
       {/* Delete Customer Confirm */}
-      <AlertDialog open={deleteCustomerConfirm !== null} onOpenChange={open => { if (!open) setDeleteCustomerConfirm(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除客户</AlertDialogTitle>
-            <AlertDialogDescription>确定要删除客户「{deleteCustomerConfirm?.name}」吗？此操作不可恢复。</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setDeleteCustomerConfirm(null)}>取消</Button>
-            <Button onClick={async () => {
-              if (!deleteCustomerConfirm) return;
-              try {
-                await customersApi.deleteCustomer(deleteCustomerConfirm.id);
-                toast.success('客户已删除');
-                setDeleteCustomerConfirm(null);
-                fetchCustomers();
-              } catch (e: any) { toast.error(e.message || '删除失败'); }
-            }} className="bg-red-600 hover:bg-red-700">确认删除</Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteCustomerConfirm !== null}
+        onOpenChange={open => { if (!open) setDeleteCustomerConfirm(null); }}
+        title="确认删除客户"
+        description={`确定要删除客户「${deleteCustomerConfirm?.name}」吗？此操作不可恢复。`}
+        confirmText="确认删除"
+        variant="destructive"
+        onConfirm={async () => {
+          if (!deleteCustomerConfirm) return;
+          try {
+            await customersApi.deleteCustomer(deleteCustomerConfirm.id);
+            toast.success('客户已删除');
+            setDeleteCustomerConfirm(null);
+            fetchCustomers();
+          } catch (e: any) { toast.error(e.message || '删除失败'); }
+        }}
+      />
 
       {/* Customer Profile Dialog */}
       <CustomerProfileDialog

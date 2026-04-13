@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { itemsApi, salesApi, dictsApi, batchesApi, exportApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAppStore } from '@/lib/store';
-import { formatPrice, StatusBadge, EmptyState, LoadingSkeleton } from './shared';
+import { formatPrice, StatusBadge, EmptyState, LoadingSkeleton, ConfirmDialog } from './shared';
 import ItemCreateDialog from './item-create-dialog';
 import ItemDetailDialog from './item-detail-dialog';
 import ItemEditDialog from './item-edit-dialog';
@@ -28,7 +28,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, Camera, Layers,
-  ShoppingCart, Tag, MapPin, X, Gem,
+  ShoppingCart, Tag, MapPin, X, Gem, CheckSquare,
 } from 'lucide-react';
 
 // ========== Active Filter Tags Component ==========
@@ -279,6 +279,43 @@ function InventoryTab() {
 
   function toggleSortOrder() {
     setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+  }
+
+  // ========== CSV Export ==========
+  function handleExportCSV() {
+    if (items.length === 0) {
+      toast.error('没有可导出的数据');
+      return;
+    }
+    const statusMap: Record<string, string> = { in_stock: '在库', sold: '已售', returned: '已退' };
+    const header = 'SKU,名称,器型,材质,状态,成本,售价,采购日期,柜台号';
+    const rows = items.map(item => {
+      const name = item.name || item.skuCode;
+      const typeName = item.typeName || '';
+      const materialName = item.materialName || '';
+      const status = statusMap[item.status] || item.status;
+      const cost = item.allocatedCost || item.estimatedCost || item.costPrice || 0;
+      const sellingPrice = item.sellingPrice || 0;
+      const purchaseDate = item.purchaseDate || '';
+      const counter = item.counter || '';
+      // Escape commas/quotes in CSV
+      const escape = (v: string) => {
+        if (v.includes(',') || v.includes('"') || v.includes('\n')) {
+          return `"${v.replace(/"/g, '""')}"`;
+        }
+        return v;
+      };
+      return [item.skuCode, escape(name), escape(typeName), escape(materialName), status, cost, sellingPrice, purchaseDate, counter].join(',');
+    });
+    const csv = '\uFEFF' + header + '\n' + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `库存数据_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`已导出 ${items.length} 条库存数据`);
   }
 
   // ========== Batch Operations ==========
@@ -576,11 +613,17 @@ function InventoryTab() {
           {/* Active filter tags */}
           <ActiveFilterTags filters={filters} materials={materials} allBatches={allBatches} onClearAll={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '' })} onClear={(key: string) => setFilters(f => ({ ...f, [key]: key === 'status' ? 'in_stock' : '' }))} />
           <div className="flex items-center justify-between mt-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新增入库</Button>
+              <Button size="sm" variant="outline" className="h-9" onClick={handleExportCSV} disabled={items.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
               <a href={exportApi.inventory()} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" variant="outline" className="h-9"><FileDown className="h-3 w-3 mr-1" />导出</Button>
+                <Button size="sm" variant="outline" className="h-9">完整导出</Button>
               </a>
+              {/* Mobile Select All */}
+              <Button size="sm" variant="outline" className="h-9 md:hidden" onClick={toggleSelectAll}>
+                <CheckSquare className="h-3 w-3 mr-1" />
+                {isAllSelected ? '取消全选' : '选择全部'}
+              </Button>
             </div>
             {/* Sort Controls */}
             <div className="flex items-center gap-2">
@@ -771,61 +814,48 @@ function InventoryTab() {
         </div>
       )}
 
-      {/* Floating Batch Action Bar */}
-      <div
-        className={`fixed bottom-16 md:bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border rounded-xl shadow-2xl px-6 py-3 flex items-center gap-4 transition-all duration-300 ease-out ${
-          selectedIds.size > 0
-            ? 'translate-y-0 opacity-100'
-            : 'translate-y-8 opacity-0 pointer-events-none'
-        }`}
-      >
-        <span className="text-sm font-medium whitespace-nowrap">
-          已选择 <span className="text-primary font-bold">{selectedIds.size}</span> 件
-        </span>
-        <div className="h-5 w-px bg-border" />
-        <Button
-          size="sm"
-          className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
-          onClick={() => setBatchSellOpen(true)}
-          disabled={selectedInStockItems.length === 0}
-          title={selectedInStockItems.length === 0 ? '无可出库的在库货品' : `出库 ${selectedInStockItems.length} 件`}
-        >
-          <ShoppingCart className="h-3.5 w-3.5 mr-1" />批量出库
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/30"
-          onClick={() => setBatchDeleteOpen(true)}
-        >
-          <Trash2 className="h-3.5 w-3.5 mr-1" />批量删除
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30"
-          onClick={() => setBatchPriceOpen(true)}
-        >
-          <Tag className="h-3.5 w-3.5 mr-1" />批量调价
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-8 border-sky-300 text-sky-600 hover:bg-sky-50 dark:border-sky-800 dark:text-sky-400 dark:hover:bg-sky-950/30"
-          onClick={() => setBatchCounterOpen(true)}
-        >
-          <MapPin className="h-3.5 w-3.5 mr-1" />修改柜台
-        </Button>
-        <div className="h-5 w-px bg-border" />
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 text-muted-foreground"
-          onClick={clearSelection}
-        >
-          <X className="h-3.5 w-3.5 mr-1" />取消
-        </Button>
-      </div>
+      {/* Floating Bulk Selection Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-30 bg-emerald-600 dark:bg-emerald-700 shadow-lg animate-in slide-in-from-bottom-2 duration-200">
+          <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-white whitespace-nowrap">
+              已选择 <span className="font-bold text-white">{selectedIds.size}</span> 件货品
+            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                className="h-7 bg-white text-emerald-700 hover:bg-emerald-50"
+                onClick={() => setBatchSellOpen(true)}
+                disabled={selectedInStockItems.length === 0}
+              >
+                <ShoppingCart className="h-3 w-3 mr-1" />批量出库
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 bg-white/15 text-white hover:bg-white/25 border border-white/30"
+                onClick={() => setBatchDeleteOpen(true)}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />批量删除
+              </Button>
+              <Button
+                size="sm"
+                className="h-7 bg-white/15 text-white hover:bg-white/25 border border-white/30"
+                onClick={() => setBatchPriceOpen(true)}
+              >
+                <Tag className="h-3 w-3 mr-1" />批量调价
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-white/80 hover:text-white hover:bg-white/10"
+                onClick={clearSelection}
+              >
+                取消选择
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sale Dialog */}
       <Dialog open={saleDialog.open} onOpenChange={open => setSaleDialog({ open, item: open ? saleDialog.item : null })}>
@@ -1154,36 +1184,17 @@ function InventoryTab() {
       </Dialog>
 
       {/* Single Delete Confirmation Dialog */}
-      <AlertDialog open={deleteConfirmItem !== null} onOpenChange={open => { if (!open) setDeleteConfirmItem(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-red-600" />
-              确认删除
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作不可撤销，确定要删除这个货品吗？
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteConfirmItem && (
-            <div className="py-2">
-              <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg text-sm space-y-1">
-                <p><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{deleteConfirmItem.skuCode}</span></p>
-                <p><span className="text-muted-foreground">名称:</span> {deleteConfirmItem.name || deleteConfirmItem.skuCode}</p>
-                <p><span className="text-muted-foreground">材质:</span> {deleteConfirmItem.materialName}</p>
-                <p><span className="text-muted-foreground">售价:</span> <span className="font-medium text-emerald-600">{formatPrice(deleteConfirmItem.sellingPrice)}</span></p>
-                {deleteConfirmItem.batchCode && (
-                  <p><span className="text-muted-foreground">批次:</span> <span className="font-mono">{deleteConfirmItem.batchCode}</span></p>
-                )}
-              </div>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmItem(null)}>取消</Button>
-            <Button onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">确认删除</Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={deleteConfirmItem !== null}
+        onOpenChange={open => { if (!open) setDeleteConfirmItem(null); }}
+        title="确认删除"
+        description={deleteConfirmItem
+          ? `此操作不可撤销，确定要删除货品「${deleteConfirmItem.name || deleteConfirmItem.skuCode}」(${deleteConfirmItem.skuCode})吗？`
+          : ''}
+        confirmText="确认删除"
+        variant="destructive"
+        onConfirm={confirmDelete}
+      />
 
       {/* Label Print Dialog */}
       <LabelPrintDialog item={printLabelItem} open={printLabelItem !== null} onOpenChange={open => { if (!open) setPrintLabelItem(null); }} />

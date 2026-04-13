@@ -13,7 +13,7 @@ const InventoryTab = lazy(() => import('@/components/inventory/inventory-tab'));
 const SettingsTab = lazy(() => import('@/components/inventory/settings-tab'));
 import LoginPage from '@/components/inventory/login-page';
 import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
-import { Gem, Package, ShoppingCart, Zap, Clock, LogOut } from 'lucide-react';
+import { Gem, Package, ShoppingCart, Zap, Clock, LogOut, ArrowUp } from 'lucide-react';
 import { itemsApi, salesApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { Toaster } from '@/components/ui/sonner';
@@ -158,6 +158,16 @@ export default function JadeInventoryPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // Scroll-to-top detection
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleLogin = useCallback((token: string) => {
     setAuthToken(token);
@@ -299,6 +309,14 @@ export default function JadeInventoryPage() {
       </footer>
       <ShortcutsHelpDialog open={showShortcuts} onOpenChange={setShowShortcuts} />
       <Toaster richColors position="top-right" />
+      {/* Scroll-to-Top Button */}
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className={`fixed bottom-20 md:bottom-6 right-4 z-20 h-9 w-9 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 flex items-center justify-center transition-opacity duration-200 ${showScrollTop ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        aria-label="回到顶部"
+      >
+        <ArrowUp className="h-4 w-4" />
+      </button>
     </div>
   );
 }

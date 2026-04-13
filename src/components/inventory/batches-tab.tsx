@@ -221,7 +221,7 @@ function BatchesTab() {
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
             {batches.map(b => (
-              <Card key={b.id} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailBatchId(b.id)}>
+              <Card key={b.id} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => setDetailBatchId(b.id)}>
                 <CardContent className="p-4 space-y-2">
                   {/* Header: batch code + status */}
                   <div className="flex items-center justify-between">

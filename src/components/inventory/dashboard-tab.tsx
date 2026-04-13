@@ -429,7 +429,7 @@ function DashboardTab() {
 
       {/* ====== 2. Product Distribution by Type (4 charts) ====== */}
       {distByType && (
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4 text-emerald-600" />按器型分布分析</CardTitle>
           </CardHeader>
@@ -502,7 +502,7 @@ function DashboardTab() {
 
       {/* ====== 3. Product Distribution by Material (4 charts) ====== */}
       {distByMaterial && (
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2"><Gem className="h-4 w-4 text-sky-600" />按材质分布分析</CardTitle>
           </CardHeader>
@@ -571,7 +571,7 @@ function DashboardTab() {
 
       {/* ====== 4. Counter Profit + Channel Profit ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4 text-amber-600" />柜台利润分析</CardTitle></CardHeader>
           <CardContent>
             {profitByCounter.length === 0 ? (
@@ -592,7 +592,7 @@ function DashboardTab() {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base">按渠道利润</CardTitle></CardHeader>
           <CardContent>
             {profitByChannel.length === 0 ? (
@@ -616,7 +616,7 @@ function DashboardTab() {
       </div>
 
       {/* ====== 5. Monthly Sales Trend ====== */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-300">
         <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-sky-600" />月度销量趋势</CardTitle></CardHeader>
         <CardContent>
           {trend.length === 0 ? (
@@ -834,7 +834,7 @@ function DashboardTab() {
 
       {/* ====== 6. Price Range Analysis (2 pie charts) ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base">成本价格带分布</CardTitle></CardHeader>
           <CardContent>
             {priceRangeCost.every(r => r.count === 0) ? (
@@ -851,7 +851,7 @@ function DashboardTab() {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base">售价价格带分布</CardTitle></CardHeader>
           <CardContent>
             {priceRangeSelling.every(r => r.count === 0) ? (
@@ -872,7 +872,7 @@ function DashboardTab() {
 
       {/* ====== 7. Weight Distribution (stacked bar) ====== */}
       {weightDist && weightDist.stacked?.length > 0 && (
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4 text-purple-600" />克重产品分布</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
@@ -894,7 +894,7 @@ function DashboardTab() {
       {/* ====== 8. Batch Payback (table + pie) ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-300">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">批次回本看板</CardTitle>
@@ -936,7 +936,7 @@ function DashboardTab() {
           </Card>
         </div>
         <div>
-          <Card>
+          <Card className="hover:shadow-md transition-shadow duration-300">
             <CardHeader className="pb-2"><CardTitle className="text-base">批次状态分布</CardTitle></CardHeader>
             <CardContent>
               {batchPieData.length === 0 ? (
@@ -961,7 +961,7 @@ function DashboardTab() {
       </div>
 
       {/* ====== 8.5 Batch Entry Progress ====== */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow duration-300">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4 text-emerald-600" />批次录入进度概览</CardTitle>
         </CardHeader>
@@ -995,7 +995,7 @@ function DashboardTab() {
 
       {/* ====== 9. Stock Aging + Age Distribution ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">压货预警</CardTitle>
@@ -1039,7 +1039,7 @@ function DashboardTab() {
             )}
           </CardContent>
         </Card>
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base">库龄分布</CardTitle></CardHeader>
           <CardContent>
             {ageDist.length === 0 || ageDist.every(r => r.count === 0) ? (
