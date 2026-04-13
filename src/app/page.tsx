@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppStore, TabId } from '@/lib/store';
 import { fadeInStyle } from '@/components/inventory/shared';
 import DashboardTab from '@/components/inventory/dashboard-tab';
@@ -10,12 +10,15 @@ import BatchesTab from '@/components/inventory/batches-tab';
 import CustomersTab from '@/components/inventory/customers-tab';
 import LogsTab from '@/components/inventory/logs-tab';
 import SettingsTab from '@/components/inventory/settings-tab';
+import LoginPage from '@/components/inventory/login-page';
 import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
-import { Gem, Package, ShoppingCart, Zap, Clock } from 'lucide-react';
+import { Gem, Package, ShoppingCart, Zap, Clock, LogOut } from 'lucide-react';
 import { itemsApi, salesApi, batchesApi } from '@/lib/api';
+import { toast } from 'sonner';
 import {
   Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
 } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
 
 // Ensure fade-in keyframes are injected
 void fadeInStyle;
@@ -171,6 +174,29 @@ export default function JadeInventoryPage() {
   const { activeTab, setActiveTab } = useAppStore();
   const [animKey, setAnimKey] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+
+  const handleLogin = useCallback((token: string) => {
+    setAuthToken(token);
+    setIsAuthenticated(true);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      try {
+        await fetch('/api/auth', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+      } catch { /* ignore */ }
+    }
+    localStorage.removeItem('auth_token');
+    setAuthToken(null);
+    setIsAuthenticated(false);
+    toast.success('已退出登录');
+  }, []);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -236,9 +262,14 @@ export default function JadeInventoryPage() {
     }
   };
 
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} />
+      <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout} />
       <main className="flex-1 px-4 py-4 md:px-6 md:py-6 pb-20 md:pb-6 max-w-7xl mx-auto w-full">
         <div key={animKey} className="tab-fade-in">
           {renderTab()}
@@ -254,6 +285,14 @@ export default function JadeInventoryPage() {
             <QuickStatsBar />
           </div>
           <div className="flex items-center gap-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground hover:text-red-600" onClick={handleLogout}>
+                  <LogOut className="h-3.5 w-3.5 mr-1" />退出
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>退出登录</TooltipContent>
+            </Tooltip>
             <span className="text-muted-foreground text-xs">按 ? 查看快捷键</span>
             <span className="text-muted-foreground">Powered by Z.ai</span>
           </div>

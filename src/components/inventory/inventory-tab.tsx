@@ -28,8 +28,64 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUpDown, ArrowUp, ArrowDown, Camera, Layers,
-  ShoppingCart, Tag, MapPin, X,
+  ShoppingCart, Tag, MapPin, X, Gem, ImageIcon,
 } from 'lucide-react';
+
+// ========== Active Filter Tags Component ==========
+function ActiveFilterTags({ filters, materials, allBatches, onClearAll, onClear }: {
+  filters: { materialCategory: string; materialId: string; status: string; keyword: string; counter: string; batchId: string };
+  materials: any[];
+  allBatches: any[];
+  onClearAll: () => void;
+  onClear: (key: string) => void;
+}) {
+  // Build active tags
+  const tags: { key: string; label: string }[] = [];
+  if (filters.keyword) tags.push({ key: 'keyword', label: `关键词: ${filters.keyword}` });
+  if (filters.materialCategory) {
+    const cat = MATERIAL_CATEGORIES.find(c => c.value === filters.materialCategory);
+    tags.push({ key: 'materialCategory', label: cat?.label || filters.materialCategory });
+  }
+  if (filters.materialId) {
+    const mat = materials.find((m: any) => String(m.id) === filters.materialId);
+    tags.push({ key: 'materialId', label: mat?.name || filters.materialId });
+  }
+  if (filters.status && filters.status !== 'in_stock') {
+    const statusLabels: Record<string, string> = { in_stock: '在库', sold: '已售', returned: '已退' };
+    tags.push({ key: 'status', label: statusLabels[filters.status] || filters.status });
+  }
+  if (filters.counter) tags.push({ key: 'counter', label: `${filters.counter}号柜` });
+  if (filters.batchId) {
+    const batch = allBatches.find((b: any) => String(b.id) === filters.batchId);
+    tags.push({ key: 'batchId', label: batch?.batchCode || filters.batchId });
+  }
+
+  if (tags.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2 mt-3 flex-wrap animate-in fade-in-0 slide-in-from-top-1 duration-200">
+      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs px-2 py-0.5">
+        筛选中 ({tags.length})
+      </Badge>
+      {tags.map(tag => (
+        <button
+          key={tag.key}
+          onClick={() => onClear(tag.key)}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-muted/80 hover:bg-muted text-foreground transition-colors group"
+        >
+          <span>{tag.label}</span>
+          <X className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition-colors" />
+        </button>
+      ))}
+      <button
+        onClick={onClearAll}
+        className="text-xs text-muted-foreground hover:text-foreground transition-colors ml-1"
+      >
+        清除全部
+      </button>
+    </div>
+  );
+}
 
 // ========== Inventory Tab ==========
 function InventoryTab() {
@@ -517,6 +573,8 @@ function InventoryTab() {
               <Button size="sm" variant="outline" onClick={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '' })} className="h-9">重置</Button>
             </div>
           </div>
+          {/* Active filter tags */}
+          <ActiveFilterTags filters={filters} materials={materials} allBatches={allBatches} onClearAll={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '' })} onClear={(key: string) => setFilters(f => ({ ...f, [key]: key === 'status' ? 'in_stock' : '' }))} />
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2">
               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新增入库</Button>
@@ -562,6 +620,7 @@ function InventoryTab() {
                         className="data-[state=indeterminate]:bg-primary data-[state=indeterminate]:border-primary"
                       />
                     </TableHead>
+                    <TableHead className="w-12 px-2">图</TableHead>
                     <TableHead>SKU</TableHead><TableHead>名称</TableHead><TableHead>材质</TableHead><TableHead>器型</TableHead><TableHead>所属批次</TableHead>
                     <TableHead className="text-right">成本</TableHead><TableHead className="text-right">售价</TableHead>
                     <TableHead>采购日期</TableHead><TableHead>状态</TableHead><TableHead>库龄</TableHead><TableHead className="text-right">操作</TableHead>
@@ -575,6 +634,15 @@ function InventoryTab() {
                           checked={selectedIds.has(item.id)}
                           onCheckedChange={() => toggleSelect(item.id)}
                         />
+                      </TableCell>
+                      <TableCell className="w-12 px-2">
+                        {item.coverImage ? (
+                          <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted" loading="lazy" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                            <Gem className="h-4 w-4 text-muted-foreground/50" />
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="font-mono text-xs">{item.skuCode}</TableCell>
                       <TableCell>{item.name || item.skuCode}</TableCell>
@@ -621,19 +689,27 @@ function InventoryTab() {
           {items.map(item => (
             <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/20' : ''}`}>
               <CardContent className="p-4 space-y-3">
-                {/* Header: Checkbox + SKU + Status */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={selectedIds.has(item.id)}
-                      onCheckedChange={() => toggleSelect(item.id)}
-                    />
-                    <span className="font-mono text-xs text-muted-foreground">{item.skuCode}</span>
+                {/* Header: Thumbnail + Checkbox + SKU + Status */}
+                <div className="flex items-center gap-3">
+                  {item.coverImage ? (
+                    <img src={item.coverImage} alt="" className="w-12 h-12 rounded-md object-cover aspect-square bg-muted shrink-0" loading="lazy" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center shrink-0">
+                      <Gem className="h-5 w-5 text-muted-foreground/50" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedIds.has(item.id)}
+                        onCheckedChange={() => toggleSelect(item.id)}
+                      />
+                      <span className="font-mono text-xs text-muted-foreground truncate">{item.skuCode}</span>
+                    </div>
+                    <p className="font-medium text-sm truncate mt-0.5">{item.name || item.skuCode}</p>
                   </div>
                   <StatusBadge status={item.status} />
                 </div>
-                {/* Name */}
-                <p className="font-medium text-sm truncate">{item.name || item.skuCode}</p>
                 {/* Material + Type + Batch */}
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
                   <span>{item.materialName}</span>

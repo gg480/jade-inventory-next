@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard, Package, ShoppingCart, Layers, Users, Settings,
-  BarChart3, Gem, ScrollText, Keyboard,
+  BarChart3, Gem, ScrollText, Keyboard, LogOut,
 } from 'lucide-react';
 
 // ========== Mobile Bottom Navigation ==========
@@ -103,7 +103,7 @@ function ShortcutsHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 }
 
 // ========== Desktop Top Navigation ==========
-function DesktopNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (t: TabId) => void }) {
+function DesktopNav({ activeTab, onTabChange, onLogout }: { activeTab: TabId; onTabChange: (t: TabId) => void; onLogout?: () => void }) {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: 'dashboard', label: '利润看板', icon: LayoutDashboard },
@@ -142,6 +142,11 @@ function DesktopNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
               <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={() => setShowShortcuts(true)} title="快捷键">
                 <Keyboard className="h-4 w-4" />
               </Button>
+              {onLogout && (
+                <Button variant="ghost" size="sm" className="h-9 px-2 text-muted-foreground hover:text-red-600" onClick={onLogout} title="退出登录">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              )}
               <ThemeToggle />
             </div>
           </div>

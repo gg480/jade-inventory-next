@@ -110,13 +110,51 @@ function DashboardTab() {
       const params: any = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
-      const results = await Promise.allSettled([
-        dashboardApi.getSummary({ aging_days: minDays }),
-        dashboardApi.getBatchProfit({}),
+
+      // Try aggregate API first for key metrics (summary, batch-profit, stock-aging, top-sellers, mom-comparison)
+      let usedAggregate = false;
+      try {
+        const aggregateData = await dashboardApi.getAggregate({
+          start_date: startDate,
+          end_date: endDate,
+          aging_days: minDays,
+          limit: 5,
+        });
+        if (aggregateData) {
+          setSummary(aggregateData.summary || null);
+          setBatchProfit(aggregateData.batchProfit || []);
+          setStockAging(aggregateData.stockAging || { items: [], totalItems: 0, totalValue: 0 });
+          setTopSellers(aggregateData.topSellers || []);
+          setMomData(aggregateData.momData || null);
+          usedAggregate = true;
+        }
+      } catch {
+        console.warn('Aggregate API failed, falling back to individual calls');
+      }
+
+      // If aggregate failed, load the 5 key metrics individually
+      if (!usedAggregate) {
+        const keyResults = await Promise.allSettled([
+          dashboardApi.getSummary({ aging_days: minDays }),
+          dashboardApi.getBatchProfit({}),
+          dashboardApi.getStockAging({ min_days: minDays }),
+          dashboardApi.getTopSellers({ limit: 5 }),
+          dashboardApi.getMomComparison(),
+        ]);
+        const kval = <T,>(idx: number, fallback: T) =>
+          keyResults[idx].status === 'fulfilled' ? keyResults[idx].value as T : fallback;
+        setSummary(kval(0, null));
+        setBatchProfit(kval(1, []));
+        setStockAging(kval(2, { items: [], totalItems: 0, totalValue: 0 }));
+        setTopSellers(kval(3, []));
+        setMomData(kval(4, null));
+      }
+
+      // Load remaining dashboard data (not covered by aggregate)
+      const remainingResults = await Promise.allSettled([
         dashboardApi.getProfitByCategory(params),
         dashboardApi.getProfitByChannel(params),
         dashboardApi.getTrend({ months: 12 }),
-        dashboardApi.getStockAging({ min_days: minDays }),
         dashboardApi.getDistributionByType(params),
         dashboardApi.getDistributionByMaterial(params),
         dashboardApi.getProfitByCounter(params),
@@ -124,39 +162,30 @@ function DashboardTab() {
         dashboardApi.getPriceRangeSelling(),
         dashboardApi.getWeightDistribution(),
         dashboardApi.getAgeDistribution(),
-        dashboardApi.getMomComparison(),
         dashboardApi.getTurnover({ months: 6 }),
         dashboardApi.getHeatmap({ months: 3 }),
-        dashboardApi.getTopSellers({ limit: 5 }),
         dashboardApi.getCustomerFrequency(),
       ]);
-      // Helper to safely extract fulfilled values
       const val = <T,>(idx: number, fallback: T) =>
-        results[idx].status === 'fulfilled' ? results[idx].value as T : fallback;
+        remainingResults[idx].status === 'fulfilled' ? remainingResults[idx].value as T : fallback;
 
-      setSummary(val(0, null));
-      setBatchProfit(val(1, []));
-      setProfitByCategory(val(2, []));
-      setProfitByChannel(val(3, []));
-      setTrend(val(4, []));
-      setStockAging(val(5, { items: [], totalItems: 0, totalValue: 0 }));
-      setDistByType(val(6, null));
-      setDistByMaterial(val(7, null));
-      setProfitByCounter(val(8, []));
-      setPriceRangeCost(val(9, []));
-      setPriceRangeSelling(val(10, []));
-      setWeightDist(val(11, null));
-      setAgeDist(val(12, []));
-      setMomData(val(13, null));
-      setTurnoverData(val(14, []));
-      setHeatmapData(val(15, null));
-      setTopSellers(val(16, []));
-      setCustomerFreq(val(17, null));
+      setProfitByCategory(val(0, []));
+      setProfitByChannel(val(1, []));
+      setTrend(val(2, []));
+      setDistByType(val(3, null));
+      setDistByMaterial(val(4, null));
+      setProfitByCounter(val(5, []));
+      setPriceRangeCost(val(6, []));
+      setPriceRangeSelling(val(7, []));
+      setWeightDist(val(8, null));
+      setAgeDist(val(9, []));
+      setTurnoverData(val(10, []));
+      setHeatmapData(val(11, null));
+      setCustomerFreq(val(12, null));
 
-      // Log any rejected promises for debugging
-      const failed = results.map((r, i) => r.status === 'rejected' ? i : -1).filter(i => i >= 0);
+      const failed = remainingResults.map((r, i) => r.status === 'rejected' ? i : -1).filter(i => i >= 0);
       if (failed.length > 0) {
-        console.warn(`Dashboard: ${failed.length} API call(s) failed: indices ${failed.join(', ')}`);
+        console.warn(`Dashboard: ${failed.length} remaining API call(s) failed: indices ${failed.join(', ')}`);
       }
     } catch {
       toast.error('加载看板数据失败');

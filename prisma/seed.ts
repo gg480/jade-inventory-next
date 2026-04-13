@@ -12,6 +12,7 @@ async function main() {
     { key: 'aging_threshold_days', value: '90', description: '压货预警天数(旧)' },
     { key: 'warning_days', value: '90', description: '压货预警天数' },
     { key: 'default_alloc_method', value: 'equal', description: '默认分摊算法' },
+    { key: 'admin_password', value: 'admin123', description: '管理员登录密码' },
   ];
   for (const c of configs) {
     await prisma.sysConfig.upsert({
@@ -20,7 +21,7 @@ async function main() {
       create: c,
     });
   }
-  console.log('✅ 系统配置已插入/更新 (5条)');
+  console.log('✅ 系统配置已插入/更新 (6条)');
 
   // 2. 材质 (36种) — 含 category 大类
   const materials = [
