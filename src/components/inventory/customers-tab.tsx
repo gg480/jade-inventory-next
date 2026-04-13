@@ -550,22 +550,23 @@ function CustomersTab() {
           <Card className="relative overflow-hidden border-l-4 border-l-sky-500 hover:shadow-md hover:border-sky-400 transition-all duration-200">
             <CardContent className="p-4">
               <div className="absolute -right-1 -bottom-1 opacity-10"><TrendingUp className="h-16 w-16 text-sky-500" /></div>
-              <p className="text-sm text-muted-foreground">本月新增</p>
-              <p className="text-2xl font-bold text-sky-600">{stats.newThisMonth}</p>
+              <p className="text-sm text-muted-foreground">总营收</p>
+              <p className="text-2xl font-bold text-emerald-600">{formatPrice(stats.totalSpending)}</p>
             </CardContent>
           </Card>
           <Card className="relative overflow-hidden border-l-4 border-l-amber-500 hover:shadow-md hover:border-amber-400 transition-all duration-200">
             <CardContent className="p-4">
-              <div className="absolute -right-1 -bottom-1 opacity-10"><Crown className="h-16 w-16 text-amber-500" /></div>
-              <p className="text-sm text-muted-foreground">总消费</p>
-              <p className="text-2xl font-bold text-emerald-600">{formatPrice(stats.totalSpending)}</p>
-            </CardContent>
-          </Card>
-          <Card className="relative overflow-hidden border-l-4 border-l-purple-500 hover:shadow-md hover:border-purple-400 transition-all duration-200">
-            <CardContent className="p-4">
-              <div className="absolute -right-1 -bottom-1 opacity-10"><Sparkles className="h-16 w-16 text-purple-500" /></div>
+              <div className="absolute -right-1 -bottom-1 opacity-10"><BarChart3 className="h-16 w-16 text-amber-500" /></div>
               <p className="text-sm text-muted-foreground">平均客单价</p>
               <p className="text-2xl font-bold">{formatPrice(stats.avgOrderValue)}</p>
+            </CardContent>
+          </Card>
+          <Card className="relative overflow-hidden border-l-4 border-l-teal-500 hover:shadow-md hover:border-teal-400 transition-all duration-200">
+            <CardContent className="p-4">
+              <div className="absolute -right-1 -bottom-1 opacity-10"><Sparkles className="h-16 w-16 text-teal-500" /></div>
+              <p className="text-sm text-muted-foreground">本月活跃</p>
+              <p className="text-2xl font-bold text-teal-600">{stats.newThisMonth}</p>
+              <p className="text-xs text-muted-foreground">近30天有消费</p>
             </CardContent>
           </Card>
         </div>

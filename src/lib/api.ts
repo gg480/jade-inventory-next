@@ -217,6 +217,7 @@ export const dashboardApi = {
     return request<any[]>(`/dashboard/top-sellers${qs}`);
   },
   getCustomerFrequency: () => request<any>(`/dashboard/customer-frequency`),
+  getTopCustomers: () => request<any>(`/dashboard/top-customers`),
   getAggregate: (params?: Record<string, any>) => {
     const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
     return request<any>(`/dashboard/aggregate${qs}`);

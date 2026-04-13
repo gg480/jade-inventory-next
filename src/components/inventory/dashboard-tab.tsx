@@ -17,7 +17,7 @@ import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider }
 import {
   Package, ShoppingCart, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight,
   BarChart3, PieChart, AlertTriangle, CheckCircle, Gem, Layers, Tag, RefreshCw,
-  Activity, Flame, Trophy, Users, CalendarDays, RotateCcw,
+  Activity, Flame, Trophy, Users, CalendarDays, RotateCcw, Crown, Sparkles,
 } from 'lucide-react';
 
 import {
@@ -85,6 +85,7 @@ function DashboardTab() {
   const [heatmapData, setHeatmapData] = useState<any>(null);
   const [topSellers, setTopSellers] = useState<any[]>([]);
   const [customerFreq, setCustomerFreq] = useState<any>(null);
+  const [topCustomers, setTopCustomers] = useState<any[]>([]);
   const [inventoryValueByCategory, setInventoryValueByCategory] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -202,6 +203,7 @@ function DashboardTab() {
         dashboardApi.getHeatmap({ months: 3 }),
         dashboardApi.getCustomerFrequency(),
         dashboardApi.getInventoryValueByCategory(),
+        dashboardApi.getTopCustomers(),
       ]);
       const val = <T,>(idx: number, fallback: T) =>
         remainingResults[idx].status === 'fulfilled' ? remainingResults[idx].value as T : fallback;
@@ -220,6 +222,7 @@ function DashboardTab() {
       setHeatmapData(val(11, null));
       setCustomerFreq(val(12, null));
       setInventoryValueByCategory(val(13, []));
+      setTopCustomers(val(14, []));
 
       const failed = remainingResults.map((r, i) => r.status === 'rejected' ? i : -1).filter(i => i >= 0);
       if (failed.length > 0) {
@@ -928,6 +931,51 @@ function DashboardTab() {
       </div>
 
       {/* ====== 6. Price Range Analysis (2 pie charts) ====== */}
+      {/* ====== Top Customers (消费排行) ====== */}
+      {topCustomers.length > 0 && (
+        <Card className="hover:shadow-md transition-shadow duration-300 border-l-4 border-l-amber-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-amber-600" />
+              消费排行
+              <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">TOP 5</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              {topCustomers.map((c: any, idx: number) => {
+                const rankColors = [
+                  'from-amber-400 to-yellow-500 text-white',
+                  'from-gray-300 to-gray-400 text-white',
+                  'from-amber-600 to-amber-700 text-white',
+                  'from-sky-100 to-sky-200 text-sky-700 dark:from-sky-900 dark:to-sky-800 dark:text-sky-300',
+                  'from-gray-50 to-gray-100 text-gray-600 dark:from-gray-800 dark:to-gray-900 dark:text-gray-300',
+                ];
+                return (
+                  <div key={c.id} className="relative bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg p-3 hover:shadow-sm transition-shadow">
+                    {/* Rank badge */}
+                    <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br ${rankColors[idx]} text-xs font-bold mb-2`}>
+                      {idx + 1}
+                    </div>
+                    {/* Customer info */}
+                    <p className="font-medium text-sm truncate">{c.name}</p>
+                    <p className="text-lg font-bold text-emerald-600 mt-0.5">{formatPrice(c.totalSpending)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{c.orderCount} 单</p>
+                    {/* VIP badge */}
+                    {c.vipLevel && (
+                      <Badge variant="outline" className="mt-1 text-[10px] h-4 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
+                        <Crown className="h-2.5 w-2.5 mr-0.5" />{c.vipLevel}
+                      </Badge>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ====== Price Range Analysis (2 pie charts) ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base">成本价格带分布</CardTitle></CardHeader>

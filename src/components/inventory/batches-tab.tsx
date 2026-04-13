@@ -149,6 +149,7 @@ function BatchesTab() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>批次编号</TableHead><TableHead>材质</TableHead><TableHead className="text-right">总成本</TableHead>
+                      <TableHead className="text-right">单价</TableHead>
                       <TableHead className="text-right">数量</TableHead><TableHead className="text-right">已录入</TableHead><TableHead>分摊方式</TableHead><TableHead className="text-right">已售</TableHead>
                       <TableHead className="text-right">已回款</TableHead><TableHead>回本进度</TableHead><TableHead>状态</TableHead>
                       <TableHead className="text-right">操作</TableHead>
@@ -169,6 +170,13 @@ function BatchesTab() {
                         </TableCell>
                         <TableCell>{b.materialName}</TableCell>
                         <TableCell className="text-right">{formatPrice(b.totalCost)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {b.quantity > 0 ? formatPrice(b.totalCost / b.quantity) : '-'}
+                          {(b.itemsCount || 0) > 0 && (() => {
+                            const avgActualCost = (b.revenue || 0) / (b.soldCount || 1);
+                            return b.soldCount > 0 ? <span className="text-[10px] block text-emerald-600">均¥{Math.round(avgActualCost).toLocaleString()}</span> : null;
+                          })()}
+                        </TableCell>
                         <TableCell className="text-right">{b.quantity}</TableCell>
                         <TableCell className="text-right">
                           {(() => {
@@ -260,6 +268,7 @@ function BatchesTab() {
                     <div>
                       <p className="text-xs text-muted-foreground">总成本</p>
                       <p className="font-medium">{formatPrice(b.totalCost)}</p>
+                      {b.quantity > 0 && <p className="text-xs text-muted-foreground">单价 {formatPrice(b.totalCost / b.quantity)}</p>}
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">已回款</p>

@@ -19,12 +19,41 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
-  CalendarDays, ArrowUp, ArrowDown,
+  CalendarDays, ArrowUp, ArrowDown, CreditCard,
 } from 'lucide-react';
 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
+
+// Payment method config
+const PAYMENT_METHODS = [
+  { value: '现款', label: '现款', icon: '💰', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' },
+  { value: '转账', label: '转账', icon: '🏦', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-300 dark:border-sky-700' },
+  { value: '微信', label: '微信', icon: '💬', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' },
+  { value: '支付宝', label: '支付宝', icon: '📱', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-300 dark:border-sky-700' },
+  { value: '分期', label: '分期', icon: '📋', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300 dark:border-amber-700' },
+];
+
+function getPaymentMethod(note: string | null | undefined): string | null {
+  if (!note) return null;
+  const match = note.match(/^\[支付:([^\]]+)\]\s*/);
+  return match ? match[1] : null;
+}
+
+function getPaymentNote(note: string | null | undefined): string {
+  if (!note) return '';
+  const cleaned = note.replace(/^\[支付:[^\]]+\]\s*/, '');
+  return cleaned.trim();
+}
+
+function formatPaymentBadge(note: string | null | undefined) {
+  const method = getPaymentMethod(note);
+  if (!method) return null;
+  const config = PAYMENT_METHODS.find(m => m.value === method);
+  if (!config) return null;
+  return <Badge variant="outline" className={`text-xs ${config.color}`}>{config.icon} {config.label}</Badge>;
+}
 
 // ========== Sales Tab ==========
 function SalesTab() {
@@ -327,7 +356,7 @@ function SalesTab() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>渠道</TableHead><TableHead>货品</TableHead>
+                      <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>渠道</TableHead><TableHead>支付方式</TableHead><TableHead>货品</TableHead>
                       <TableHead className="text-right">成交价</TableHead>
                       <TableHead>日期</TableHead><TableHead>客户</TableHead><TableHead className="text-right">毛利</TableHead>
                       <TableHead className="text-center">操作</TableHead>
@@ -344,6 +373,7 @@ function SalesTab() {
                         <TableCell className="font-mono text-xs">{sale.saleNo}</TableCell>
                         <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
                         <TableCell>{formatChannelBadge(sale.channel) || '-'}</TableCell>
+                        <TableCell>{formatPaymentBadge(sale.note) || '-'}</TableCell>
                         <TableCell>{sale.itemName || sale.itemSku}</TableCell>
                         <TableCell className="text-right font-medium">{formatPrice(sale.actualPrice)}</TableCell>
                         <TableCell>{sale.saleDate}</TableCell>
@@ -364,7 +394,7 @@ function SalesTab() {
                     })}
                     {/* Summary Row */}
                     <TableRow className="bg-emerald-50/50 dark:bg-emerald-950/20 font-semibold">
-                      <TableCell colSpan={3}>合计 ({pagination.total} 条)</TableCell>
+                      <TableCell colSpan={4}>合计 ({pagination.total} 条)</TableCell>
                       <TableCell className="text-right text-emerald-600">{formatPrice(totalRevenue)}</TableCell>
                       <TableCell></TableCell>
                       <TableCell></TableCell>
@@ -386,7 +416,10 @@ function SalesTab() {
                   {/* Header: saleNo + channel */}
                   <div className="flex items-center justify-between">
                     <span className="font-mono text-xs text-muted-foreground">{sale.saleNo}</span>
-                    {formatChannelBadge(sale.channel)}
+                    <div className="flex items-center gap-1">
+                      {formatChannelBadge(sale.channel)}
+                      {formatPaymentBadge(sale.note)}
+                    </div>
                   </div>
                   {/* Item info */}
                   <p className="font-medium text-sm truncate">{sale.itemName || sale.itemSku}</p>

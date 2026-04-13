@@ -28,14 +28,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
-  ShoppingCart, Tag, MapPin, X, Gem, CheckSquare,
+  ShoppingCart, Tag, MapPin, X, Gem, CheckSquare, ChevronDown, ChevronUp, SlidersHorizontal,
 } from 'lucide-react';
 
 // ========== Active Filter Tags Component ==========
-function ActiveFilterTags({ filters, materials, allBatches, onClearAll, onClear }: {
-  filters: { materialCategory: string; materialId: string; status: string; keyword: string; counter: string; batchId: string };
+function ActiveFilterTags({ filters, materials, allBatches, allCounters, onClearAll, onClear }: {
+  filters: { materialCategory: string; materialId: string; status: string; keyword: string; counter: string; batchId: string; minPrice: string; maxPrice: string; purchaseStartDate: string; purchaseEndDate: string };
   materials: any[];
   allBatches: any[];
+  allCounters: number[];
   onClearAll: () => void;
   onClear: (key: string) => void;
 }) {
@@ -59,6 +60,10 @@ function ActiveFilterTags({ filters, materials, allBatches, onClearAll, onClear 
     const batch = allBatches.find((b: any) => String(b.id) === filters.batchId);
     tags.push({ key: 'batchId', label: batch?.batchCode || filters.batchId });
   }
+  if (filters.minPrice) tags.push({ key: 'minPrice', label: `最低价: ¥${filters.minPrice}` });
+  if (filters.maxPrice) tags.push({ key: 'maxPrice', label: `最高价: ¥${filters.maxPrice}` });
+  if (filters.purchaseStartDate) tags.push({ key: 'purchaseStartDate', label: `采购起始: ${filters.purchaseStartDate}` });
+  if (filters.purchaseEndDate) tags.push({ key: 'purchaseEndDate', label: `采购截止: ${filters.purchaseEndDate}` });
 
   if (tags.length === 0) return null;
 
@@ -95,7 +100,8 @@ function InventoryTab() {
   const [allBatches, setAllBatches] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, size: 20, pages: 0 });
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '' });
+  const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' });
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -147,6 +153,13 @@ function InventoryTab() {
   useEffect(() => { customersApi.getCustomers().then((d: any) => setCustomers(d?.items || d || [])).catch(() => {}); }, []);
   useEffect(() => { batchesApi.getBatches({ page: 1, size: 1000 }).then(d => setAllBatches(d.items || [])).catch(() => {}); }, []);
 
+  // Extract unique counters from loaded items
+  const allCounters = useMemo(() => {
+    const counterSet = new Set<number>();
+    items.forEach(i => { if (i.counter != null) counterSet.add(i.counter); });
+    return Array.from(counterSet).sort((a, b) => a - b);
+  }, [items]);
+
   // 根据大类筛选材质
   const filteredMaterials = materials.filter((m: any) => {
     if (!filters.materialCategory) return true;
@@ -154,7 +167,7 @@ function InventoryTab() {
   });
 
   // Selected items (memoized)
-  const selectedItems = useMemo(() => items.filter(i => selectedIds.has(i.id)), [items, selectedIds]);
+  const selectedItems = useMemo(() => filteredItems.filter(i => selectedIds.has(i.id)), [filteredItems, selectedIds]);
 
   // Only in_stock items among selected
   const selectedInStockItems = useMemo(() => selectedItems.filter(i => i.status === 'in_stock'), [selectedItems]);
@@ -196,10 +209,10 @@ function InventoryTab() {
   }
 
   function toggleSelectAll() {
-    if (selectedIds.size === items.length) {
+    if (selectedIds.size === filteredItems.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(items.map(i => i.id)));
+      setSelectedIds(new Set(filteredItems.map(i => i.id)));
     }
   }
 
@@ -288,13 +301,13 @@ function InventoryTab() {
 
   // ========== CSV Export ==========
   function handleExportCSV() {
-    if (items.length === 0) {
+    if (sortedItems.length === 0) {
       toast.error('没有可导出的数据');
       return;
     }
     const statusMap: Record<string, string> = { in_stock: '在库', sold: '已售', returned: '已退' };
     const header = 'SKU,名称,器型,材质,状态,成本,售价,采购日期,柜台号';
-    const rows = items.map(item => {
+    const rows = sortedItems.map(item => {
       const name = item.name || item.skuCode;
       const typeName = item.typeName || '';
       const materialName = item.materialName || '';
@@ -320,7 +333,7 @@ function InventoryTab() {
     link.download = `库存数据_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success(`已导出 ${items.length} 条库存数据`);
+    toast.success(`已导出 ${sortedItems.length} 条库存数据`);
   }
 
   // ========== Batch Operations ==========
@@ -494,10 +507,30 @@ function InventoryTab() {
     });
   }, [selectedItems, batchPriceForm]);
 
+  // Client-side filter for price range and purchase date (applied after server fetch)
+  const filteredItems = useMemo(() => {
+    let result = items;
+    if (filters.minPrice) {
+      const min = parseFloat(filters.minPrice);
+      if (!isNaN(min)) result = result.filter(i => (i.sellingPrice || 0) >= min);
+    }
+    if (filters.maxPrice) {
+      const max = parseFloat(filters.maxPrice);
+      if (!isNaN(max)) result = result.filter(i => (i.sellingPrice || 0) <= max);
+    }
+    if (filters.purchaseStartDate) {
+      result = result.filter(i => (i.purchaseDate || '') >= filters.purchaseStartDate);
+    }
+    if (filters.purchaseEndDate) {
+      result = result.filter(i => (i.purchaseDate || '') <= filters.purchaseEndDate);
+    }
+    return result;
+  }, [items, filters.minPrice, filters.maxPrice, filters.purchaseStartDate, filters.purchaseEndDate]);
+
   // Client-side sort for table display
   const sortedItems = useMemo(() => {
-    if (!items.length) return items;
-    const sorted = [...items];
+    if (!filteredItems.length) return filteredItems;
+    const sorted = [...filteredItems];
     sorted.sort((a, b) => {
       let cmp = 0;
       switch (sortBy) {
@@ -524,7 +557,7 @@ function InventoryTab() {
       return sortOrder === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [items, sortBy, sortOrder]);
+  }, [filteredItems, sortBy, sortOrder]);
 
   function SortableHead({ field, children, align }: { field: string; children: React.ReactNode; align?: 'left' | 'right' }) {
     const isActive = sortBy === field;
@@ -554,7 +587,7 @@ function InventoryTab() {
 
   if (loading && items.length === 0) return <LoadingSkeleton />;
 
-  const totalValue = items.reduce((sum, i) => sum + (i.allocatedCost || i.estimatedCost || i.costPrice || 0), 0);
+  const totalValue = filteredItems.reduce((sum, i) => sum + (i.allocatedCost || i.estimatedCost || i.costPrice || 0), 0);
 
   const sortFieldLabels: Record<string, string> = {
     created_at: '入库时间',
@@ -565,7 +598,7 @@ function InventoryTab() {
     name: '名称',
   };
 
-  const isAllSelected = items.length > 0 && selectedIds.size === items.length;
+  const isAllSelected = filteredItems.length > 0 && selectedIds.size === filteredItems.length;
   const isSomeSelected = selectedIds.size > 0 && !isAllSelected;
 
   return (
@@ -704,7 +737,15 @@ function InventoryTab() {
                 ))}
               </div>
             </div>
-            <div className="space-y-1"><Label className="text-xs">柜台</Label><Input type="number" placeholder="柜台号" value={filters.counter} onChange={e => setFilters(f => ({ ...f, counter: e.target.value }))} className="h-9" /></div>
+            <div className="space-y-1"><Label className="text-xs">柜台</Label>
+              <Select value={filters.counter || 'all'} onValueChange={v => setFilters(f => ({ ...f, counter: v === 'all' ? '' : v }))}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="全部" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部柜台</SelectItem>
+                  {allCounters.map(c => <SelectItem key={c} value={String(c)}>{c}号柜</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1"><Label className="text-xs">批次</Label>
               <Select value={filters.batchId || 'all'} onValueChange={v => setFilters(f => ({ ...f, batchId: v === 'all' ? '' : v }))}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="全部批次" /></SelectTrigger>
@@ -713,15 +754,39 @@ function InventoryTab() {
             </div>
             <div className="flex items-end gap-2">
               <Button size="sm" onClick={() => { setPagination(p => ({ ...p, page: 1 })); fetchItems(); }} className="h-9"><Search className="h-3 w-3 mr-1" />搜索</Button>
-              <Button size="sm" variant="outline" onClick={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '' })} className="h-9">重置</Button>
+              <Button size="sm" variant="outline" onClick={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' })} className="h-9">重置</Button>
             </div>
           </div>
+          {/* More Filters Toggle */}
+          <div className="mt-3">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setShowMoreFilters(!showMoreFilters)}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>更多筛选</span>
+              {showMoreFilters ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              {(filters.minPrice || filters.maxPrice || filters.purchaseStartDate || filters.purchaseEndDate) && (
+                <Badge variant="secondary" className="ml-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-[10px] px-1.5 py-0">已启用</Badge>
+              )}
+            </button>
+          </div>
+          {/* Collapsible More Filters */}
+          {showMoreFilters && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 bg-muted/30 rounded-lg animate-in fade-in-0 slide-in-from-top-1 duration-200">
+              <div className="space-y-1"><Label className="text-xs">最低售价</Label><Input type="number" placeholder="¥" value={filters.minPrice} onChange={e => setFilters(f => ({ ...f, minPrice: e.target.value }))} className="h-9" min="0" /></div>
+              <div className="space-y-1"><Label className="text-xs">最高售价</Label><Input type="number" placeholder="¥" value={filters.maxPrice} onChange={e => setFilters(f => ({ ...f, maxPrice: e.target.value }))} className="h-9" min="0" /></div>
+              <div className="space-y-1"><Label className="text-xs">采购起始日期</Label><Input type="date" value={filters.purchaseStartDate} onChange={e => setFilters(f => ({ ...f, purchaseStartDate: e.target.value }))} className="h-9" /></div>
+              <div className="space-y-1"><Label className="text-xs">采购截止日期</Label><Input type="date" value={filters.purchaseEndDate} onChange={e => setFilters(f => ({ ...f, purchaseEndDate: e.target.value }))} className="h-9" /></div>
+            </div>
+          )}
           {/* Active filter tags */}
-          <ActiveFilterTags filters={filters} materials={materials} allBatches={allBatches} onClearAll={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '' })} onClear={(key: string) => setFilters(f => ({ ...f, [key]: key === 'status' ? 'in_stock' : '' }))} />
+          <ActiveFilterTags filters={filters} materials={materials} allBatches={allBatches} allCounters={allCounters} onClearAll={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' })} onClear={(key: string) => setFilters(f => ({ ...f, [key]: key === 'status' ? 'in_stock' : '' }))} />
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2 flex-wrap">
               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新增入库</Button>
-              <Button size="sm" variant="outline" className="h-9" onClick={handleExportCSV} disabled={items.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
+              <Button size="sm" variant="outline" className="h-9" onClick={handleExportCSV} disabled={sortedItems.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
               <a href={exportApi.inventory()} target="_blank" rel="noopener noreferrer">
                 <Button size="sm" variant="outline" className="h-9">完整导出</Button>
               </a>
@@ -751,7 +816,7 @@ function InventoryTab() {
       </Card>
 
       {/* Items Table */}
-      {items.length === 0 ? (
+      {sortedItems.length === 0 ? (
         <EmptyState icon={Package} title="暂无货品" desc="还没有入库任何货品，点击「新增入库」开始" />
       ) : (
         <>
