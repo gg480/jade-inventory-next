@@ -19,19 +19,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
+  CalendarDays, Trophy, Users,
 } from 'lucide-react';
 
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
+
+const CHART_COLORS = ['#059669', '#0284c7', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
 
 // ========== Sales Tab ==========
 function SalesTab() {
   const [sales, setSales] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, size: 20, pages: 0 });
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ channel: '', startDate: '', endDate: '' });
+  const [filters, setFilters] = useState({ channel: '', startDate: '', endDate: '', keyword: '' });
   const [showBundle, setShowBundle] = useState(false);
+  const [datePreset, setDatePreset] = useState('all');
 
   // Return dialog state
   const [returnDialog, setReturnDialog] = useState<{ open: boolean; sale: any }>({ open: false, sale: null });
@@ -51,6 +55,7 @@ function SalesTab() {
       if (filters.channel) params.channel = filters.channel;
       if (filters.startDate) params.start_date = filters.startDate;
       if (filters.endDate) params.end_date = filters.endDate;
+      if (filters.keyword) params.keyword = filters.keyword;
       const data = await salesApi.getSales(params);
       setSales(data.items || []);
       setPagination(data.pagination || { total: 0, page: 1, size: 20, pages: 0 });
@@ -129,6 +134,22 @@ function SalesTab() {
     return <Badge variant="outline">{channel}</Badge>;
   }
 
+  function handleDatePreset(preset: string) {
+    setDatePreset(preset);
+    const today = new Date();
+    let start = '';
+    let end = today.toISOString().slice(0, 10);
+    switch (preset) {
+      case 'today': start = end; break;
+      case 'week': start = new Date(today.getTime() - 7 * 86400000).toISOString().slice(0, 10); break;
+      case 'month': start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10); break;
+      case 'quarter': start = new Date(today.getFullYear(), today.getMonth() - 2, 1).toISOString().slice(0, 10); break;
+      case 'year': start = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10); break;
+      default: start = ''; end = '';
+    }
+    setFilters(f => ({ ...f, startDate: start, endDate: end }));
+  }
+
   return (
     <div className="space-y-6">
       {/* Today Stats Row */}
@@ -191,15 +212,38 @@ function SalesTab() {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Quick date range */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            {[
+              { key: 'all', label: '全部' },
+              { key: 'today', label: '今日' },
+              { key: 'week', label: '近7天' },
+              { key: 'month', label: '本月' },
+              { key: 'quarter', label: '本季度' },
+              { key: 'year', label: '本年' },
+            ].map(p => (
+              <Button
+                key={p.key}
+                size="sm"
+                variant={datePreset === p.key ? 'default' : 'outline'}
+                className={`h-7 text-xs ${datePreset === p.key ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                onClick={() => handleDatePreset(p.key)}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="space-y-1"><Label className="text-xs">关键词</Label><Input placeholder="SKU/单号/客户" value={filters.keyword} onChange={e => setFilters(f => ({ ...f, keyword: e.target.value }))} className="h-9" /></div>
             <div className="space-y-1"><Label className="text-xs">渠道</Label>
               <Select value={filters.channel || 'all'} onValueChange={v => setFilters(f => ({ ...f, channel: v === 'all' ? '' : v }))}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="全部" /></SelectTrigger>
                 <SelectContent><SelectItem value="all">全部</SelectItem><SelectItem value="store">门店</SelectItem><SelectItem value="wechat">微信</SelectItem></SelectContent>
               </Select>
             </div>
-            <div className="space-y-1"><Label className="text-xs">开始日期</Label><Input type="date" value={filters.startDate} onChange={e => setFilters(f => ({ ...f, startDate: e.target.value }))} className="h-9" /></div>
-            <div className="space-y-1"><Label className="text-xs">结束日期</Label><Input type="date" value={filters.endDate} onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))} className="h-9" /></div>
+            <div className="space-y-1"><Label className="text-xs">开始日期</Label><Input type="date" value={filters.startDate} onChange={e => { setFilters(f => ({ ...f, startDate: e.target.value })); setDatePreset('custom'); }} className="h-9" /></div>
+            <div className="space-y-1"><Label className="text-xs">结束日期</Label><Input type="date" value={filters.endDate} onChange={e => { setFilters(f => ({ ...f, endDate: e.target.value })); setDatePreset('custom'); }} className="h-9" /></div>
             <div className="flex items-end gap-2">
               <Button size="sm" onClick={() => { setPagination(p => ({ ...p, page: 1 })); fetchSales(); }} className="h-9"><Search className="h-3 w-3 mr-1" />搜索</Button>
             </div>
@@ -315,29 +359,89 @@ function SalesTab() {
       {/* Pagination */}
       <Pagination page={pagination.page} pages={pagination.pages} onPageChange={p => setPagination(prev => ({ ...prev, page: p }))} />
 
-      {/* Profit Trend Sparkline */}
-      {sparklineData.length > 0 && (
+      {/* Profit Trend Sparkline + Channel Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {sparklineData.length > 0 && (
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-sky-600" />营收趋势</p>
+              <ResponsiveContainer width="100%" height={120}>
+                <AreaChart data={sparklineData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
+                  <RTooltip formatter={(v: number) => formatPrice(v)} />
+                  <Area type="monotone" dataKey="revenue" stroke="#059669" fill="url(#revenueGrad)" strokeWidth={2} name="营收" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+        {/* Channel Breakdown */}
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-sky-600" />营收趋势</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <AreaChart data={sparklineData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#059669" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : String(v)} tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
-                <Tooltip formatter={(v: number) => formatPrice(v)} />
-                <Area type="monotone" dataKey="revenue" stroke="#059669" fill="url(#revenueGrad)" strokeWidth={2} name="营收" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-1.5"><BarChart3 className="h-4 w-4 text-amber-600" />渠道分析</p>
+            {sales.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <div className="w-28 h-28">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: '门店', value: storeCount, color: '#059669' },
+                          { name: '微信', value: wechatCount, color: '#0284c7' },
+                        ].filter(d => d.value > 0)}
+                        cx="50%" cy="50%" innerRadius={25} outerRadius={45}
+                        dataKey="value" stroke="none"
+                      >
+                        {[
+                          { name: '门店', value: storeCount, color: '#059669' },
+                          { name: '微信', value: wechatCount, color: '#0284c7' },
+                        ].filter(d => d.value > 0).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RTooltip formatter={(v: number) => `${v} 件`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 space-y-2">
+                  {[
+                    { label: '门店', count: storeCount, revenue: sales.filter(s => s.channel === 'store').reduce((sum, s) => sum + (s.actualPrice || 0), 0), color: 'bg-emerald-500', icon: Store },
+                    { label: '微信', count: wechatCount, revenue: sales.filter(s => s.channel === 'wechat').reduce((sum, s) => sum + (s.actualPrice || 0), 0), color: 'bg-sky-500', icon: MessageCircle },
+                  ].filter(ch => ch.count > 0).map(ch => {
+                    const ChIcon = ch.icon;
+                    const pct = sales.length > 0 ? Math.round((ch.count / sales.length) * 100) : 0;
+                    return (
+                      <div key={ch.label} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1.5">
+                            <ChIcon className="h-3.5 w-3.5" />
+                            <span className="font-medium">{ch.label}</span>
+                            <span className="text-muted-foreground text-xs">{ch.count}件 ({pct}%)</span>
+                          </div>
+                          <span className="text-emerald-600 font-medium text-xs">{formatPrice(ch.revenue)}</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-1.5">
+                          <div className={`${ch.color} rounded-full h-1.5 transition-all duration-500`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">暂无销售数据</p>
+            )}
           </CardContent>
         </Card>
-      )}
+      </div>
 
       {/* Bundle Sale Dialog */}
       <BundleSaleDialog open={showBundle} onOpenChange={setShowBundle} onSuccess={fetchSales} />
