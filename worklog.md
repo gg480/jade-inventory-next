@@ -2146,3 +2146,103 @@ Stage Summary:
 
 ### Lint 检查
 - 所有改动通过 `bun run lint` 检查，0 errors, 0 warnings
+
+---
+
+## Task 23: Bug修复 + 7项新功能 (2026-04-14)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（56f4f09..e69bd04 main → main）
+- ✅ 利润看板和库存看板Bug已修复（由之前session的commit完成）
+- ⚠️ 容器内存限制导致API路由编译时OOM（dev server可启动但API路由编译失败）
+- ⚠️ agent-browser无法与dev server同时运行（已知环境限制）
+
+### Bug修复（已在之前session完成，本轮验证）
+1. **dashboard-tab.tsx 重复渠道分布卡片** (commit b71e411): 删除使用未定义`storeCount`/`wechatCount`变量的重复"销售渠道分布"卡片，正确的卡片在第892行使用`salesByChannel`状态
+2. **inventory-tab.tsx filteredItems初始化顺序错误** (commit 56f4f09): 将`filteredItems`和`sortedItems`的useMemo从第583行移到第217行，解决`Cannot access before initialization`运行时错误
+
+### 本轮完成的7项新功能
+
+#### 1. 销售记录利润率颜色渐变条 (sales-tab.tsx)
+- 桌面端毛利列下方新增 4px 圆角进度条
+- 颜色渐变：0-20% 红色(#ef4444), 20-40% 琥珀(#f59e0b), 40-100% 翡翠(#059669)
+- 宽度 = 利润率百分比（cap 100%）
+
+#### 2. 图片上传进度指示 (item-detail-dialog.tsx)
+- 主图上传时显示spinner + "上传中..."半透明遮罩层
+- 上传完成/失败后自动隐藏
+
+#### 3. Dashboard 批次回本进度排行 (dashboard-tab.tsx)
+- 新增"批次回本进度排行"卡片（Trophy图标）
+- Top 5 批次水平进度条
+- 颜色编码：<50% 琥珀, 50-99% 天蓝, 100% 翡翠
+- 使用已有 `batchProfit` 状态数据
+
+#### 4. 设置页备份时间戳显示 (settings-tab.tsx)
+- 新增 `formatRelativeTime()` 相对时间函数
+- "最近备份时间"卡片（显示相对时间+精确时间）
+- 存储ISO时间戳到localStorage
+- 未备份时显示"尚未备份"
+
+#### 5. 客户消费趋势迷你图 (customers-tab.tsx)
+- 展开客户详情中添加recharts AreaChart（80px高，翡翠绿渐变）
+- 显示最近6笔消费趋势
+- 仅≥2条记录时显示
+
+#### 6. 批次详情弹窗货品快速筛选 (batch-detail-dialog.tsx)
+- 搜索框（防抖200ms）按SKU/名称筛选
+- "N 件货品"计数Badge
+
+#### 7. 销售空状态增强 (sales-tab.tsx)
+- 大号ShoppingCart图标 + bounce动画
+- 翡翠渐变背景
+- "前往库存"按钮切换到库存tab
+
+### 关键文件变更
+- `src/components/inventory/sales-tab.tsx` — 利润率渐变条 + 销售空状态增强
+- `src/components/inventory/item-detail-dialog.tsx` — 图片上传进度指示
+- `src/components/inventory/dashboard-tab.tsx` — 批次回本进度排行
+- `src/components/inventory/settings-tab.tsx` — 备份时间戳 + formatRelativeTime
+- `src/components/inventory/customers-tab.tsx` — 客户消费迷你图
+- `src/components/inventory/batch-detail-dialog.tsx` — 货品快速筛选
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ GitHub 推送 — 成功 (d9b2d28..e69bd04)
+
+### 未解决问题/风险
+- ⚠️ 容器内存限制（API路由编译OOM，agent-browser QA受限）
+
+### 下一阶段优先建议
+1. 🔴 器型必填参数联动（手镯→圈口, 戒指→尺寸, 手串/项链→珠子大小）
+2. 🔴 数据导入（~2000条存量数据）
+3. 🔴 手机端摄像头扫码快速出库
+4. 🟡 登录认证增强（JWT持久化）
+5. 🟡 批量操作UI增强
+6. 🟡 扫码快速出库优化
+7. 🟡 图片缩略图生成
+
+---
+
+Task ID: 23
+Agent: cron-agent
+Task: Bug验证 + 7项新功能
+
+Work Log:
+- 读取 /home/z/my-project/worklog.md 了解完整项目历史
+- bun run lint → 0 errors, 0 warnings
+- 验证之前session的bug修复（b71e411 + 56f4f09）已就位
+- 代码审查dashboard-tab.tsx/inventory-tab.tsx/sales-tab.tsx确认无遗留问题
+- dev server启动测试 → 可启动但API路由编译时OOM
+- GitHub推送 → 成功 (56f4f09..d9b2d28)
+- full-stack-developer子代理完成7项新功能
+- 最终 lint → 0 errors, 0 warnings
+- GitHub推送 → 成功 (d9b2d28..e69bd04)
+- 更新 worklog.md
+
+Stage Summary:
+- Bug修复验证通过（利润看板+库存看板bug已由之前commit修复）
+- 7项新功能（利润率渐变条 + 上传进度 + 批次排行 + 备份时间戳 + 消费迷你图 + 批次筛选 + 销售空状态）
+- 7 files changed, 306 insertions, 60 deletions
+- ESLint 0 errors, GitHub推送成功
