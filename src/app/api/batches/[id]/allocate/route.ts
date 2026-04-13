@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     include: { spec: true },
   });
 
-  if (items.length !== batch.quantity) {
+  if (items.length < batch.quantity) {
     return NextResponse.json({
       code: 400,
       data: null,

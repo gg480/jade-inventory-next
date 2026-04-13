@@ -21,17 +21,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const today = new Date();
-  const ageDays = item.purchaseDate
-    ? Math.floor((today.getTime() - new Date(item.purchaseDate).getTime()) / (1000 * 60 * 60 * 24))
+  // For batch items, inherit purchaseDate from batch
+  const effectivePurchaseDate = item.purchaseDate || item.batch?.purchaseDate || null;
+  const ageDays = effectivePurchaseDate
+    ? Math.floor((today.getTime() - new Date(effectivePurchaseDate).getTime()) / (1000 * 60 * 60 * 24))
     : null;
+  // For batch items, inherit supplier from batch
+  const supplierName = item.supplier?.name || item.batch?.supplier?.name || null;
 
   return NextResponse.json({
     code: 0,
     data: {
       ...item,
+      purchaseDate: effectivePurchaseDate,
       materialName: item.material?.name,
       typeName: item.type?.name,
-      supplierName: item.supplier?.name,
+      supplierName,
       ageDays,
       coverImage: item.images.find(i => i.isCover)?.filename || item.images[0]?.filename || null,
     },

@@ -34,8 +34,9 @@ import {
   LayoutDashboard, Package, ShoppingCart, Layers, Users, Settings,
   Plus, Search, Download, RefreshCw, TrendingUp, TrendingDown, DollarSign,
   BarChart3, PieChart, AlertTriangle, CheckCircle, XCircle, Eye,
-  Trash2, Edit, ArrowRight, ChevronDown, Scan, Tag, Gem, Factory,
-  Moon, Sun, Monitor, Link2, FileDown, Info, Image as ImageIcon
+  Trash2, Edit, ArrowRight, ChevronDown, ChevronUp, Scan, Tag, Gem, Factory,
+  Moon, Sun, Monitor, Link2, FileDown, Info, Image as ImageIcon,
+  Pencil, RotateCcw, ArrowUpRight
 } from 'lucide-react';
 
 // Charts
@@ -43,6 +44,20 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart as RPieChart, Pie, Cell, LineChart, Line, Area, AreaChart
 } from 'recharts';
+
+// ========== CSS Keyframes ==========
+const fadeInStyle = typeof document !== 'undefined' && !document.getElementById('fade-in-keyframes')
+  ? (() => {
+      const style = document.createElement('style');
+      style.id = 'fade-in-keyframes';
+      style.textContent = `
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .tab-fade-in { animation: fadeIn 0.3s ease-out; }
+      `;
+      document.head.appendChild(style);
+      return true;
+    })()
+  : true;
 
 // ========== Shared Components ==========
 const CHART_COLORS = ['#059669', '#0ea5e9', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#6366f1', '#ec4899', '#84cc16', '#f97316'];
@@ -175,31 +190,43 @@ function DashboardTab() {
     <div className="space-y-6">
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="border-l-4 border-l-emerald-500">
+          <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default">
             <CardContent className="p-4">
+              <div className="absolute -right-2 -bottom-2 opacity-10">
+                <Package className="h-20 w-20 text-emerald-500" />
+              </div>
               <p className="text-sm text-muted-foreground">在库货品</p>
-              <p className="text-2xl font-bold mt-1">{summary.totalItems}</p>
+              <p className="text-3xl font-extrabold mt-1">{summary.totalItems}</p>
               <p className="text-xs text-muted-foreground mt-1">占用资金 {formatPrice(summary.totalStockValue)}</p>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-sky-500">
+          <Card className="relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default">
             <CardContent className="p-4">
+              <div className="absolute -right-2 -bottom-2 opacity-10">
+                <TrendingUp className="h-20 w-20 text-sky-500" />
+              </div>
               <p className="text-sm text-muted-foreground">本月销售</p>
-              <p className="text-2xl font-bold text-emerald-600 mt-1">{formatPrice(summary.monthRevenue)}</p>
+              <p className="text-3xl font-extrabold text-emerald-600 mt-1">{formatPrice(summary.monthRevenue)}</p>
               <p className="text-xs text-muted-foreground mt-1">{summary.monthSoldCount} 件，毛利 {formatPrice(summary.monthProfit)}</p>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-red-500">
+          <Card className="relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default">
             <CardContent className="p-4">
+              <div className="absolute -right-2 -bottom-2 opacity-10">
+                <AlertTriangle className="h-20 w-20 text-red-500" />
+              </div>
               <p className="text-sm text-muted-foreground">压货预警</p>
-              <p className="text-2xl font-bold text-red-600 mt-1">{stockAging.totalItems || 0}</p>
+              <p className="text-3xl font-extrabold text-red-600 mt-1">{stockAging.totalItems || 0}</p>
               <p className="text-xs text-muted-foreground mt-1">超过 {minDays} 天未售</p>
             </CardContent>
           </Card>
-          <Card className="border-l-4 border-l-amber-500">
+          <Card className="relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default">
             <CardContent className="p-4">
+              <div className="absolute -right-2 -bottom-2 opacity-10">
+                <CheckCircle className="h-20 w-20 text-amber-500" />
+              </div>
               <p className="text-sm text-muted-foreground">已回本批次</p>
-              <p className="text-2xl font-bold text-emerald-600 mt-1">
+              <p className="text-3xl font-extrabold text-emerald-600 mt-1">
                 {batchProfit.filter(b => b.status === 'paid_back' || b.status === 'cleared').length}
               </p>
               <p className="text-xs text-muted-foreground mt-1">共 {batchProfit.length} 个批次</p>
@@ -756,6 +783,178 @@ function ItemDetailDialog({ itemId, open, onOpenChange }: { itemId: number | nul
   );
 }
 
+// ========== Item Edit Dialog ==========
+function ItemEditDialog({ itemId, open, onOpenChange, onSuccess }: { itemId: number | null; open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void }) {
+  const [item, setItem] = useState<any>(null);
+  const [types, setTypes] = useState<any[]>([]);
+  const [tags, setTags] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: '', sellingPrice: 0, floorPrice: 0, counter: '', certNo: '', notes: '', origin: '',
+    tagIds: [] as number[],
+    weight: '', metalWeight: '', size: '', braceletSize: '', beadCount: '', beadDiameter: '', ringSize: '',
+  });
+
+  useEffect(() => {
+    if (open) {
+      dictsApi.getTypes().then(setTypes).catch(() => {});
+      dictsApi.getTags().then(setTags).catch(() => {});
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && itemId) {
+      setLoading(true);
+      itemsApi.getItem(itemId).then((data: any) => {
+        setItem(data);
+        const specObj: any = data.spec || {};
+        setForm({
+          name: data.name || '',
+          sellingPrice: data.sellingPrice || 0,
+          floorPrice: data.floorPrice || 0,
+          counter: data.counter != null ? String(data.counter) : '',
+          certNo: data.certNo || '',
+          notes: data.notes || '',
+          origin: data.origin || '',
+          tagIds: data.tags ? data.tags.map((t: any) => t.id) : [],
+          weight: specObj.weight || '',
+          metalWeight: specObj.metalWeight || '',
+          size: specObj.size || '',
+          braceletSize: specObj.braceletSize || '',
+          beadCount: specObj.beadCount || '',
+          beadDiameter: specObj.beadDiameter || '',
+          ringSize: specObj.ringSize || '',
+        });
+      }).catch(() => {
+        toast.error('加载货品信息失败');
+      }).finally(() => setLoading(false));
+    } else {
+      setItem(null);
+    }
+  }, [open, itemId]);
+
+  const specFieldLabels: Record<string, string> = {
+    weight: '克重(g)', metalWeight: '金重(g)', size: '尺寸', braceletSize: '圈口',
+    beadCount: '颗数', beadDiameter: '珠径', ringSize: '戒圈',
+  };
+
+  const selectedType = types.find((t: any) => String(t.id) === String(item?.typeId));
+  let specFields: string[] = [];
+  try { specFields = selectedType?.specFields ? JSON.parse(selectedType.specFields) : []; } catch { specFields = []; }
+
+  function toggleTag(tagId: number) {
+    const ids = form.tagIds.includes(tagId) ? form.tagIds.filter(id => id !== tagId) : [...form.tagIds, tagId];
+    setForm(f => ({ ...f, tagIds: ids }));
+  }
+
+  async function handleSave() {
+    if (!itemId) return;
+    setSaving(true);
+    try {
+      const spec: Record<string, any> = {};
+      specFields.forEach(f => { if ((form as any)[f]) spec[f] = (form as any)[f]; });
+      await itemsApi.updateItem(itemId, {
+        name: form.name || undefined,
+        sellingPrice: form.sellingPrice,
+        floorPrice: form.floorPrice || undefined,
+        counter: form.counter ? Number(form.counter) : undefined,
+        certNo: form.certNo || undefined,
+        notes: form.notes || undefined,
+        origin: form.origin || undefined,
+        spec: Object.keys(spec).length > 0 ? spec : undefined,
+        tagIds: form.tagIds,
+      });
+      toast.success('货品更新成功！');
+      onOpenChange(false);
+      onSuccess();
+    } catch (e: any) {
+      toast.error(e.message || '更新失败');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>编辑货品</DialogTitle>
+          <DialogDescription>{item?.skuCode || ''}</DialogDescription>
+        </DialogHeader>
+        {loading ? (
+          <div className="space-y-3 py-4"><Skeleton className="h-6 w-40" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /></div>
+        ) : item ? (
+          <div className="space-y-4 py-2">
+            {/* Non-editable info */}
+            <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 p-3 rounded-lg">
+              <div><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{item.skuCode}</span></div>
+              <div><span className="text-muted-foreground">材质:</span> {item.materialName || '-'}</div>
+              <div><span className="text-muted-foreground">器型:</span> {item.typeName || '-'}</div>
+              <div><span className="text-muted-foreground">状态:</span> <StatusBadge status={item.status} /></div>
+              <div><span className="text-muted-foreground">成本价:</span> {formatPrice(item.costPrice)}</div>
+              <div><span className="text-muted-foreground">分摊成本:</span> {formatPrice(item.allocatedCost)}</div>
+            </div>
+
+            {/* Editable fields */}
+            <div className="space-y-1"><Label className="text-xs">名称</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="h-9" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className="text-xs">售价</Label><Input type="number" value={form.sellingPrice || ''} onChange={e => setForm(f => ({ ...f, sellingPrice: parseFloat(e.target.value) || 0 }))} className="h-9" /></div>
+              <div className="space-y-1"><Label className="text-xs">底价</Label><Input type="number" value={form.floorPrice || ''} onChange={e => setForm(f => ({ ...f, floorPrice: parseFloat(e.target.value) || 0 }))} className="h-9" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><Label className="text-xs">产地</Label><Input value={form.origin} onChange={e => setForm(f => ({ ...f, origin: e.target.value }))} className="h-9" /></div>
+              <div className="space-y-1"><Label className="text-xs">柜台号</Label><Input value={form.counter} onChange={e => setForm(f => ({ ...f, counter: e.target.value }))} className="h-9" /></div>
+            </div>
+            <div className="space-y-1"><Label className="text-xs">证书号</Label><Input value={form.certNo} onChange={e => setForm(f => ({ ...f, certNo: e.target.value }))} className="h-9" /></div>
+
+            {/* Dynamic spec fields */}
+            {specFields.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                {specFields.map((field: string) => (
+                  <div key={field} className="space-y-1">
+                    <Label className="text-xs">{specFieldLabels[field] || field}</Label>
+                    <Input
+                      type={field === 'beadCount' ? 'number' : 'text'}
+                      value={(form as any)[field] || ''}
+                      onChange={e => setForm({ ...form, [field]: e.target.value })}
+                      className="h-9"
+                      placeholder={specFieldLabels[field] || field}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-1"><Label className="text-xs">备注</Label><Textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="可选" className="h-16" /></div>
+
+            {/* Tags */}
+            {tags.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">标签</Label>
+                <div className="flex flex-wrap gap-2">
+                  {tags.filter((t: any) => t.isActive).map((tag: any) => (
+                    <label key={tag.id} className="flex items-center gap-1 cursor-pointer">
+                      <Checkbox checked={form.tagIds.includes(tag.id)} onCheckedChange={() => toggleTag(tag.id)} />
+                      <span className="text-xs">{tag.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-8 text-center text-muted-foreground">未找到货品信息</div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
+          <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700" disabled={saving || loading}>{saving ? '保存中...' : '保存修改'}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ========== Batch Create Dialog ==========
 function BatchCreateDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenChange: (o: boolean) => void; onSuccess: () => void }) {
   const [materials, setMaterials] = useState<any[]>([]);
@@ -1012,6 +1211,8 @@ function InventoryTab() {
   // Dialogs
   const [showCreate, setShowCreate] = useState(false);
   const [detailItemId, setDetailItemId] = useState<number | null>(null);
+  const [editItemId, setEditItemId] = useState<number | null>(null);
+  const [returnConfirmItem, setReturnConfirmItem] = useState<{ open: boolean; item: any }>({ open: false, item: null });
   const [saleDialog, setSaleDialog] = useState<{ open: boolean; item: any }>({ open: false, item: null });
   const [saleForm, setSaleForm] = useState({ actualPrice: 0, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' });
 
@@ -1050,6 +1251,16 @@ function InventoryTab() {
   async function handleDelete(id: number) {
     if (!confirm('确定删除此货品？')) return;
     try { await itemsApi.deleteItem(id); toast.success('删除成功'); fetchItems(); } catch (e: any) { toast.error(e.message); }
+  }
+
+  async function handleReturn() {
+    if (!returnConfirmItem.item) return;
+    try {
+      await itemsApi.updateItem(returnConfirmItem.item.id, { status: 'returned' });
+      toast.success('退货成功！');
+      setReturnConfirmItem({ open: false, item: null });
+      fetchItems();
+    } catch (e: any) { toast.error(e.message || '退货失败'); }
   }
 
   if (loading && items.length === 0) return <LoadingSkeleton />;
@@ -1102,8 +1313,10 @@ function InventoryTab() {
       {items.length === 0 ? (
         <EmptyState icon={Package} title="暂无货品" desc="还没有入库任何货品" />
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <>
+          {/* Desktop Table */}
+          <Card className="hidden md:block">
+            <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -1126,13 +1339,19 @@ function InventoryTab() {
                       <TableCell className={item.ageDays > 90 ? 'text-red-600 font-medium' : ''}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setDetailItemId(item.id)}><Eye className="h-3 w-3" /></Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setDetailItemId(item.id)} title="查看详情"><Eye className="h-3 w-3" /></Button>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-amber-600" onClick={() => setEditItemId(item.id)} title="编辑"><Pencil className="h-3 w-3" /></Button>
                           {item.status === 'in_stock' && (
                             <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-600" onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' }); }}>
                               <DollarSign className="h-3 w-3" /> 出库
                             </Button>
                           )}
-                          <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => handleDelete(item.id)}><Trash2 className="h-3 w-3" /></Button>
+                          {item.status === 'sold' && (
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-orange-600" onClick={() => setReturnConfirmItem({ open: true, item })} title="退货">
+                              <RotateCcw className="h-3 w-3" /> 退货
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-red-600" onClick={() => handleDelete(item.id)} title="删除"><Trash2 className="h-3 w-3" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1142,6 +1361,46 @@ function InventoryTab() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {items.map(item => (
+            <Card key={item.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-xs text-muted-foreground">{item.skuCode}</span>
+                  <StatusBadge status={item.status} />
+                </div>
+                <p className="font-medium text-sm mb-1 truncate">{item.name || item.skuCode}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                  <span>{item.materialName}</span>
+                  <span>·</span>
+                  <span>{item.typeName || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</span>
+                  <span className="text-xs text-muted-foreground">{item.ageDays != null ? `${item.ageDays}天` : '-'}</span>
+                </div>
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setDetailItemId(item.id)}><Eye className="h-3 w-3 mr-1" />详情</Button>
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-amber-600" onClick={() => setEditItemId(item.id)}><Pencil className="h-3 w-3 mr-1" />编辑</Button>
+                  {item.status === 'in_stock' && (
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-emerald-600" onClick={() => { setSaleDialog({ open: true, item }); setSaleForm({ actualPrice: item.sellingPrice, channel: 'store', saleDate: new Date().toISOString().slice(0, 10), note: '' }); }}>
+                      <DollarSign className="h-3 w-3 mr-1" />出库
+                    </Button>
+                  )}
+                  {item.status === 'sold' && (
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-orange-600" onClick={() => setReturnConfirmItem({ open: true, item })}>
+                      <RotateCcw className="h-3 w-3 mr-1" />退货
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-red-600" onClick={() => handleDelete(item.id)}><Trash2 className="h-3 w-3" /></Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        </>
       )}
 
       {/* Pagination */}
@@ -1180,6 +1439,32 @@ function InventoryTab() {
 
       {/* Item Detail Dialog */}
       <ItemDetailDialog itemId={detailItemId} open={detailItemId !== null} onOpenChange={open => { if (!open) setDetailItemId(null); }} />
+
+      {/* Item Edit Dialog */}
+      <ItemEditDialog itemId={editItemId} open={editItemId !== null} onOpenChange={open => { if (!open) setEditItemId(null); }} onSuccess={fetchItems} />
+
+      {/* Return Confirmation Dialog */}
+      <Dialog open={returnConfirmItem.open} onOpenChange={open => setReturnConfirmItem({ open, item: open ? returnConfirmItem.item : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认退货</DialogTitle>
+            <DialogDescription>确定将此货品标记为退货？</DialogDescription>
+          </DialogHeader>
+          {returnConfirmItem.item && (
+            <div className="py-2">
+              <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                <p><span className="text-muted-foreground">SKU:</span> <span className="font-mono">{returnConfirmItem.item.skuCode}</span></p>
+                <p><span className="text-muted-foreground">名称:</span> {returnConfirmItem.item.name || returnConfirmItem.item.skuCode}</p>
+                <p><span className="text-muted-foreground">售价:</span> <span className="font-medium text-emerald-600">{formatPrice(returnConfirmItem.item.sellingPrice)}</span></p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReturnConfirmItem({ open: false, item: null })}>取消</Button>
+            <Button onClick={handleReturn} className="bg-orange-600 hover:bg-orange-700">确认退货</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1393,6 +1678,9 @@ function CustomersTab() {
   const [keyword, setKeyword] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', phone: '', wechat: '', notes: '' });
+  const [expandedCustomerId, setExpandedCustomerId] = useState<number | null>(null);
+  const [customerDetail, setCustomerDetail] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -1404,6 +1692,19 @@ function CustomersTab() {
   }, [pagination.page, keyword]);
 
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
+
+  useEffect(() => {
+    if (expandedCustomerId) {
+      setDetailLoading(true);
+      customersApi.getCustomerDetail(expandedCustomerId).then((data: any) => {
+        setCustomerDetail(data);
+      }).catch(() => {
+        toast.error('加载客户详情失败');
+      }).finally(() => setDetailLoading(false));
+    } else {
+      setCustomerDetail(null);
+    }
+  }, [expandedCustomerId]);
 
   async function handleCreate() {
     try {
@@ -1437,14 +1738,67 @@ function CustomersTab() {
             <Card key={c.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium">{c.name}</h3>
-                  <Badge variant="outline" className="text-xs">{c.customerCode}</Badge>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium">{c.name}</h3>
+                    <Badge variant="outline" className="text-xs">{c.customerCode}</Badge>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setExpandedCustomerId(expandedCustomerId === c.id ? null : c.id)}>
+                    {expandedCustomerId === c.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </Button>
                 </div>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   {c.phone && <p>📞 {c.phone}</p>}
                   {c.wechat && <p>💬 {c.wechat}</p>}
                   {c.notes && <p className="truncate">📝 {c.notes}</p>}
                 </div>
+
+                {/* Expanded Detail */}
+                {expandedCustomerId === c.id && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    {detailLoading ? (
+                      <div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-20" /></div>
+                    ) : customerDetail ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground text-xs">总消费</p>
+                            <p className="font-bold text-emerald-600">
+                              {customerDetail.saleRecords
+                                ? formatPrice(customerDetail.saleRecords.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0))
+                                : '¥0.00'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">购买次数</p>
+                            <p className="font-bold">{customerDetail.saleRecords?.length || 0} 次</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground text-xs">最近购买</p>
+                            <p className="font-medium">{customerDetail.saleRecords?.length > 0
+                              ? customerDetail.saleRecords.sort((a: any, b: any) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())[0]?.saleDate
+                              : '无'}</p>
+                          </div>
+                        </div>
+                        {customerDetail.saleRecords && customerDetail.saleRecords.length > 0 && (
+                          <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
+                            <p className="text-xs font-medium text-muted-foreground">购买记录</p>
+                            {customerDetail.saleRecords.slice(0, 10).map((sr: any) => (
+                              <div key={sr.id} className="flex items-center justify-between text-xs p-1.5 bg-muted/50 rounded">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono">{sr.item?.skuCode || sr.saleNo}</span>
+                                  <Badge variant="outline" className="text-[10px] h-4">{sr.channel === 'store' ? '门店' : '微信'}</Badge>
+                                </div>
+                                <span className="font-medium text-emerald-600">{formatPrice(sr.actualPrice)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">无法加载详情</p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -1732,6 +2086,12 @@ function DesktopNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
 // ========== Main Page ==========
 export default function JadeInventoryPage() {
   const { activeTab, setActiveTab } = useAppStore();
+  const [animKey, setAnimKey] = useState(0);
+
+  const handleTabChange = (tab: TabId) => {
+    setActiveTab(tab);
+    setAnimKey(k => k + 1);
+  };
 
   const renderTab = () => {
     switch (activeTab) {
@@ -1747,11 +2107,13 @@ export default function JadeInventoryPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <DesktopNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} />
       <main className="flex-1 px-4 py-4 md:px-6 md:py-6 pb-20 md:pb-6 max-w-7xl mx-auto w-full">
-        {renderTab()}
+        <div key={animKey} className="tab-fade-in">
+          {renderTab()}
+        </div>
       </main>
-      <MobileNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <MobileNav activeTab={activeTab} onTabChange={handleTabChange} />
       <footer className="mt-auto hidden md:block border-t border-border bg-card py-3">
         <div className="container mx-auto px-4 flex items-center justify-between text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5"><Gem className="h-4 w-4 text-emerald-600" />玉器进销存管理系统</span>

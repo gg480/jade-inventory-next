@@ -36,6 +36,7 @@ export async function GET(req: Request) {
       spec: true,
       tags: true,
       images: { where: { isCover: true }, take: 1 },
+      batch: { select: { purchaseDate: true, batchCode: true } },
     },
     orderBy: { createdAt: 'desc' },
     skip: (page - 1) * size,
@@ -44,11 +45,14 @@ export async function GET(req: Request) {
 
   const today = new Date();
   const itemsWithExtras = items.map(item => {
-    const ageDays = item.purchaseDate
-      ? Math.floor((today.getTime() - new Date(item.purchaseDate).getTime()) / (1000 * 60 * 60 * 24))
+    // For batch items, inherit purchaseDate from batch
+    const effectivePurchaseDate = item.purchaseDate || item.batch?.purchaseDate || null;
+    const ageDays = effectivePurchaseDate
+      ? Math.floor((today.getTime() - new Date(effectivePurchaseDate).getTime()) / (1000 * 60 * 60 * 24))
       : null;
     return {
       ...item,
+      purchaseDate: effectivePurchaseDate,
       materialName: item.material?.name,
       typeName: item.type?.name,
       ageDays,
@@ -95,36 +99,55 @@ export async function POST(req: Request) {
   const { skuCode, name, batchId, materialId, typeId, costPrice, sellingPrice, floorPrice, origin, counter, certNo, notes, supplierId, purchaseDate, tagIds, spec } = body;
 
   try {
-    // Auto-generate SKU if not provided
-    const finalSkuCode = skuCode || await generateSkuCode(materialId);
+    // For batch items, get materialId from batch if not provided
+    let finalMaterialId = materialId;
+    let batchData: any = null;
+    if (batchId && !materialId) {
+      batchData = await db.batch.findUnique({ where: { id: batchId }, include: { material: true } });
+      if (batchData) finalMaterialId = batchData.materialId;
+    }
 
-    // For high-value items (no batch), allocatedCost = costPrice
+    // Auto-generate SKU if not provided
+    const finalSkuCode = skuCode || await generateSkuCode(finalMaterialId);
+
+    // For batch items, allocatedCost will be set after allocation; for high-value items, allocatedCost = costPrice
     const allocatedCost = !batchId && costPrice ? costPrice : null;
+
+    // Convert spec fields to proper types
+    const specData: any = spec ? { ...spec } : null;
+    if (specData) {
+      if (specData.weight != null && specData.weight !== '') specData.weight = parseFloat(specData.weight);
+      else delete specData.weight;
+      if (specData.metalWeight != null && specData.metalWeight !== '') specData.metalWeight = parseFloat(specData.metalWeight);
+      else delete specData.metalWeight;
+      if (specData.beadCount != null && specData.beadCount !== '') specData.beadCount = parseInt(specData.beadCount);
+      else delete specData.beadCount;
+    }
 
     const item = await db.item.create({
       data: {
         skuCode: finalSkuCode,
         name,
         batchCode: batchId ? (await db.batch.findUnique({ where: { id: batchId } }))?.batchCode : null,
-        batchId,
-        materialId,
-        typeId,
-        costPrice,
+        batchId: batchId || null,
+        materialId: finalMaterialId,
+        typeId: typeId || null,
+        costPrice: costPrice ?? null,
         allocatedCost,
         sellingPrice,
-        floorPrice,
-        origin,
-        counter,
-        certNo,
-        notes,
-        supplierId,
-        purchaseDate,
+        floorPrice: floorPrice ?? null,
+        origin: origin || null,
+        counter: counter ? parseInt(counter) : null,
+        certNo: certNo || null,
+        notes: notes || null,
+        supplierId: supplierId || null,
+        purchaseDate: purchaseDate || null,
         status: 'in_stock',
         ...(tagIds?.length ? {
           tags: { connect: tagIds.map((id: number) => ({ id })) },
         } : {}),
-        ...(spec ? {
-          spec: { create: spec },
+        ...(specData && Object.keys(specData).length > 0 ? {
+          spec: { create: specData },
         } : {}),
       },
       include: { material: true, type: true, spec: true, tags: true },
