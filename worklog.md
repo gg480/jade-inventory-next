@@ -545,6 +545,106 @@ Stage Summary:
 
 ---
 
+## Task 13: 功能增强 — 客户搜索、日志增强、渠道徽章、批次徽章 (2026-04-13)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（aba7808..2bf0458 main → main）
+- ✅ API 验证通过（Customers:5, Items:34, Pending Batches:6）
+- ⚠️ agent-browser 仍然无法与 dev server 同时运行（容器OOM限制，已确认为环境问题）
+
+### 本轮完成的6项新功能
+
+#### 1. 客户搜索增强 (customers-tab.tsx)
+- 新增搜索输入框（放大镜图标 + 300ms防抖自动搜索）
+- 实时过滤：按名称/电话/微信搜索
+- 显示匹配结果数："找到 N 个客户"
+- 空结果/无客户两种不同的 EmptyState 提示
+- 卡片网格 `animate-in fade-in-0 duration-200` 入场动画
+
+#### 2. 操作日志增强 (logs-tab.tsx)
+- 每条日志根据操作类型显示不同图标：
+  - CREATE → Plus (绿色), UPDATE → Pencil (琥珀色), DELETE → Trash2 (红色)
+  - SALE → ShoppingCart (蓝色), RETURN → RotateCcw (橙色), LOGIN → LogIn (紫色)
+  - 默认 → FileText (灰色)
+- 桌面行/移动端卡片添加彩色左边框（颜色与图标对应）
+- 新增 `formatRelativeTime()` 相对时间函数：
+  - "刚刚"、"3分钟前"、"1小时前"、"2天前"、"1个月前"
+  - hover 时显示完整时间戳
+
+#### 3. 销售渠道徽章 (sales-tab.tsx)
+- 门店渠道 → 蓝色 Badge（Store 图标）
+- 微信渠道 → 绿色 Badge（MessageCircle 图标）
+- null 安全检查（channel 字段可能不存在）
+- 桌面端渠道列位置调整（SKU和售价之间）
+- 移动端卡片视图同步显示
+- 支持暗色模式
+
+#### 4. 批次创建预选 (batch-create-dialog.tsx)
+- 新增 `initialMaterialId` 和 `initialSupplierId` 可选 props
+- 打开对话框时自动填充表单
+- 根据选择的材质自动推断材质大类
+
+#### 5. 移动端批次徽章 (navigation.tsx)
+- "批次"Tab 上显示红色待录入徽章
+- 每60秒自动刷新批次数据
+- 使用 `cancelled` flag 防止组件卸载后继续更新状态
+- 无待录入批次时徽章消失
+
+#### 6. Ctrl+K 搜索增强 (page.tsx)
+- 替换单一选择器为多选择器回退策略
+- 依次尝试: `input[placeholder*="SKU"]` → `input[name="search"]` → `[data-testid="inventory-search"]`
+- 200ms + 500ms 双超时机制（替代原100ms单次尝试）
+
+### 未修改（已确认无需改动）
+- Settings 材质子类/产地字段 — 已完整实现（Prisma schema + 表单 + 表格）
+
+### 验证结果
+- `bun run lint` — 0 errors, 0 warnings
+- API 验证 — Customers:5, Items:34, Pending Batches:6
+
+### 关键文件变更
+- `src/components/inventory/customers-tab.tsx` — 搜索框 + 防抖 + 结果计数 + 空状态
+- `src/components/inventory/logs-tab.tsx` — 操作类型图标 + 彩色边框 + 相对时间
+- `src/components/inventory/sales-tab.tsx` — 渠道徽章（门店蓝/微信绿）+ 暗色模式
+- `src/components/inventory/batch-create-dialog.tsx` — initialMaterialId/initialSupplierId 预选
+- `src/components/inventory/navigation.tsx` — 移动端批次待录入红色徽章 + 60s刷新
+- `src/app/page.tsx` — Ctrl+K 搜索增强（多选择器 + 双超时）
+
+### 下一阶段优先建议
+1. 🟡 数据导出Excel增强（支持自定义列和筛选条件）
+2. 🟡 批量操作UI增强（选中体验优化）
+3. 🟡 图片缩略图生成（上传时自动生成，列表显示缩略图）
+4. 🟡 界面字段全面中文化（扫描是否有遗漏英文字段）
+5. 🟡 手机端摄像头扫码快速出库（已有html5-qrcode基础）
+6. 🟢 登录认证增强（JWT持久化到数据库）
+7. 🟢 供应商联系人电话一键拨打（移动端tel:链接）
+
+---
+
+Task ID: 13
+Agent: cron-agent
+Task: QA + 功能增强
+
+Work Log:
+- 读取 worklog.md 了解完整历史
+- bun run lint → 0 errors, 0 warnings
+- 启动 dev server + API 测试 → 全部通过
+- agent-browser QA → 确认容器OOM限制（已知问题）
+- full-stack-developer 子代理完成6项功能增强
+- 最终 lint → 0 errors, 0 warnings
+- API 验证 → 通过
+- GitHub 推送 → 成功 (aba7808..2bf0458)
+- 更新 worklog.md
+
+Stage Summary:
+- 6项功能增强（客户搜索 + 日志图标/相对时间 + 渠道徽章 + 批次预选 + 移动端批次徽章 + 搜索增强）
+- 7 files changed, 231 insertions, 37 deletions
+- 所有API和代码验证通过
+- 建议：下一轮优先数据导出/批量操作/缩略图
+
+---
+
 ## Task 13: 7-Tab Enhancement Sprint (2026-06-18)
 
 ### 项目状态判断
