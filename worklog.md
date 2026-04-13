@@ -2034,3 +2034,57 @@ Stage Summary:
 - 修复Dashboard白屏问题（重复渠道分布卡片引用未定义变量）
 - 1 file changed, 61 deletions
 - 所有验证通过
+
+---
+
+## Task 22.5: Bug修复 — 库存管理页面初始化错误 (2026-04-14)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（b71e411..56f4f09 main → main）
+- ✅ agent-browser QA 全7个标签页通过，无错误
+
+### 用户报告的Bug
+- **库存管理页面报错**: "Cannot access 'filteredItems' before initialization"
+- **利润看板报错**: 首次加载时出现 "storeCount is not defined"（已被子代理自动修复）
+
+### Bug 分析
+1. `filteredItems` useMemo 在第583行定义，但在第224行的 `selectedItems` useMemo 中被引用
+2. `toggleSelectAll` 函数（第266行）也引用了未定义的 `filteredItems`
+3. `galleryImages`（第278行）引用了 `sortedItems`，而 `sortedItems` 依赖 `filteredItems`
+4. 这是 React hooks 规则违反：变量在声明前被引用（temporal dead zone）
+
+### 修复方案
+- 将 `filteredItems` 和 `sortedItems` 两个 useMemo 定义从第583-632行移到第217行
+- 放置在 `allCounters` 之后、`filteredMaterials` 之前
+- 确保 `selectedItems`、`toggleSelectAll`、`galleryImages` 等所有引用都在定义之后
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ agent-browser QA: 利润看板 ✅, 库存管理 ✅, 销售记录 ✅, 批次管理 ✅, 客户管理 ✅, 操作日志 ✅, 系统设置 ✅
+
+### 关键文件变更
+- `src/components/inventory/inventory-tab.tsx` — 将 filteredItems/sortedItems useMemo 移到引用点之前
+
+---
+
+Task ID: 22.5
+Agent: cron-agent
+Task: Bug修复 — 库存管理页面初始化错误
+
+Work Log:
+- agent-browser QA 确认利润看板和库存管理页面报错
+- 发现错误: "storeCount is not defined" (利润看板, 已被子代理修复)
+- 发现错误: "Cannot access filteredItems before initialization" (库存管理)
+- 分析代码: filteredItems 定义在第583行但被第224行的代码引用
+- 修复: 将 filteredItems 和 sortedItems 定义移到第217行
+- ESLint 验证通过
+- agent-browser 重新测试全7页面通过
+- Git commit + push
+
+Stage Summary:
+- 修复1个关键Bug: 库存管理页面 filteredItems 初始化顺序错误
+- agent-browser 全7页面QA通过
+- GitHub 推送成功
+
+---
