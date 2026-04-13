@@ -4,7 +4,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info, Gem } from 'lucide-react';
 
 // ========== CSS Keyframes ==========
 const fadeInStyle = typeof document !== 'undefined' && !document.getElementById('fade-in-keyframes')
@@ -12,10 +12,12 @@ const fadeInStyle = typeof document !== 'undefined' && !document.getElementById(
       const style = document.createElement('style');
       style.id = 'fade-in-keyframes';
       style.textContent = `
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .tab-fade-in { animation: fadeIn 0.3s ease-out; }
         @keyframes glowPulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 8px 1px rgba(5, 150, 105, 0.15); } }
         .card-glow:hover { animation: glowPulse 1.5s ease-in-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .card-slide-up { animation: slideUp 0.4s ease-out both; }
       `;
       document.head.appendChild(style);
       return true;
@@ -60,7 +62,7 @@ function PaybackBar({ rate }: { rate: number }) {
 function EmptyState({ icon: Icon, title, desc }: { icon: React.ElementType; title: string; desc: string }) {
   return (
     <div className="text-center py-16 px-4">
-      <div className="mx-auto w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+      <div className="mx-auto w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 animate-bounce" style={{ animationDuration: '2s' }}>
         <Icon className="h-8 w-8 text-muted-foreground/50" />
       </div>
       <h3 className="mt-1 text-lg font-medium text-foreground">{title}</h3>
@@ -71,12 +73,33 @@ function EmptyState({ icon: Icon, title, desc }: { icon: React.ElementType; titl
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4 p-4">
-      <Skeleton className="h-8 w-48" />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24" />)}
+    <div className="space-y-6 p-1 animate-pulse">
+      {/* Overview cards skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="bg-muted/50 rounded-xl p-4 space-y-3">
+            <div className="h-3 bg-muted rounded w-16" />
+            <div className="h-7 bg-muted rounded w-24" />
+            <div className="h-3 bg-muted rounded w-32" />
+          </div>
+        ))}
       </div>
-      <Skeleton className="h-64" />
+      {/* Chart skeleton */}
+      <div className="bg-muted/50 rounded-xl p-6 space-y-4">
+        <div className="h-4 bg-muted rounded w-40" />
+        <div className="h-52 bg-muted rounded-lg" />
+      </div>
+      {/* Second row chart skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-muted/50 rounded-xl p-6 space-y-4">
+          <div className="h-4 bg-muted rounded w-36" />
+          <div className="h-44 bg-muted rounded-lg" />
+        </div>
+        <div className="bg-muted/50 rounded-xl p-6 space-y-4">
+          <div className="h-4 bg-muted rounded w-36" />
+          <div className="h-44 bg-muted rounded-lg" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -94,4 +117,65 @@ function InfoTip({ text }: { text: string }) {
   );
 }
 
-export { fadeInStyle, CHART_COLORS, formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, InfoTip };
+// ========== Error Boundary ==========
+interface ErrorFallbackProps {
+  error: Error;
+  retry: () => void;
+}
+
+function ErrorFallback({ error, retry }: ErrorFallbackProps) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+      <div className="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+        <Gem className="h-8 w-8 text-red-500" />
+      </div>
+      <h3 className="text-lg font-medium text-foreground mb-2">页面出错了</h3>
+      <p className="text-sm text-muted-foreground max-w-md mb-4">{error.message || '发生了未知错误，请重试'}</p>
+      <button
+        onClick={retry}
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+      >
+        重试
+      </button>
+    </div>
+  );
+}
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+      return <ErrorFallback error={this.state.error!} retry={this.handleRetry} />;
+    }
+    return this.props.children;
+  }
+}
+
+const cardSlideUpStyle = fadeInStyle;
+
+export { fadeInStyle, cardSlideUpStyle, CHART_COLORS, formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, InfoTip, ErrorBoundary, ErrorFallback };

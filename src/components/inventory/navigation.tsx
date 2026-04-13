@@ -33,10 +33,13 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
           const active = activeTab === tab.id;
           return (
             <button key={tab.id} onClick={() => onTabChange(tab.id)}
-              className={`flex-1 flex flex-col items-center justify-center h-full text-[10px] font-medium transition-colors gap-0.5 ${active ? 'text-emerald-600' : 'text-muted-foreground'}`}
+              className={`flex-1 flex flex-col items-center justify-center h-full text-[10px] font-medium transition-all gap-0.5 ${active ? 'text-emerald-600' : 'text-muted-foreground'}`}
             >
-              <Icon className="h-5 w-5" />
+              <div className={`transition-transform ${active ? 'scale-110' : ''}`}>
+                <Icon className="h-5 w-5" />
+              </div>
               <span>{tab.label}</span>
+              {active && <div className="w-1 h-1 rounded-full bg-emerald-500 mt-0.5" />}
             </button>
           );
         })}
@@ -121,7 +124,7 @@ function DesktopNav({ activeTab, onTabChange, onLogout }: { activeTab: TabId; on
         <div className="container mx-auto px-4">
           <div className="flex items-center h-14">
             <div className="flex items-center mr-8">
-              <Gem className="h-5 w-5 text-emerald-600 mr-2" />
+              <Gem className="h-5 w-5 text-emerald-600 mr-2 animate-pulse" style={{ animationDuration: '3s' }} />
               <span className="text-lg font-bold text-emerald-600">玉器进销存</span>
             </div>
             <div className="flex space-x-1 flex-1">
@@ -130,7 +133,7 @@ function DesktopNav({ activeTab, onTabChange, onLogout }: { activeTab: TabId; on
                 const active = activeTab === tab.id;
                 return (
                   <button key={tab.id} onClick={() => onTabChange(tab.id)}
-                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors flex items-center gap-1.5 ${active ? 'text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/30' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-out flex items-center gap-1.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${active ? 'text-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 dark:text-emerald-300 dark:from-emerald-950/40 dark:to-teal-950/40 border-b-2 border-emerald-500 shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                   >
                     <Icon className="h-4 w-4" />{tab.label}
                   </button>

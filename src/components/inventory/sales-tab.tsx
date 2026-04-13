@@ -19,14 +19,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
-  CalendarDays, Trophy, Users,
+  CalendarDays,
 } from 'lucide-react';
 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
-
-const CHART_COLORS = ['#059669', '#0284c7', '#d97706', '#7c3aed', '#dc2626', '#0891b2'];
 
 // ========== Sales Tab ==========
 function SalesTab() {

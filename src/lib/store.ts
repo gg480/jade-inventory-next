@@ -5,8 +5,6 @@ export type TabId = 'dashboard' | 'inventory' | 'sales' | 'batches' | 'customers
 interface AppState {
   activeTab: TabId;
   setActiveTab: (tab: TabId) => void;
-  sidebarOpen: boolean;
-  setSidebarOpen: (open: boolean) => void;
   selectedItems: Set<number>;
   toggleItem: (id: number) => void;
   clearSelection: () => void;
@@ -18,8 +16,6 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   activeTab: 'dashboard',
   setActiveTab: (tab) => set({ activeTab: tab }),
-  sidebarOpen: false,
-  setSidebarOpen: (open) => set({ sidebarOpen: open }),
   selectedItems: new Set(),
   toggleItem: (id) =>
     set((state) => {

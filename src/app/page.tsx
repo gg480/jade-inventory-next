@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { useAppStore, TabId } from '@/lib/store';
-import { fadeInStyle } from '@/components/inventory/shared';
-import DashboardTab from '@/components/inventory/dashboard-tab';
-import InventoryTab from '@/components/inventory/inventory-tab';
+import { fadeInStyle, cardSlideUpStyle, ErrorBoundary, LoadingSkeleton } from '@/components/inventory/shared';
 import SalesTab from '@/components/inventory/sales-tab';
 import BatchesTab from '@/components/inventory/batches-tab';
 import CustomersTab from '@/components/inventory/customers-tab';
 import LogsTab from '@/components/inventory/logs-tab';
-import SettingsTab from '@/components/inventory/settings-tab';
+
+const DashboardTab = lazy(() => import('@/components/inventory/dashboard-tab'));
+const InventoryTab = lazy(() => import('@/components/inventory/inventory-tab'));
+const SettingsTab = lazy(() => import('@/components/inventory/settings-tab'));
 import LoginPage from '@/components/inventory/login-page';
 import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
 import { Gem, Package, ShoppingCart, Zap, Clock, LogOut } from 'lucide-react';
@@ -20,8 +21,9 @@ import {
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 
-// Ensure fade-in keyframes are injected
+// Ensure keyframes are injected
 void fadeInStyle;
+void cardSlideUpStyle;
 
 // ========== Quick Stats Footer ==========
 function QuickStatsBar() {
@@ -61,52 +63,31 @@ function QuickStatsBar() {
     return () => { clearTimeout(timer); clearInterval(interval); };
   }, []);
 
+  const statItems = [
+    { icon: Package, iconCls: 'text-emerald-600', label: '在库:', val: inventoryValue ?? '...', tip: '当前在库货品总数', valCls: '' },
+    { icon: ShoppingCart, iconCls: 'text-sky-600', label: '今日销售:', val: `${todaySales} 件`, tip: '今日已售出货品数量', valCls: '' },
+    { icon: Zap, iconCls: 'text-amber-600', label: '今日营收:', val: `¥${todayRevenue.toFixed(2)}`, tip: '今日销售总金额', valCls: 'text-emerald-600' },
+    { icon: Clock, iconCls: 'text-orange-500', label: '批次待录入:', val: `${pendingBatches}`, tip: `有 ${pendingBatches} 个批次尚未录入完成`, valCls: pendingBatches > 0 ? 'text-orange-600' : '' },
+  ];
+
   return (
     <TooltipProvider>
       <div className="flex items-center gap-4 flex-wrap">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1.5 text-sm cursor-default">
-              <Package className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="text-muted-foreground">在库:</span>
-              <span className="font-semibold">{inventoryValue ?? '...'}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>当前在库货品总数</TooltipContent>
-        </Tooltip>
-        <div className="w-px h-4 bg-border" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1.5 text-sm cursor-default">
-              <ShoppingCart className="h-3.5 w-3.5 text-sky-600" />
-              <span className="text-muted-foreground">今日销售:</span>
-              <span className="font-semibold">{todaySales} 件</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>今日已售出货品数量</TooltipContent>
-        </Tooltip>
-        <div className="w-px h-4 bg-border" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1.5 text-sm cursor-default">
-              <Zap className="h-3.5 w-3.5 text-amber-600" />
-              <span className="text-muted-foreground">今日营收:</span>
-              <span className="font-semibold text-emerald-600">¥{todayRevenue.toFixed(2)}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>今日销售总金额</TooltipContent>
-        </Tooltip>
-        <div className="w-px h-4 bg-border" />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1.5 text-sm cursor-default">
-              <Clock className="h-3.5 w-3.5 text-orange-500" />
-              <span className="text-muted-foreground">批次待录入:</span>
-              <span className={`font-semibold ${pendingBatches > 0 ? 'text-orange-600' : ''}`}>{pendingBatches}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>有 {pendingBatches} 个批次尚未录入完成</TooltipContent>
-        </Tooltip>
+        {statItems.map((s, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <div className="w-px h-4 bg-border" />}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="card-slide-up flex items-center gap-1.5 text-sm cursor-default" style={{ animationDelay: `${i * 0.1}s` }}>
+                  <s.icon className={`h-3.5 w-3.5 ${s.iconCls}`} />
+                  <span className="text-muted-foreground">{s.label}</span>
+                  <span className={`font-semibold ${s.valCls}`}>{s.val}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>{s.tip}</TooltipContent>
+            </Tooltip>
+          </React.Fragment>
+        ))}
       </div>
     </TooltipProvider>
   );
@@ -272,7 +253,11 @@ export default function JadeInventoryPage() {
       <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout} />
       <main className="flex-1 px-4 py-4 md:px-6 md:py-6 pb-20 md:pb-6 max-w-7xl mx-auto w-full">
         <div key={animKey} className="tab-fade-in">
-          {renderTab()}
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSkeleton />}>
+              {renderTab()}
+            </Suspense>
+          </ErrorBoundary>
         </div>
       </main>
       <MobileNav activeTab={activeTab} onTabChange={handleTabChange} />

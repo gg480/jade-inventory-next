@@ -294,7 +294,7 @@ function DashboardTab() {
       {/* ====== 1. Overview Cards ====== */}
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
               <p className="text-sm text-muted-foreground">库存总计</p>
@@ -302,7 +302,7 @@ function DashboardTab() {
               <p className="text-xs text-muted-foreground mt-1">库存货值 {formatPrice(summary.totalStockValue)}</p>
             </CardContent>
           </Card>
-          <Card className="relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className="card-glow relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-20 w-20 text-sky-500" /></div>
               <p className="text-sm text-muted-foreground">本月销售</p>
@@ -310,7 +310,7 @@ function DashboardTab() {
               <p className="text-xs text-muted-foreground mt-1">{summary.monthSoldCount} 件，毛利 {formatPrice(summary.monthProfit)}</p>
             </CardContent>
           </Card>
-          <Card className="relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className="card-glow relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><AlertTriangle className="h-20 w-20 text-red-500" /></div>
               <p className="text-sm text-muted-foreground">压货预警</p>
@@ -318,7 +318,7 @@ function DashboardTab() {
               <p className="text-xs text-muted-foreground mt-1">超过 {minDays} 天未售</p>
             </CardContent>
           </Card>
-          <Card className="relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className="card-glow relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><CheckCircle className="h-20 w-20 text-amber-500" /></div>
               <p className="text-sm text-muted-foreground">已回本批次</p>

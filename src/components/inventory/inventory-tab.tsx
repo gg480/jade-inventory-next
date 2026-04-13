@@ -27,8 +27,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
-  Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUpDown, ArrowUp, ArrowDown, Camera, Layers,
-  ShoppingCart, Tag, MapPin, X, Gem, ImageIcon,
+  Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, Camera, Layers,
+  ShoppingCart, Tag, MapPin, X, Gem,
 } from 'lucide-react';
 
 // ========== Active Filter Tags Component ==========
