@@ -78,8 +78,8 @@ export const itemsApi = {
     request<any>('/items', { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (id: number, data: any) =>
     request<any>(`/items/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteItem: (id: number) =>
-    request<any>(`/items/${id}`, { method: 'DELETE' }),
+  deleteItem: (id: number, hard?: boolean) =>
+    request<any>(`/items/${id}${hard ? '?hard=true' : ''}`, { method: 'DELETE' }),
   createItemsBatch: (data: any) =>
     request<any>('/items/batch', { method: 'POST', body: JSON.stringify(data) }),
   lookupBySku: (sku: string) => request<any>(`/items/lookup?sku=${encodeURIComponent(sku)}`),
@@ -221,6 +221,7 @@ export const dashboardApi = {
     const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
     return request<any>(`/dashboard/aggregate${qs}`);
   },
+  getInventoryValueByCategory: () => request<any[]>(`/dashboard/inventory-value-by-category`),
 };
 
 // ========== Metal Prices ==========

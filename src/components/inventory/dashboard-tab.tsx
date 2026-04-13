@@ -85,6 +85,7 @@ function DashboardTab() {
   const [heatmapData, setHeatmapData] = useState<any>(null);
   const [topSellers, setTopSellers] = useState<any[]>([]);
   const [customerFreq, setCustomerFreq] = useState<any>(null);
+  const [inventoryValueByCategory, setInventoryValueByCategory] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -200,6 +201,7 @@ function DashboardTab() {
         dashboardApi.getTurnover({ months: 6 }),
         dashboardApi.getHeatmap({ months: 3 }),
         dashboardApi.getCustomerFrequency(),
+        dashboardApi.getInventoryValueByCategory(),
       ]);
       const val = <T,>(idx: number, fallback: T) =>
         remainingResults[idx].status === 'fulfilled' ? remainingResults[idx].value as T : fallback;
@@ -217,6 +219,7 @@ function DashboardTab() {
       setTurnoverData(val(10, []));
       setHeatmapData(val(11, null));
       setCustomerFreq(val(12, null));
+      setInventoryValueByCategory(val(13, []));
 
       const failed = remainingResults.map((r, i) => r.status === 'rejected' ? i : -1).filter(i => i >= 0);
       if (failed.length > 0) {
@@ -632,7 +635,7 @@ function DashboardTab() {
         </Card>
       )}
 
-      {/* ====== 4. Counter Profit + Channel Profit ====== */}
+      {/* ====== 4. Counter Profit + Channel Profit + Inventory Value By Category ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4 text-amber-600" />柜台利润分析</CardTitle></CardHeader>
@@ -669,6 +672,35 @@ function DashboardTab() {
                     label={({ channelLabel, percent }: { channelLabel: string; percent: number }) => `${channelLabel} ${(percent * 100).toFixed(0)}%`}
                   >
                     {profitByChannel.map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => formatPrice(v)} />
+                </RPieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+        {/* Inventory Value by Material Category (Pie Chart) */}
+        <Card className="hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Gem className="h-4 w-4 text-emerald-600" />库存货值分布（按材质大类）</CardTitle></CardHeader>
+          <CardContent>
+            {inventoryValueByCategory.length === 0 ? (
+              <EmptyState icon={PieChart} title="暂无数据" desc="还没有在库货品" />
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <RPieChart>
+                  <Pie
+                    data={inventoryValueByCategory}
+                    dataKey="totalValue"
+                    nameKey="category"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={90}
+                    innerRadius={50}
+                    label={({ category, percent }: { category: string; percent: number }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {inventoryValueByCategory.map((_, i) => (
+                      <Cell key={i} fill={['#059669', '#0ea5e9', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#ec4899'][i % 8]} />
+                    ))}
                   </Pie>
                   <Tooltip formatter={(v: number) => formatPrice(v)} />
                 </RPieChart>

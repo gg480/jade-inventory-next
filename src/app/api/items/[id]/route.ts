@@ -101,9 +101,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const hardDelete = searchParams.get('hard') === 'true';
   try {
     const item = await db.item.findUnique({ where: { id: parseInt(id) } });
-    await db.item.update({ where: { id: parseInt(id) }, data: { isDeleted: true } });
+    if (!item) {
+      return NextResponse.json({ code: 404, data: null, message: '未找到' }, { status: 404 });
+    }
+    if (hardDelete) {
+      await db.item.delete({ where: { id: parseInt(id) } });
+    } else {
+      await db.item.update({ where: { id: parseInt(id) }, data: { isDeleted: true } });
+    }
 
     // Log delete_item
     if (item) {
@@ -111,6 +120,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         skuCode: item.skuCode,
         name: item.name,
         status: item.status,
+        hardDelete,
       });
     }
 

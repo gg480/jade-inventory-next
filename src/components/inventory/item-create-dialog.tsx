@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { itemsApi, batchesApi, suppliersApi, dictsApi, pricingApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice } from './shared';
@@ -29,9 +29,11 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
   const [pricingLoading, setPricingLoading] = useState(false);
   const [customFields, setCustomFields] = useState<Record<string, boolean>>({});
 
-  // 级联选择: 大类 → 材质
+  // 级联选择: 大类 → 子类 → 材质
   const [materialCategory, setMaterialCategory] = useState('');
+  const [materialSubType, setMaterialSubType] = useState('');
   const [batchMaterialCategory, setBatchMaterialCategory] = useState('');
+  const [batchMaterialSubType, setBatchMaterialSubType] = useState('');
 
   const [highValueForm, setHighValueForm] = useState({
     materialId: '', typeId: '', costPrice: 0, sellingPrice: 0, name: '',
@@ -66,11 +68,45 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
     }
   }, [open, defaultBatchId, defaultBatchInfo]);
 
-  // 根据大类筛选材质
-  const filteredMaterials = materials.filter((m: any) => {
+  // 根据大类筛选材质（含子类）
+  const filteredByCategory = materials.filter((m: any) => {
     if (!materialCategory) return true;
     return m.category === materialCategory;
   });
+
+  // 动态提取子类列表
+  const subTypes = useMemo(() => {
+    const types = new Set<string>();
+    filteredByCategory.forEach((m: any) => { if (m.subType) types.add(m.subType); });
+    return Array.from(types).sort();
+  }, [filteredByCategory]);
+
+  // 根据大类+子类筛选材质
+  const filteredMaterials = useMemo(() => {
+    return filteredByCategory.filter((m: any) => {
+      if (!materialSubType) return true;
+      return m.subType === materialSubType;
+    });
+  }, [filteredByCategory, materialSubType]);
+
+  // Batch mode 同理
+  const batchFilteredByCategory = useMemo(() => materials.filter((m: any) => {
+    if (!batchMaterialCategory) return true;
+    return m.category === batchMaterialCategory;
+  }), [materials, batchMaterialCategory]);
+
+  const batchSubTypes = useMemo(() => {
+    const types = new Set<string>();
+    batchFilteredByCategory.forEach((m: any) => { if (m.subType) types.add(m.subType); });
+    return Array.from(types).sort();
+  }, [batchFilteredByCategory]);
+
+  const batchFilteredMaterials = useMemo(() => {
+    return batchFilteredByCategory.filter((m: any) => {
+      if (!batchMaterialSubType) return true;
+      return m.subType === batchMaterialSubType;
+    });
+  }, [batchFilteredByCategory, batchMaterialSubType]);
 
   const selectedType = types.find((t: any) => String(t.id) === (mode === 'high_value' ? highValueForm.typeId : batchForm.typeId));
   const specFieldsObj = parseSpecFields(selectedType?.specFields);
@@ -320,7 +356,9 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
       setHighValueForm({ materialId: '', typeId: '', costPrice: 0, sellingPrice: 0, name: '', origin: '', counter: '', certNo: '', notes: '', supplierId: '', purchaseDate: '', weight: '', metalWeight: '', size: '', braceletSize: '', beadCount: '', beadDiameter: '', ringSize: '', tagIds: [] });
       setBatchForm({ batchId: '', sellingPrice: 0, name: '', counter: '', certNo: '', notes: '', weight: '', metalWeight: '', size: '', braceletSize: '', beadCount: '', beadDiameter: '', ringSize: '', tagIds: [] });
       setMaterialCategory('');
+      setMaterialSubType('');
       setBatchMaterialCategory('');
+      setBatchMaterialSubType('');
       onOpenChange(false);
       onSuccess();
     } catch (e: any) {
@@ -350,17 +388,30 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
 
           {mode === 'high_value' ? (
             <>
-              {/* 材质级联选择 */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* 材质级联选择 (3级: 大类 → 子类 → 材质) */}
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1"><Label className="text-xs">材质大类</Label>
-                  <Select value={materialCategory} onValueChange={v => {
+                  <Select value={materialCategory || '_all'} onValueChange={v => {
                     setMaterialCategory(v === '_all' ? '' : v);
+                    setMaterialSubType('');
                     setHighValueForm(f => ({ ...f, materialId: '' }));
                   }}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="全部大类" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_all">全部大类</SelectItem>
                       {MATERIAL_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1"><Label className="text-xs">子类</Label>
+                  <Select value={materialSubType || '_all'} onValueChange={v => {
+                    setMaterialSubType(v === '_all' ? '' : v);
+                    setHighValueForm(f => ({ ...f, materialId: '' }));
+                  }} disabled={!materialCategory}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder={materialCategory ? '全部子类' : '先选大类'} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_all">全部子类</SelectItem>
+                      {subTypes.map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -496,6 +547,33 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
                   <Select value={batchForm.typeId} onValueChange={v => setBatchForm(f => ({ ...f, typeId: v }))}>
                     <SelectTrigger className="h-9"><SelectValue placeholder="选择器型" /></SelectTrigger>
                     <SelectContent>{types.map((t: any) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {/* 批次模式材质级联 (3级: 大类 → 子类 → 材质) */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1"><Label className="text-xs">材质大类</Label>
+                  <Select value={batchMaterialCategory || '_all'} onValueChange={v => setBatchMaterialCategory(v === '_all' ? '' : v)}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="全部大类" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_all">全部大类</SelectItem>
+                      {MATERIAL_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1"><Label className="text-xs">子类</Label>
+                  <Select value={batchMaterialSubType || '_all'} onValueChange={v => setBatchMaterialSubType(v === '_all' ? '' : v)} disabled={!batchMaterialCategory}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder={batchMaterialCategory ? '全部子类' : '先选大类'} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_all">全部子类</SelectItem>
+                      {batchSubTypes.map(st => <SelectItem key={st} value={st}>{st}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1"><Label className="text-xs">材质</Label>
+                  <Select value={''} disabled={true}>
+                    <SelectTrigger className="h-9"><SelectValue placeholder="批次关联材质" /></SelectTrigger>
+                    <SelectContent></SelectContent>
                   </Select>
                 </div>
               </div>

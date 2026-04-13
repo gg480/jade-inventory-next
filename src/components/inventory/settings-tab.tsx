@@ -930,10 +930,20 @@ function SettingsTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1"><Label>子类</Label><Input value={materialForm.subType} onChange={e => setMaterialForm(f => ({ ...f, subType: e.target.value }))} placeholder="如: 籽料、山料" /></div>
-            <div className="space-y-1"><Label>产地</Label><Input value={materialForm.origin} onChange={e => setMaterialForm(f => ({ ...f, origin: e.target.value }))} placeholder="如: 新疆" /></div>
+            <div className="space-y-1"><Label>子类</Label><Input value={materialForm.subType} onChange={e => setMaterialForm(f => ({ ...f, subType: e.target.value }))} placeholder="如: 籽料、山料" list="subTypeOptions" /></div>
+            <div className="space-y-1"><Label>产地</Label><Input value={materialForm.origin} onChange={e => setMaterialForm(f => ({ ...f, origin: e.target.value }))} placeholder="如: 新疆" list="originOptions" /></div>
             <div className="space-y-1"><Label>克重单价</Label><Input type="number" value={materialForm.costPerGram} onChange={e => setMaterialForm(f => ({ ...f, costPerGram: e.target.value }))} placeholder="如: 500" /></div>
           </div>
+          {/* Datalists for auto-suggest */}
+          <datalist id="subTypeOptions">
+            <option value="籽料" /><option value="山料" /><option value="山流水" /><option value="戈壁料" />
+            <option value="k999" /><option value="k990" /><option value="k916" /><option value="k750" /><option value="pt950" /><option value="pt900" />
+            <option value="天然" /><option value="养殖" />
+          </datalist>
+          <datalist id="originOptions">
+            <option value="缅甸" /><option value="新疆和田" /><option value="青海" /><option value="俄罗斯" /><option value="国内" />
+            <option value="巴西" /><option value="斯里兰卡" /><option value="印度" /><option value="哥伦比亚" />
+          </datalist>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateMaterial(false)}>取消</Button>
             <Button onClick={handleCreateMaterial} className="bg-emerald-600 hover:bg-emerald-700" disabled={!materialForm.name}>创建</Button>
@@ -955,10 +965,19 @@ function SettingsTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1"><Label>子类</Label><Input value={materialForm.subType} onChange={e => setMaterialForm(f => ({ ...f, subType: e.target.value }))} /></div>
-            <div className="space-y-1"><Label>产地</Label><Input value={materialForm.origin} onChange={e => setMaterialForm(f => ({ ...f, origin: e.target.value }))} /></div>
+            <div className="space-y-1"><Label>子类</Label><Input value={materialForm.subType} onChange={e => setMaterialForm(f => ({ ...f, subType: e.target.value }))} list="subTypeOptionsEdit" /></div>
+            <div className="space-y-1"><Label>产地</Label><Input value={materialForm.origin} onChange={e => setMaterialForm(f => ({ ...f, origin: e.target.value }))} list="originOptionsEdit" /></div>
             <div className="space-y-1"><Label>克重单价</Label><Input type="number" value={materialForm.costPerGram} onChange={e => setMaterialForm(f => ({ ...f, costPerGram: e.target.value }))} /></div>
           </div>
+          <datalist id="subTypeOptionsEdit">
+            <option value="籽料" /><option value="山料" /><option value="山流水" /><option value="戈壁料" />
+            <option value="k999" /><option value="k990" /><option value="k916" /><option value="k750" /><option value="pt950" /><option value="pt900" />
+            <option value="天然" /><option value="养殖" />
+          </datalist>
+          <datalist id="originOptionsEdit">
+            <option value="缅甸" /><option value="新疆和田" /><option value="青海" /><option value="俄罗斯" /><option value="国内" />
+            <option value="巴西" /><option value="斯里兰卡" /><option value="印度" /><option value="哥伦比亚" />
+          </datalist>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditMaterial(null)}>取消</Button>
             <Button onClick={handleUpdateMaterial} className="bg-emerald-600 hover:bg-emerald-700" disabled={!materialForm.name}>保存修改</Button>

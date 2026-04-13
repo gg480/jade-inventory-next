@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { itemsApi, salesApi, dictsApi, batchesApi, exportApi } from '@/lib/api';
+import { itemsApi, salesApi, dictsApi, batchesApi, exportApi, customersApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAppStore } from '@/lib/store';
 import { formatPrice, StatusBadge, EmptyState, LoadingSkeleton, ConfirmDialog } from './shared';
@@ -121,7 +121,11 @@ function InventoryTab() {
   const [batchCounterOpen, setBatchCounterOpen] = useState(false);
 
   // Batch sell form
-  const [batchSellForm, setBatchSellForm] = useState({ channel: 'store', saleDate: new Date().toISOString().slice(0, 10), useCurrentPrice: true });
+  const [batchSellForm, setBatchSellForm] = useState({ channel: 'store', saleDate: new Date().toISOString().slice(0, 10), useCurrentPrice: true, customerId: '' });
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  // Batch delete options
+  const [batchDeleteHard, setBatchDeleteHard] = useState(false);
 
   // Batch price adjust form
   const [batchPriceForm, setBatchPriceForm] = useState({ mode: 'percent', target: 'sellingPrice', value: '' });
@@ -140,6 +144,7 @@ function InventoryTab() {
   const [deleteConfirmItem, setDeleteConfirmItem] = useState<any>(null);
 
   useEffect(() => { dictsApi.getMaterials().then(setMaterials).catch(() => {}); }, []);
+  useEffect(() => { customersApi.getCustomers().then((d: any) => setCustomers(d?.items || d || [])).catch(() => {}); }, []);
   useEffect(() => { batchesApi.getBatches({ page: 1, size: 1000 }).then(d => setAllBatches(d.items || [])).catch(() => {}); }, []);
 
   // 根据大类筛选材质
@@ -329,6 +334,8 @@ function InventoryTab() {
     setBatchProgress({ current: 0, total: selectedInStockItems.length });
     let successCount = 0;
     let failCount = 0;
+    const selectedCustomer = customers.find((c: any) => String(c.id) === batchSellForm.customerId);
+    const customerName = selectedCustomer?.name || '';
     for (let i = 0; i < selectedInStockItems.length; i++) {
       const item = selectedInStockItems[i];
       setBatchProgress({ current: i + 1, total: selectedInStockItems.length });
@@ -341,7 +348,8 @@ function InventoryTab() {
           actualPrice: price,
           channel: batchSellForm.channel,
           saleDate: batchSellForm.saleDate,
-          note: '批量出库',
+          customerId: batchSellForm.customerId ? Number(batchSellForm.customerId) : undefined,
+          note: `批量出库${customerName ? ` - ${customerName}` : ''}`,
         });
         successCount++;
       } catch {
@@ -352,6 +360,7 @@ function InventoryTab() {
     setBatchProgress(null);
     setBatchSellOpen(false);
     setBatchSellPrices({});
+    setBatchSellForm(f => ({ ...f, customerId: '' }));
     clearSelection();
     fetchItems();
     if (failCount === 0) {
@@ -370,7 +379,7 @@ function InventoryTab() {
       const item = selectedItems[i];
       setBatchProgress({ current: i + 1, total: selectedItems.length });
       try {
-        await itemsApi.deleteItem(item.id);
+        await itemsApi.deleteItem(item.id, batchDeleteHard);
         successCount++;
       } catch {
         failCount++;
@@ -379,10 +388,11 @@ function InventoryTab() {
     setBatchLoading(false);
     setBatchProgress(null);
     setBatchDeleteOpen(false);
+    setBatchDeleteHard(false);
     clearSelection();
     fetchItems();
     if (failCount === 0) {
-      toast.success(`批量删除成功！共 ${successCount} 件`);
+      toast.success(`批量删除成功！共 ${successCount} 件${batchDeleteHard ? '（彻底删除）' : '（标记删除）'}`);
     } else {
       toast.warning(`批量删除完成：成功 ${successCount} 件，失败 ${failCount} 件`);
     }
@@ -780,7 +790,12 @@ function InventoryTab() {
                       </TableCell>
                       <TableCell className="w-12 px-2">
                         {item.coverImage ? (
-                          <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted" loading="lazy" />
+                          <div className="relative group/img">
+                            <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted" loading="lazy" />
+                            <div className="absolute left-12 top-0 z-10 hidden group-hover/img:block pointer-events-none">
+                              <img src={item.coverImage} alt="" className="w-[120px] h-[120px] rounded-lg object-cover shadow-lg border border-border bg-background" />
+                            </div>
+                          </div>
                         ) : (
                           <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
                             <Gem className="h-4 w-4 text-muted-foreground/50" />
@@ -1029,12 +1044,24 @@ function InventoryTab() {
               </ScrollArea>
             </div>
             {/* Common fields */}
-            <div className="space-y-1">
-              <Label>销售渠道</Label>
-              <Select value={batchSellForm.channel} onValueChange={v => setBatchSellForm(f => ({ ...f, channel: v }))} disabled={batchLoading}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="store">门店</SelectItem><SelectItem value="wechat">微信</SelectItem></SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>客户</Label>
+                <Select value={batchSellForm.customerId || '_none'} onValueChange={v => setBatchSellForm(f => ({ ...f, customerId: v === '_none' ? '' : v }))} disabled={batchLoading}>
+                  <SelectTrigger><SelectValue placeholder="无（散客）" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">无（散客）</SelectItem>
+                    {customers.map((c: any) => <SelectItem key={c.id} value={String(c.id)}>{c.name}{c.phone ? ` (${c.phone})` : ''}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>销售渠道</Label>
+                <Select value={batchSellForm.channel} onValueChange={v => setBatchSellForm(f => ({ ...f, channel: v }))} disabled={batchLoading}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="store">门店</SelectItem><SelectItem value="wechat">微信</SelectItem></SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1">
               <Label>销售日期</Label>
@@ -1052,17 +1079,21 @@ function InventoryTab() {
               />
               <Label htmlFor="useCurrentPrice" className="text-sm cursor-pointer">使用当前售价作为成交价</Label>
             </div>
-            {selectedInStockItems.length > 0 && (
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg text-sm">
-                <p className="text-muted-foreground">预计总营收：</p>
-                <p className="text-lg font-bold text-emerald-600">
-                  {formatPrice(selectedInStockItems.reduce((sum, i) => {
-                    if (batchSellForm.useCurrentPrice) return sum + (i.sellingPrice || 0);
-                    return sum + (batchSellPrices[i.id] ?? (i.sellingPrice || 0));
-                  }, 0))}
-                </p>
-              </div>
-            )}
+            {selectedInStockItems.length > 0 && (() => {
+              const totalValue = selectedInStockItems.reduce((sum, i) => {
+                if (batchSellForm.useCurrentPrice) return sum + (i.sellingPrice || 0);
+                return sum + (batchSellPrices[i.id] ?? (i.sellingPrice || 0));
+              }, 0);
+              const selectedCustomer = customers.find((c: any) => String(c.id) === batchSellForm.customerId);
+              return (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg text-sm">
+                  <p className="text-muted-foreground">
+                    {selectedInStockItems.length} 件货品，总售价 {formatPrice(totalValue)}
+                    {selectedCustomer && <span className="ml-1">→ 客户：{selectedCustomer.name}</span>}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBatchSellOpen(false)} disabled={batchLoading}>取消</Button>
@@ -1082,7 +1113,7 @@ function InventoryTab() {
               批量删除确认
             </AlertDialogTitle>
             <AlertDialogDescription>
-              此操作将永久删除选中的 <span className="text-red-600 font-bold">{selectedIds.size}</span> 件货品，此操作不可撤销。
+              即将删除 <span className="text-red-600 font-bold">{selectedIds.size}</span> 件货品，请确认操作。
             </AlertDialogDescription>
           </AlertDialogHeader>
           {/* Progress indicator */}
@@ -1097,20 +1128,29 @@ function InventoryTab() {
               </div>
             </div>
           )}
+          {/* Scrollable list of items */}
           <ScrollArea className="max-h-48">
             <div className="space-y-1 py-2">
-              {selectedItems.slice(0, 5).map(item => (
+              {selectedItems.map(item => (
                 <div key={item.id} className="flex items-center justify-between text-sm py-1 px-2 rounded bg-red-50 dark:bg-red-950/20">
                   <span className="font-mono text-xs">{item.skuCode}</span>
                   <span className="truncate mx-2 text-xs">{item.name || item.skuCode}</span>
                   <span className="font-medium whitespace-nowrap">{formatPrice(item.sellingPrice)}</span>
                 </div>
               ))}
-              {selectedItems.length > 5 && (
-                <p className="text-xs text-muted-foreground text-center pt-1">等 {selectedItems.length} 件</p>
-              )}
             </div>
           </ScrollArea>
+          {/* Soft/Hard delete toggle */}
+          <div className="flex items-center gap-2 py-1">
+            <Checkbox
+              id="hardDelete"
+              checked={batchDeleteHard}
+              onCheckedChange={(checked) => setBatchDeleteHard(!!checked)}
+              disabled={batchLoading}
+            />
+            <Label htmlFor="hardDelete" className="text-sm cursor-pointer text-red-600 font-medium">彻底删除</Label>
+            <span className="text-xs text-muted-foreground">（不勾选则为仅标记删除，可恢复）</span>
+          </div>
           <AlertDialogFooter>
             <Button variant="outline" onClick={() => setBatchDeleteOpen(false)} disabled={batchLoading}>取消</Button>
             <Button onClick={handleBatchDelete} disabled={batchLoading} className="bg-red-600 hover:bg-red-700">
