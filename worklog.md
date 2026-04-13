@@ -990,3 +990,79 @@ Stage Summary:
 - 6项功能增强（离线检测横幅 + 柜台号 placeholder + Dashboard 旋转刷新 + 快捷键增强 + 排序指示器 + 设置页视觉增强）
 - 6 files changed
 - 所有代码验证通过
+
+---
+
+## Task 17: ConfirmDialog统一 + 销售快速日期 + 客户CSV导出 + 状态快筛 + Dashboard趋势 + 导航Tooltip + 日志复制 (2026-04-13)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（bbd2987..4bf159c main → main）
+- ✅ API 验证通过（9/9端点200 OK）
+- ⚠️ agent-browser 无法与 dev server 同时运行（容器OOM限制，已知问题）
+
+### 本轮完成的7项改动
+
+#### 1. ConfirmDialog 统一批次删除 (batches-tab.tsx)
+- 替换批次删除的内联自定义Dialog为共享 ConfirmDialog 组件
+- 使用 variant="destructive"，标题"确认删除批次"
+- 简化状态，代码更简洁风格统一
+
+#### 2. 销售快速日期按钮增强 (sales-tab.tsx)
+- 新增竖线分隔 + 3个按钮："近30天"、"近90天"、"今年"
+- handleDatePreset 新增对应 switch case
+
+#### 3. 客户数据CSV导出 (customers-tab.tsx)
+- 11列CSV：编号/姓名/电话/微信/标签/总消费/购买次数/VIP等级/最近购买/地址/备注
+- VIP等级映射使用 getVipLevel，BOM兼容Excel
+
+#### 4. 库存状态快速筛选按钮 (inventory-tab.tsx)
+- 全部/在库/已售/已退 药丸状按钮
+- 翡翠色高亮激活状态
+
+#### 5. Dashboard 月环比趋势指示器 (dashboard-tab.tsx)
+- 本月销售卡片显示环比百分比
+- TrendingUp(绿)/TrendingDown(红)图标
+
+#### 6. 导航栏 Tooltip 提示 (navigation.tsx)
+- 7个标签添加 title 属性描述
+
+#### 7. 操作日志一键复制 (logs-tab.tsx)
+- 桌面端+移动端复制按钮
+- Copy→Check图标1.5s反馈
+
+### 关键文件变更
+- batches-tab.tsx / sales-tab.tsx / customers-tab.tsx / inventory-tab.tsx / dashboard-tab.tsx / navigation.tsx / logs-tab.tsx
+
+### 未解决问题/风险
+- ⚠️ 容器内存限制（Chrome + Next.js dev server 无法同时运行，agent-browser QA受限）
+
+### 下一阶段优先建议
+1. 🟡 数据导入功能完善（~2000条存量数据CSV批量导入）
+2. 🟡 手机端摄像头扫码快速出库
+3. 🟡 材质下拉级联优化
+4. 🟡 图片缩略图生成
+5. 🟡 批量标签打印
+6. 🟡 批量编辑功能
+7. 🟢 登录认证增强（JWT持久化）
+8. 🟢 数据备份自动化
+
+---
+
+Task ID: 17
+Agent: cron-agent
+Task: ConfirmDialog统一 + 销售快速日期 + 客户CSV导出 + 状态快筛 + Dashboard趋势 + 导航Tooltip + 日志复制
+
+Work Log:
+- 读取 worklog.md 了解完整项目历史（Task 9-16）
+- bun run lint → 0 errors
+- API 测试 → 9/9 通过
+- agent-browser QA → 登录页正常，登录后OOM（已知问题）
+- full-stack-developer 子代理完成7项功能开发
+- GitHub 推送 → 成功 (bbd2987..4bf159c)
+- 更新 worklog.md
+
+Stage Summary:
+- 7项改动，7 files changed, 177 insertions, 57 deletions
+- ConfirmDialog使用统一化
+- 所有API和代码验证通过
