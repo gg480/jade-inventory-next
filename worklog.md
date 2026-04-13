@@ -798,3 +798,106 @@ Stage Summary:
 - 7 files changed, 89 insertions, 40 deletions
 - 中文化审查结果：全项目仅1处可见英文（已修复），11处Recharts内部key（已全部中文化）
 - 所有API和代码验证通过
+
+---
+
+## Task 15: 批量操作增强 + 库存CSV导出 + ConfirmDialog + 卡片悬停 + 回到顶部 (2026-04-13)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（93e1906..a7eafc7 main → main）
+- ✅ API 验证通过（Homepage:200, Items:20, Sales:200, Customers:200, Batches:200）
+- ⚠️ agent-browser 仍然无法与 dev server 同时运行（容器OOM限制，已知问题）
+
+### 本轮完成的5项改动
+
+#### 1. 批量选择浮动操作栏 (inventory-tab.tsx)
+- 替换旧的居中浮动条为**翡翠色全宽浮动栏**：
+  - 位置: `fixed bottom-14 md:bottom-0 left-0 right-0 z-30`
+  - 背景: `bg-emerald-600 dark:bg-emerald-700` 带阴影
+  - 内容: "已选择 N 件货品" + 操作按钮（批量出库/批量删除/批量调价/取消选择）
+  - `animate-in slide-in-from-bottom-2 duration-200` 入场动画
+  - 仅 `selectedIds.size > 0` 时显示
+- 移动端新增"选择全部"按钮（CheckSquare图标，`md:hidden`）
+- 桌面端全选复选框已存在于表头
+
+#### 2. 库存CSV导出 (inventory-tab.tsx)
+- 新增 `handleExportCSV()` 客户端生成CSV：
+  - CSV列: SKU, 名称, 器型, 材质, 状态, 成本, 售价, 采购日期, 柜台号
+  - 状态映射: in_stock→在库, sold→已售, returned→已退
+  - BOM兼容Excel UTF-8，引号/逗号转义
+  - 下载为 `库存数据_YYYY-MM-DD.csv`
+- "导出CSV"按钮（FileDown图标）位于"新增入库"旁
+- 原服务端导出按钮改名为"完整导出"以区分
+
+#### 3. ConfirmDialog 通用确认组件 (shared.tsx)
+- 新建 `ConfirmDialog` 组件，使用 shadcn AlertDialog：
+  - Props: open, onOpenChange, title, description, confirmText, cancelText, variant, onConfirm
+  - `variant='destructive'` → 红色确认按钮（危险操作）
+  - `variant='default'` → 翡翠色确认按钮（普通操作）
+  - 平滑动画
+- 已替换2处使用：
+  - `inventory-tab.tsx`: 单个货品删除确认 → ConfirmDialog
+  - `customers-tab.tsx`: 客户删除确认 → ConfirmDialog
+
+#### 4. 卡片悬停微交互
+- **客户卡片** (customers-tab.tsx): `hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`
+- **批次卡片** (batches-tab.tsx 移动端): 同样悬停上浮+阴影效果
+- **Dashboard图表卡片** (dashboard-tab.tsx): 12个图表Card添加 `hover:shadow-md transition-shadow duration-300`
+
+#### 5. 回到顶部按钮 (page.tsx)
+- `showScrollTop` 状态追踪滚动位置（`scrollY > 300` 时显示）
+- 浮动按钮: `fixed bottom-20 md:bottom-6 right-4 z-20`
+- 样式: 圆形翡翠色 `h-9 w-9 rounded-full bg-emerald-600` 带阴影
+- ArrowUp 图标 + `window.scrollTo({ top: 0, behavior: 'smooth' })`
+- `transition-opacity duration-200` 淡入淡出
+- `aria-label="回到顶部"` 无障碍
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ API 验证 — Homepage/Items/Sales/Customers/Batches 全部 200 OK
+
+### 关键文件变更
+- `src/components/inventory/inventory-tab.tsx` — 浮动操作栏 + 库存CSV导出 + ConfirmDialog替换
+- `src/components/inventory/shared.tsx` — ConfirmDialog 通用组件
+- `src/components/inventory/customers-tab.tsx` — 卡片悬停 + ConfirmDialog替换
+- `src/components/inventory/batches-tab.tsx` — 移动端卡片悬停
+- `src/components/inventory/dashboard-tab.tsx` — 12个图表卡片悬停阴影
+- `src/app/page.tsx` — 回到顶部按钮
+
+### 未解决问题/风险
+- ⚠️ 容器内存限制（Chrome + Next.js dev server 无法同时运行，agent-browser QA受限）
+
+### 下一阶段优先建议
+1. 🟡 数据导入功能完善（~2000条存量数据CSV批量导入，含模板下载+预览）
+2. 🟡 手机端摄像头扫码快速出库（已有html5-qrcode基础，优化交互流程）
+3. 🟡 材质下拉级联优化（材质→子类→产地三级联动）
+4. 🟡 图片缩略图生成（上传时自动生成，减少大图加载延迟）
+5. 🟡 柜台号必填验证（入库时校验）
+6. 🟡 批量标签打印（选中货品后批量打印SKU标签）
+7. 🟢 登录认证增强（JWT持久化到数据库，支持多用户）
+8. 🟢 数据备份自动化（定时自动备份SQLite数据库）
+9. 🟢 离线检测（网络断开时显示提示条）
+
+---
+
+Task ID: 15
+Agent: cron-agent
+Task: QA + 批量操作增强 + 库存CSV导出 + ConfirmDialog + 卡片悬停 + 回到顶部
+
+Work Log:
+- 读取 worklog.md 了解完整项目历史
+- bun run lint → 0 errors, 0 warnings
+- 启动 dev server + API 测试 → 全部通过
+- agent-browser QA → 确认容器OOM限制（已知问题）
+- full-stack-developer 子代理完成5项功能开发
+- 最终 lint → 0 errors, 0 warnings
+- 最终 API 验证 → 通过
+- GitHub 推送 → 成功 (93e1906..a7eafc7)
+- 更新 worklog.md
+
+Stage Summary:
+- 5项改动（批量浮动操作栏 + 库存CSV导出 + ConfirmDialog通用组件 + 卡片悬停微交互 + 回到顶部按钮）
+- 6 files changed, 196 insertions, 128 deletions
+- ConfirmDialog 已替换2处内联确认（库存删除 + 客户删除），可在后续继续替换更多
+- 所有API和代码验证通过
