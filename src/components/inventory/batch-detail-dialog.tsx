@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { batchesApi, itemsApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, StatusBadge, PaybackBar, InfoTip } from './shared';
@@ -29,6 +29,14 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
   const [quickAdd, setQuickAdd] = useState(false);
   const [quickForm, setQuickForm] = useState({ name: '', sellingPrice: 0, counter: '', certNo: '' });
   const [quickSaving, setQuickSaving] = useState(false);
+
+  // Auto-generated SKU for quick add
+  const autoSku = useMemo(() => {
+    if (!batch) return '';
+    const existingCount = batch.items?.length || 0;
+    const seq = String(existingCount + 1).padStart(3, '0');
+    return `${batch.batchCode}-${seq}`;
+  }, [batch]);
   // Item search filter
   const [itemSearch, setItemSearch] = useState('');
   const [debouncedItemSearch, setDebouncedItemSearch] = useState('');
@@ -85,15 +93,15 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
   }
 
   async function handleQuickAdd() {
-    if (!batchId || !quickForm.name || !quickForm.sellingPrice) {
-      toast.error('请输入名称和售价');
+    if (!batchId || !quickForm.sellingPrice) {
+      toast.error('请输入售价');
       return;
     }
     setQuickSaving(true);
     try {
       await itemsApi.createItem({
         batchId: batchId,
-        name: quickForm.name || undefined,
+        name: quickForm.name || autoSku,
         sellingPrice: quickForm.sellingPrice,
         counter: quickForm.counter ? Number(quickForm.counter) : undefined,
         certNo: quickForm.certNo || undefined,
@@ -221,15 +229,19 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
                     <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">快速添加货品</p>
                     <button onClick={() => setQuickAdd(false)} className="text-muted-foreground hover:text-foreground"><XCircle className="h-4 w-4" /></button>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <div className="space-y-1"><Label className="text-xs">名称 <span className="text-red-500">*</span></Label><Input placeholder="货品名称" value={quickForm.name} onChange={e => setQuickForm(f => ({ ...f, name: e.target.value }))} className="h-8 text-sm" /></div>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div className="space-y-1"><Label className="text-xs">SKU</Label><Input value={autoSku} readOnly className="h-8 text-sm bg-muted/50" /></div>
                     <div className="space-y-1"><Label className="text-xs">售价 <span className="text-red-500">*</span></Label><Input type="number" placeholder="售价" value={quickForm.sellingPrice || ''} onChange={e => setQuickForm(f => ({ ...f, sellingPrice: parseFloat(e.target.value) || 0 }))} className="h-8 text-sm" /></div>
+                    <div className="space-y-1"><Label className="text-xs">材质</Label><Input value={batch?.materialName || '-'} readOnly className="h-8 text-sm bg-muted/50" /></div>
+                    <div className="space-y-1"><Label className="text-xs">器型</Label><Input value={batch?.typeName || '-'} readOnly className="h-8 text-sm bg-muted/50" /></div>
                     <div className="space-y-1"><Label className="text-xs">柜台号</Label><Input placeholder="例: A-01" value={quickForm.counter} onChange={e => setQuickForm(f => ({ ...f, counter: e.target.value }))} className="h-8 text-sm" /></div>
-                    <div className="space-y-1"><Label className="text-xs">证书号</Label><Input placeholder="可选" value={quickForm.certNo} onChange={e => setQuickForm(f => ({ ...f, certNo: e.target.value }))} className="h-8 text-sm" /></div>
                   </div>
-                  <Button size="sm" onClick={handleQuickAdd} className="bg-emerald-600 hover:bg-emerald-700" disabled={quickSaving}>
-                    {quickSaving ? '添加中...' : '确认添加'}
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <Button size="sm" onClick={handleQuickAdd} className="bg-emerald-600 hover:bg-emerald-700" disabled={quickSaving}>
+                      {quickSaving ? '添加中...' : '添加'}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">SKU和材质/器型自动从批次继承</span>
+                  </div>
                 </div>
               )}
 

@@ -103,6 +103,9 @@ function ShortcutsHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const shortcuts = [
     { keys: '⌘/Ctrl + K', description: '聚焦搜索栏' },
     { keys: '⌘/Ctrl + N', description: '新增入库（库存页）' },
+    { keys: '⌘/Ctrl + Shift + N', description: '快速新增入库（任意页面）' },
+    { keys: '⌘/Ctrl + Shift + S', description: '快速跳转销售页' },
+    { keys: '⌘/Ctrl + Shift + B', description: '快速新增批次（任意页面）' },
     { keys: '⌘/Ctrl + E', description: '导出数据（库存页）' },
     { keys: 'Enter', description: '在搜索框内触发搜索' },
     { keys: 'Esc', description: '关闭对话框/面板' },

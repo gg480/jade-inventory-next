@@ -276,6 +276,32 @@ export default function JadeInventoryPage() {
         return;
       }
 
+      // Ctrl/Cmd + Shift + N: quick create new item (from any tab)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'N') {
+        e.preventDefault();
+        setActiveTab('inventory');
+        setAnimKey(k => k + 1);
+        setTimeout(() => window.dispatchEvent(new CustomEvent('shortcut-new-item')), 300);
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + S: quick create new sale (from any tab)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        setActiveTab('sales');
+        setAnimKey(k => k + 1);
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + B: quick create new batch (from any tab)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'B') {
+        e.preventDefault();
+        setActiveTab('batches');
+        setAnimKey(k => k + 1);
+        setTimeout(() => window.dispatchEvent(new CustomEvent('shortcut-new-batch')), 300);
+        return;
+      }
+
       // Ctrl/Cmd + N: open new item create dialog (inventory tab)
       if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
         e.preventDefault();

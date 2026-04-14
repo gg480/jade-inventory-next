@@ -60,6 +60,13 @@ function BatchesTab() {
 
   useEffect(() => { fetchBatches(); }, [fetchBatches]);
 
+  // Listen for shortcut-new-batch to open create dialog
+  useEffect(() => {
+    const handler = () => setShowCreate(true);
+    window.addEventListener('shortcut-new-batch', handler);
+    return () => window.removeEventListener('shortcut-new-batch', handler);
+  }, []);
+
   async function handleAllocate(batchId: number) {
     try {
       const result = await batchesApi.allocateBatch(batchId);

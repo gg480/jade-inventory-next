@@ -113,6 +113,13 @@ function SalesTab() {
   // Today stats
   const [todayStats, setTodayStats] = useState<{ count: number; revenue: number; profit: number } | null>(null);
 
+  // Period summary stats (today, week, month, avg order)
+  const [periodStats, setPeriodStats] = useState<{
+    today: { revenue: number; prevRevenue: number };
+    week: { revenue: number; prevRevenue: number };
+    month: { revenue: number; prevRevenue: number; count: number };
+  } | null>(null);
+
   // Sparkline data
   const [sparklineData, setSparklineData] = useState<any[]>([]);
   const [sparkLoading, setSparkLoading] = useState(true);
@@ -131,21 +138,69 @@ function SalesTab() {
     } catch { toast.error('加载销售记录失败'); } finally { setLoading(false); }
   }, [pagination.page, pagination.size, filters]);
 
-  // Fetch today's stats separately
+  // Fetch today's stats and period summary stats
   useEffect(() => {
-    async function fetchTodayStats() {
+    async function fetchPeriodStats() {
       try {
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const data = await salesApi.getSales({ start_date: todayStr, end_date: todayStr, size: 1000 });
-        const todayItems = data.items || [];
+        const today = new Date();
+        const todayStr = today.toISOString().slice(0, 10);
+
+        // Today vs yesterday
+        const [todayData, yesterdayData] = await Promise.allSettled([
+          salesApi.getSales({ start_date: todayStr, end_date: todayStr, size: 1000 }),
+          salesApi.getSales({ start_date: new Date(today.getTime() - 86400000).toISOString().slice(0, 10), end_date: new Date(today.getTime() - 86400000).toISOString().slice(0, 10), size: 1000 }),
+        ]);
+        const todayItems = todayData.status === 'fulfilled' ? (todayData.value.items || []) : [];
+        const yesterdayItems = yesterdayData.status === 'fulfilled' ? (yesterdayData.value.items || []) : [];
+        const todayRevenue = todayItems.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0);
+        const yesterdayRevenue = yesterdayItems.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0);
+
         setTodayStats({
           count: todayItems.length,
-          revenue: todayItems.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0),
+          revenue: todayRevenue,
           profit: todayItems.reduce((sum: number, s: any) => sum + (s.grossProfit || 0), 0),
         });
-      } catch { setTodayStats({ count: 0, revenue: 0, profit: 0 }); }
+
+        // This week vs last week
+        const dayOfWeek = today.getDay();
+        const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const thisWeekStart = new Date(today.getTime() - mondayOffset * 86400000).toISOString().slice(0, 10);
+        const lastWeekStart = new Date(today.getTime() - (mondayOffset + 7) * 86400000).toISOString().slice(0, 10);
+        const lastWeekEnd = new Date(today.getTime() - (mondayOffset + 1) * 86400000).toISOString().slice(0, 10);
+
+        const [thisWeekData, lastWeekData] = await Promise.allSettled([
+          salesApi.getSales({ start_date: thisWeekStart, end_date: todayStr, size: 1000 }),
+          salesApi.getSales({ start_date: lastWeekStart, end_date: lastWeekEnd, size: 1000 }),
+        ]);
+        const thisWeekItems = thisWeekData.status === 'fulfilled' ? (thisWeekData.value.items || []) : [];
+        const lastWeekItems = lastWeekData.status === 'fulfilled' ? (lastWeekData.value.items || []) : [];
+        const thisWeekRevenue = thisWeekItems.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0);
+        const lastWeekRevenue = lastWeekItems.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0);
+
+        // This month vs last month
+        const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+        const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 10);
+        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().slice(0, 10);
+
+        const [thisMonthData, lastMonthData] = await Promise.allSettled([
+          salesApi.getSales({ start_date: thisMonthStart, end_date: todayStr, size: 1000 }),
+          salesApi.getSales({ start_date: lastMonthStart, end_date: lastMonthEnd, size: 1000 }),
+        ]);
+        const thisMonthItems = thisMonthData.status === 'fulfilled' ? (thisMonthData.value.items || []) : [];
+        const lastMonthItems = lastMonthData.status === 'fulfilled' ? (lastMonthData.value.items || []) : [];
+        const thisMonthRevenue = thisMonthItems.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0);
+        const lastMonthRevenue = lastMonthItems.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0);
+
+        setPeriodStats({
+          today: { revenue: todayRevenue, prevRevenue: yesterdayRevenue },
+          week: { revenue: thisWeekRevenue, prevRevenue: lastWeekRevenue },
+          month: { revenue: thisMonthRevenue, prevRevenue: lastMonthRevenue, count: thisMonthItems.length },
+        });
+      } catch {
+        setTodayStats({ count: 0, revenue: 0, profit: 0 });
+      }
     }
-    fetchTodayStats();
+    fetchPeriodStats();
   }, []);
 
   const fetchSparkline = useCallback(async () => {
@@ -364,8 +419,100 @@ function SalesTab() {
     setFilters(f => ({ ...f, startDate: start, endDate: end }));
   }
 
+  // Trend indicator helper
+  function trendIndicator(current: number, previous: number) {
+    if (previous === 0 && current === 0) return null;
+    if (previous === 0) return current > 0 ? { dir: 'up' as const, pct: 100 } : null;
+    const pct = ((current - previous) / previous) * 100;
+    if (Math.abs(pct) < 0.5) return null;
+    return pct > 0 ? { dir: 'up' as const, pct } : { dir: 'down' as const, pct: Math.abs(pct) };
+  }
+
   return (
     <div className="space-y-6">
+      {/* Sales Summary Dashboard Card */}
+      {periodStats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="card-glow hover:shadow-md transition-all duration-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <DollarSign className="h-4 w-4 text-emerald-600" />
+                  <span className="text-xs text-muted-foreground">今日销售额</span>
+                </div>
+                {(() => {
+                  const trend = trendIndicator(periodStats.today.revenue, periodStats.today.prevRevenue);
+                  return trend ? (
+                    <span className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${trend.dir === 'up' ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {trend.dir === 'up' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                      {trend.pct.toFixed(0)}%
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <p className="text-2xl font-bold text-emerald-600 tabular-nums">{formatPrice(periodStats.today.revenue)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">昨日 {formatPrice(periodStats.today.prevRevenue)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-glow hover:shadow-md transition-all duration-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <TrendingUp className="h-4 w-4 text-sky-600" />
+                  <span className="text-xs text-muted-foreground">本周销售额</span>
+                </div>
+                {(() => {
+                  const trend = trendIndicator(periodStats.week.revenue, periodStats.week.prevRevenue);
+                  return trend ? (
+                    <span className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${trend.dir === 'up' ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {trend.dir === 'up' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                      {trend.pct.toFixed(0)}%
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <p className="text-2xl font-bold tabular-nums">{formatPrice(periodStats.week.revenue)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">上周 {formatPrice(periodStats.week.prevRevenue)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-glow hover:shadow-md transition-all duration-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <BarChart3 className="h-4 w-4 text-amber-600" />
+                  <span className="text-xs text-muted-foreground">本月销售额</span>
+                </div>
+                {(() => {
+                  const trend = trendIndicator(periodStats.month.revenue, periodStats.month.prevRevenue);
+                  return trend ? (
+                    <span className={`inline-flex items-center gap-0.5 text-[11px] font-medium ${trend.dir === 'up' ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {trend.dir === 'up' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                      {trend.pct.toFixed(0)}%
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <p className="text-2xl font-bold tabular-nums">{formatPrice(periodStats.month.revenue)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">上月 {formatPrice(periodStats.month.prevRevenue)}</p>
+            </CardContent>
+          </Card>
+          <Card className="card-glow hover:shadow-md transition-all duration-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5">
+                  <ShoppingCart className="h-4 w-4 text-purple-600" />
+                  <span className="text-xs text-muted-foreground">平均客单价</span>
+                </div>
+              </div>
+              <p className="text-2xl font-bold tabular-nums">
+                {periodStats.month.count > 0 ? formatPrice(periodStats.month.revenue / periodStats.month.count) : '-'}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1">本月 {periodStats.month.count} 笔</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Today Stats Row */}
       {todayStats && (
         <div className="grid grid-cols-3 gap-3">

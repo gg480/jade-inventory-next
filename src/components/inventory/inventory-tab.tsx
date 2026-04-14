@@ -1145,6 +1145,49 @@ function InventoryTab() {
         </div>
       )}
 
+      {/* Inventory Status Filter Tabs */}
+      <div className="flex items-center gap-0 border-b border-border">
+        {[
+          { key: '', label: '全部', count: items.length },
+          { key: 'in_stock', label: '在库', count: statusCounts.in_stock },
+          { key: 'sold', label: '已售', count: statusCounts.sold },
+          { key: 'returned', label: '已退', count: statusCounts.returned },
+        ].map(tab => {
+          const isActive = tab.key === ''
+            ? (activeStatuses.size === 0 || activeStatuses.size === 3)
+            : (activeStatuses.size === 1 && activeStatuses.has(tab.key));
+          return (
+            <button
+              key={tab.key || 'all'}
+              onClick={() => {
+                if (tab.key === '') {
+                  setActiveStatuses(new Set());
+                } else {
+                  setActiveStatuses(new Set([tab.key]));
+                }
+              }}
+              className={`relative px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500'
+                  : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent'
+              }`}
+            >
+              {tab.label}
+              <Badge
+                variant="secondary"
+                className={`ml-1.5 h-4 min-w-[18px] px-1 text-[10px] ${
+                  isActive
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {tab.count}
+              </Badge>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Items Table */}
       {sortedItems.length === 0 ? (
         <EmptyState icon={Package} title="暂无货品" desc="还没有入库任何货品，点击「新增入库」开始" />
