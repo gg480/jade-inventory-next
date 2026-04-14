@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogDescription, AlertDialogCancel } from '@/components/ui/alert-dialog';
 
 import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X, Hash, Crown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -175,6 +176,12 @@ function SettingsTab() {
   const [dbSize, setDbSize] = useState<string | null>(null);
   const [dbSizeLoading, setDbSizeLoading] = useState(false);
 
+  // Data cleanup states
+  const [deletedItemsCount, setDeletedItemsCount] = useState<number>(0);
+  const [oldLogsCount, setOldLogsCount] = useState<number>(0);
+  const [cleanupLoading, setCleanupLoading] = useState<string | null>(null);
+  const [cleanupConfirm, setCleanupConfirm] = useState<{ type: 'deleted' | 'logs'; open: boolean }>({ type: 'deleted', open: false });
+
   // System config (localStorage)
   const STORAGE_KEY = 'jade_system_config';
   const defaultSettings = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, profitWarningThreshold: 30, defaultProfitRate: 40 };
@@ -229,6 +236,21 @@ function SettingsTab() {
             if (sizeStr) setDbSize(sizeStr);
           }
         } catch { /* ignore */ }
+        // Fetch cleanup counts
+        try {
+          const [delRes, logRes] = await Promise.allSettled([
+            fetch('/api/items/cleanup-deleted'),
+            fetch('/api/logs/cleanup-old'),
+          ]);
+          if (delRes.status === 'fulfilled') {
+            const delJson = await delRes.value.json();
+            setDeletedItemsCount(delJson.data?.count || 0);
+          }
+          if (logRes.status === 'fulfilled') {
+            const logJson = await logRes.value.json();
+            setOldLogsCount(logJson.data?.count || 0);
+          }
+        } catch { /* ignore */ }
       } catch { /* silently fail */ } finally { setDbSizeLoading(false); }
     }
     fetchStats();
@@ -277,6 +299,48 @@ function SettingsTab() {
   async function handleDeleteSupplier() {
     if (!deleteSupplier) return;
     try { await suppliersApi.deleteSupplier(deleteSupplier.id); toast.success('供应商已删除'); setDeleteSupplier(null); fetchSuppliers(); } catch (e: any) { toast.error(e.message || '删除失败'); }
+  }
+
+  // Data cleanup handlers
+  async function handleCleanupDeleted() {
+    setCleanupLoading('deleted');
+    try {
+      const res = await fetch('/api/items/cleanup-deleted', { method: 'DELETE' });
+      const json = await res.json();
+      if (json.code === 0) {
+        toast.success(`已清除 ${json.data.deleted} 条已删除货品`);
+        setDeletedItemsCount(0);
+        // Refresh data stats
+        const itemsRes = await itemsApi.getItems({ page: 1, size: 1 });
+        setDataStats(prev => ({ ...prev, itemsCount: itemsRes.pagination?.total ?? prev.itemsCount }));
+      } else {
+        toast.error(json.message || '清除失败');
+      }
+    } catch {
+      toast.error('清除已删除货品失败');
+    } finally {
+      setCleanupLoading(null);
+      setCleanupConfirm({ type: 'deleted', open: false });
+    }
+  }
+
+  async function handleCleanupOldLogs() {
+    setCleanupLoading('logs');
+    try {
+      const res = await fetch('/api/logs/cleanup-old', { method: 'DELETE' });
+      const json = await res.json();
+      if (json.code === 0) {
+        toast.success(`已清除 ${json.data.deleted} 条30天前的操作日志`);
+        setOldLogsCount(0);
+      } else {
+        toast.error(json.message || '清除失败');
+      }
+    } catch {
+      toast.error('清除操作日志失败');
+    } finally {
+      setCleanupLoading(null);
+      setCleanupConfirm({ type: 'logs', open: false });
+    }
   }
 
   function openEditSupplierDialog(s: any) {
@@ -1015,6 +1079,95 @@ function SettingsTab() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Data Cleanup Section */}
+          <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" />数据清理</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">清理不必要的数据，释放数据库空间。此操作不可撤销，请谨慎执行。</p>
+              <div className="space-y-3">
+                {/* Clear deleted items */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">清除已删除货品</p>
+                      <p className="text-xs text-muted-foreground">彻底删除标记为删除的货品记录</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {deletedItemsCount > 0 && (
+                      <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">{deletedItemsCount} 条</Badge>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30"
+                      disabled={deletedItemsCount === 0 || cleanupLoading === 'deleted'}
+                      onClick={() => setCleanupConfirm({ type: 'deleted', open: true })}
+                    >
+                      {cleanupLoading === 'deleted' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                      清除
+                    </Button>
+                  </div>
+                </div>
+                {/* Clear old logs */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                      <Clock className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">清除操作日志(30天前)</p>
+                      <p className="text-xs text-muted-foreground">删除超过30天的历史操作日志</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {oldLogsCount > 0 && (
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{oldLogsCount} 条</Badge>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/30"
+                      disabled={oldLogsCount === 0 || cleanupLoading === 'logs'}
+                      onClick={() => setCleanupConfirm({ type: 'logs', open: true })}
+                    >
+                      {cleanupLoading === 'logs' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                      清除
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cleanup Confirm Dialog */}
+          <AlertDialog open={cleanupConfirm.open} onOpenChange={open => setCleanupConfirm(prev => ({ ...prev, open }))}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>确认数据清理</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {cleanupConfirm.type === 'deleted'
+                    ? `确定要彻底删除 ${deletedItemsCount} 条已标记删除的货品记录吗？此操作不可撤销。`
+                    : `确定要清除 ${oldLogsCount} 条超过30天的操作日志吗？此操作不可撤销。`}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setCleanupConfirm(prev => ({ ...prev, open: false }))}>取消</AlertDialogCancel>
+                <Button
+                  variant="destructive"
+                  onClick={() => cleanupConfirm.type === 'deleted' ? handleCleanupDeleted() : handleCleanupOldLogs()}
+                  disabled={cleanupLoading !== null}
+                >
+                  {cleanupLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  确认清理
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
         <TabsContent value="import" className="mt-4 space-y-4">
           {/* CSV Quick Import (P0 production requirement) */}

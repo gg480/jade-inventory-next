@@ -791,6 +791,50 @@ function CustomersTab() {
                               ))}
                             </div>
                           )}
+                          {/* Purchase Summary */}
+                          {customerDetail.saleRecords && customerDetail.saleRecords.length > 0 && (() => {
+                            const sales = customerDetail.saleRecords;
+                            const sorted = [...sales].sort((a: any, b: any) => new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime());
+                            const firstDate = sorted[0]?.saleDate || '无';
+                            const lastDate = sorted[sorted.length - 1]?.saleDate || '无';
+                            const totalSpending = sales.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0);
+                            const avgOrder = totalSpending / sales.length;
+                            // Find most purchased item type
+                            const typeCount: Record<string, { count: number; name: string }> = {};
+                            sales.forEach((sr: any) => {
+                              const typeName = sr.item?.material?.name || '其他';
+                              if (!typeCount[typeName]) typeCount[typeName] = { count: 0, name: typeName };
+                              typeCount[typeName].count++;
+                            });
+                            const topType = Object.values(typeCount).sort((a, b) => b.count - a.count)[0];
+                            return (
+                              <div className="mt-2 pt-2 border-t border-border space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground">购买摘要</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="flex items-center gap-1.5 text-xs p-1.5 bg-muted/50 rounded">
+                                    <Calendar className="h-3 w-3 text-sky-500 shrink-0" />
+                                    <span className="text-muted-foreground">首次购买</span>
+                                    <span className="font-medium ml-auto">{firstDate}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-xs p-1.5 bg-muted/50 rounded">
+                                    <Calendar className="h-3 w-3 text-emerald-500 shrink-0" />
+                                    <span className="text-muted-foreground">最近购买</span>
+                                    <span className="font-medium ml-auto">{lastDate}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-xs p-1.5 bg-muted/50 rounded">
+                                    <BarChart3 className="h-3 w-3 text-amber-500 shrink-0" />
+                                    <span className="text-muted-foreground">平均客单价</span>
+                                    <span className="font-medium text-emerald-600 ml-auto">{formatPrice(avgOrder)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 text-xs p-1.5 bg-muted/50 rounded">
+                                    <ShoppingBag className="h-3 w-3 text-purple-500 shrink-0" />
+                                    <span className="text-muted-foreground">偏好材质</span>
+                                    <span className="font-medium ml-auto">{topType?.name || '-'} ({topType?.count || 0}次)</span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       ) : (
                         <p className="text-sm text-muted-foreground">无法加载详情</p>

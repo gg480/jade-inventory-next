@@ -170,6 +170,9 @@ function InventoryTab() {
   // Batch sell individual prices
   const [batchSellPrices, setBatchSellPrices] = useState<Record<number, number>>({});
 
+  // Batch label print dialog
+  const [batchLabelPrintOpen, setBatchLabelPrintOpen] = useState(false);
+
   // Delete confirmation dialog
   const [deleteConfirmItem, setDeleteConfirmItem] = useState<any>(null);
 
@@ -488,11 +491,12 @@ function InventoryTab() {
       return;
     }
     const statusMap: Record<string, string> = { in_stock: '在库', sold: '已售', returned: '已退' };
+    const headers = ['SKU', '名称', '器型', '材质', '状态', '成本', '售价', '采购日期', '柜台号', '证书号'];
     let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
     html += '<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>库存数据</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
     html += '<body><table border="1" cellspacing="0" cellpadding="4">';
     html += '<tr style="background-color:#059669;color:#fff;font-weight:bold">';
-    ['SKU', '名称', '器型', '材质', '状态', '成本', '售价', '采购日期', '柜台号'].forEach(h => { html += `<td>${h}</td>`; });
+    headers.forEach(h => { html += `<td>${h}</td>`; });
     html += '</tr>';
     sortedItems.forEach(item => {
       html += '<tr>';
@@ -504,15 +508,16 @@ function InventoryTab() {
       html += `<td>${item.allocatedCost || item.estimatedCost || item.costPrice || 0}</td>`;
       html += `<td>${item.sellingPrice || 0}</td>`;
       html += `<td>${item.purchaseDate || ''}</td>`;
-      html += `<td>${item.counter || ''}</td>`;
+      html += `<td>${item.counter != null ? item.counter : ''}</td>`;
+      html += `<td>${item.certNo || ''}</td>`;
       html += '</tr>';
     });
     html += '</table></body></html>';
-    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `库存数据_${new Date().toISOString().slice(0, 10)}.xls`;
+    link.download = `库存数据_${new Date().toISOString().slice(0, 10)}.xlsx`;
     link.click();
     URL.revokeObjectURL(url);
     toast.success(`已导出Excel ${sortedItems.length} 条库存数据`);
@@ -1288,6 +1293,13 @@ function InventoryTab() {
               </Button>
               <Button
                 size="sm"
+                className="h-7 bg-white/15 text-white hover:bg-white/25 border border-white/30"
+                onClick={() => setBatchLabelPrintOpen(true)}
+              >
+                <Printer className="h-3 w-3 mr-1" />批量标签打印
+              </Button>
+              <Button
+                size="sm"
                 variant="ghost"
                 className="h-7 text-white/80 hover:text-white hover:bg-white/10"
                 onClick={clearSelection}
@@ -1654,6 +1666,42 @@ function InventoryTab() {
             <Button variant="outline" onClick={() => { setBatchCounterOpen(false); setBatchCounterForm({ counter: '' }); }} disabled={batchLoading}>取消</Button>
             <Button onClick={handleBatchCounter} disabled={batchLoading || !batchCounterForm.counter} className="bg-sky-600 hover:bg-sky-700 text-white">
               {batchLoading ? `修改中 ${batchProgress ? `${batchProgress.current}/${batchProgress.total}` : '...'}` : '确认修改'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Batch Label Print Dialog */}
+      <Dialog open={batchLabelPrintOpen} onOpenChange={setBatchLabelPrintOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="h-5 w-5 text-emerald-600" />
+              批量标签打印
+            </DialogTitle>
+            <DialogDescription>预览并打印选中货品的标签（共 {selectedItems.length} 件）</DialogDescription>
+          </DialogHeader>
+          <div id="batch-label-print-area" className="grid grid-cols-2 md:grid-cols-3 gap-3 py-4">
+            {selectedItems.map(item => (
+              <div key={item.id} className="batch-label-card border-2 border-dashed border-emerald-300 dark:border-emerald-700 rounded-lg p-3 bg-white dark:bg-gray-950 print:border-solid print:border-black print:dark:bg-white print:dark:text-black">
+                <div className="text-center space-y-1.5">
+                  <p className="font-mono text-xs font-bold tracking-widest">{item.skuCode || ''}</p>
+                  <p className="text-sm font-medium truncate">{item.name || item.skuCode}</p>
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatPrice(item.sellingPrice)}</p>
+                  {item.counter != null && (
+                    <p className="text-xs text-muted-foreground print:text-black">柜台: {item.counter}号</p>
+                  )}
+                  {item.materialName && (
+                    <p className="text-xs text-muted-foreground print:text-black">{item.materialName}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBatchLabelPrintOpen(false)}>取消</Button>
+            <Button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700">
+              <Printer className="h-4 w-4 mr-1" />打印
             </Button>
           </DialogFooter>
         </DialogContent>

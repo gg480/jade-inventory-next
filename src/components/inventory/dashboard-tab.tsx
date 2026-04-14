@@ -92,6 +92,7 @@ function DashboardTab() {
   const [dailySalesSparkline, setDailySalesSparkline] = useState<any[]>([]);
   const [inventoryTrendSparkline, setInventoryTrendSparkline] = useState<any[]>([]);
   const [salesByChannel, setSalesByChannel] = useState<any[]>([]);
+  const [recentSales, setRecentSales] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -282,6 +283,26 @@ function DashboardTab() {
   }, [minDays, getDateRange, warningDaysLoaded]);
 
   useEffect(() => { if (warningDaysLoaded) fetchData(); }, [fetchData, warningDaysLoaded]);
+
+  // Fetch recent sales (separate, lighter call)
+  const fetchRecentSales = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/recent-sales');
+      const json = await res.json();
+      if (json.code === 0) {
+        setRecentSales(json.data || []);
+      }
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRecentSales();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchRecentSales, 30000);
+    return () => clearInterval(interval);
+  }, [fetchRecentSales]);
 
   const handleManualRefresh = useCallback(() => {
     setRefreshing(true);
@@ -520,6 +541,66 @@ function DashboardTab() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* ====== Latest Transactions Card ====== */}
+      {recentSales.length > 0 && (
+        <Card className="border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4 text-emerald-600" />
+              最新交易
+              <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">自动刷新</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {recentSales.map((sale: any, idx: number) => (
+                <div
+                  key={sale.id}
+                  className={`flex items-center justify-between text-sm py-2 px-3 rounded-lg transition-colors ${idx % 2 === 0 ? 'bg-muted/30' : 'bg-muted/10 hover:bg-muted/30'}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                      <ShoppingCart className="h-3.5 w-3.5 text-emerald-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{sale.item?.name || sale.item?.skuCode || '未知'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {sale.customerName}
+                        {sale.channel && (
+                          <Badge variant="outline" className="text-[10px] h-4 ml-1 px-1">{sale.channel === 'store' ? '门店' : '微信'}</Badge>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0 ml-3">
+                    <p className="font-bold text-emerald-600 dark:text-emerald-400">{formatPrice(sale.actualPrice)}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {(() => {
+                        try {
+                          const date = new Date(sale.createdAt);
+                          const now = new Date();
+                          const diffMs = now.getTime() - date.getTime();
+                          const diffMins = Math.floor(diffMs / 60000);
+                          const diffHours = Math.floor(diffMins / 60);
+                          const diffDays = Math.floor(diffHours / 24);
+                          if (diffMins < 1) return '刚刚';
+                          if (diffMins < 60) return `${diffMins}分钟前`;
+                          if (diffHours < 24) return `${diffHours}小时前`;
+                          if (diffDays < 7) return `${diffDays}天前`;
+                          return sale.saleDate || '';
+                        } catch {
+                          return sale.saleDate || '';
+                        }
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ====== Inventory Health Score ====== */}
