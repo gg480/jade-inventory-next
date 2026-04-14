@@ -51,6 +51,8 @@ const fadeInStyle = typeof document !== 'undefined' && !document.getElementById(
         .pulse-dot { animation: pulseDot 2s ease-in-out infinite; }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .shimmer-line { background: linear-gradient(90deg, transparent 25%, rgba(5,150,105,0.08) 50%, transparent 75%); background-size: 200% 100%; animation: shimmer 2s infinite; }
+        .card-refresh-shimmer { position: relative; overflow: hidden; }
+        .card-refresh-shimmer::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 25%, rgba(5,150,105,0.06) 50%, transparent 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out; pointer-events: none; border-radius: inherit; }
         @keyframes countUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
         .count-up { animation: countUp 0.3s ease-out; }
         .btn-press { transition: transform 0.1s ease, box-shadow 0.1s ease; }

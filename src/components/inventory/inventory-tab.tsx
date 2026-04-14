@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 const BarcodeScanner = dynamic(() => import('./barcode-scanner'), { ssr: false, loading: () => null });
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { itemsApi, salesApi, dictsApi, batchesApi, exportApi, customersApi } from '@/lib/api';
 import { itemsApiEnhanced } from '@/lib/api';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogDescription } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -36,7 +37,7 @@ import {
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
   ShoppingCart, Tag, MapPin, X, Gem, CheckSquare, ChevronDown, ChevronUp, SlidersHorizontal,
   Info, FileText, FileCheck, CalendarDays, Target, MoreHorizontal, Copy, FileSpreadsheet, Loader2, Clock,
-  CircleDot,
+  CircleDot, Check,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -193,6 +194,15 @@ function InventoryTab() {
 
   // Delete confirmation dialog
   const [deleteConfirmItem, setDeleteConfirmItem] = useState<any>(null);
+
+  // Inline quick-edit state (desktop table only)
+  const [editingCell, setEditingCell] = useState<{ itemId: number; field: string } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
+  const [savingCell, setSavingCell] = useState<{ itemId: number; field: string } | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Row click flash highlight
+  const [flashRowId, setFlashRowId] = useState<number | null>(null);
 
   // Slide-in detail drawer
   const [detailItem, setDetailItem] = useState<any>(null);
@@ -727,6 +737,51 @@ function InventoryTab() {
     });
   }, [selectedItems, batchPriceForm]);
 
+  // ========== Inline Quick-Edit Handlers ==========
+  function startEditingCell(itemId: number, field: string, currentValue: number) {
+    setEditingCell({ itemId, field });
+    setEditingValue(String(currentValue));
+    // Focus input on next tick
+    setTimeout(() => editInputRef.current?.select(), 0);
+  }
+
+  async function saveEditingCell() {
+    if (!editingCell) return;
+    const newValue = parseFloat(editingValue);
+    if (isNaN(newValue) || newValue < 0) {
+      toast.error('请输入有效的价格');
+      return;
+    }
+    const { itemId, field } = editingCell;
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    const payload: any = {};
+    if (field === 'sellingPrice') {
+      payload.sellingPrice = newValue;
+    } else if (field === 'costPrice') {
+      payload.costPrice = newValue;
+    }
+
+    setSavingCell({ itemId, field });
+    setEditingCell(null);
+    try {
+      await itemsApi.updateItem(itemId, payload);
+      toast.success('价格已更新');
+      // Brief green checkmark
+      setTimeout(() => setSavingCell(null), 1200);
+      fetchItems();
+    } catch (e: any) {
+      toast.error(e.message || '更新失败');
+      setSavingCell(null);
+    }
+  }
+
+  function cancelEditingCell() {
+    setEditingCell(null);
+    setEditingValue('');
+  }
+
   function SortableHead({ field, children, align }: { field: string; children: React.ReactNode; align?: 'left' | 'right' }) {
     const isActive = sortBy === field;
     return (
@@ -784,7 +839,7 @@ function InventoryTab() {
               className="h-9 flex-1"
               disabled={scanLoading}
             />
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={handleScanSku} disabled={scanLoading || !scanSku.trim()}>
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform h-9" onClick={handleScanSku} disabled={scanLoading || !scanSku.trim()}>
               {scanLoading ? '查询中...' : '出库'}
             </Button>
             <Button
@@ -1022,7 +1077,7 @@ function InventoryTab() {
           )}
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新增入库</Button>
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新增入库</Button>
               <Button size="sm" variant="outline" className="h-9" onClick={handleExportCSV} disabled={sortedItems.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
               <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel} disabled={sortedItems.length === 0}><FileSpreadsheet className="h-3 w-3 mr-1" />导出Excel</Button>
               <a href={exportApi.inventory()} target="_blank" rel="noopener noreferrer">
@@ -1123,7 +1178,7 @@ function InventoryTab() {
                 </TableHeader>
                 <TableBody>
                   {sortedItems.map((item, idx) => (
-                    <TableRow key={item.id} className={`group hover:bg-muted/50 transition-all duration-150 border-l-2 border-l-transparent hover:border-l-emerald-400 ${idx % 2 === 1 ? 'even:bg-muted/20' : ''} ${selectedIds.has(item.id) ? 'bg-emerald-50 dark:bg-emerald-950/20 hover:border-l-emerald-500' : item.status === 'sold' ? 'hover:border-l-gray-400' : item.status === 'returned' ? 'hover:border-l-red-400' : ''} cursor-pointer`} onClick={() => { setDetailItem(item); setDetailOpen(true); }}>
+                    <TableRow key={item.id} className={`group hover:bg-muted/50 transition-all duration-150 border-l-2 border-l-transparent hover:border-l-emerald-400 ${idx % 2 === 1 ? 'even:bg-muted/20' : ''} ${selectedIds.has(item.id) ? 'bg-emerald-50 dark:bg-emerald-950/20 hover:border-l-emerald-500' : item.status === 'sold' ? 'hover:border-l-gray-400' : item.status === 'returned' ? 'hover:border-l-red-400' : ''} ${flashRowId === item.id ? 'bg-emerald-50/50 dark:bg-emerald-950/30 animate-in fade-in-0 duration-300' : ''} cursor-pointer`} onClick={() => { setDetailItem(item); setDetailOpen(true); setFlashRowId(item.id); setTimeout(() => setFlashRowId(null), 500); }}>
                       <TableCell className="w-10 px-3">
                         <Checkbox
                           checked={selectedIds.has(item.id)}
@@ -1181,8 +1236,85 @@ function InventoryTab() {
                           ))}{tgs.length > 3 && <span className="text-[10px] text-muted-foreground">+{tgs.length - 3}</span>}</div>;
                         })()}
                       </TableCell>
-                      <TableCell className="text-right">{item.allocatedCost ? formatPrice(item.allocatedCost) : item.estimatedCost ? <span className="text-muted-foreground" title="预估成本">{formatPrice(item.estimatedCost)}~</span> : formatPrice(item.costPrice)}</TableCell>
-                      <TableCell className="text-right font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</TableCell>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <TableCell
+                              className="text-right cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition-colors"
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                const costVal = item.allocatedCost || item.estimatedCost || item.costPrice || 0;
+                                startEditingCell(item.id, 'costPrice', costVal);
+                              }}
+                            >
+                              {editingCell?.itemId === item.id && editingCell?.field === 'costPrice' ? (
+                                <input
+                                  ref={editInputRef}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editingValue}
+                                  onChange={e => setEditingValue(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') { e.preventDefault(); saveEditingCell(); }
+                                    if (e.key === 'Escape') { e.preventDefault(); cancelEditingCell(); }
+                                  }}
+                                  onBlur={() => saveEditingCell()}
+                                  onClick={e => e.stopPropagation()}
+                                  className="w-20 h-6 text-right text-sm border border-emerald-400 rounded px-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-background"
+                                />
+                              ) : savingCell?.itemId === item.id && savingCell?.field === 'costPrice' ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-600">
+                                  {item.allocatedCost ? formatPrice(item.allocatedCost) : item.estimatedCost ? <span className="text-muted-foreground" title="预估成本">{formatPrice(item.estimatedCost)}~</span> : formatPrice(item.costPrice)}
+                                  <Check className="h-3.5 w-3.5 animate-in zoom-in-50 duration-300" />
+                                </span>
+                              ) : (
+                                item.allocatedCost ? formatPrice(item.allocatedCost) : item.estimatedCost ? <span className="text-muted-foreground" title="预估成本">{formatPrice(item.estimatedCost)}~</span> : formatPrice(item.costPrice)
+                              )}
+                            </TableCell>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">双击编辑</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <TableCell
+                              className="text-right font-medium text-emerald-600 cursor-pointer hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition-colors"
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                startEditingCell(item.id, 'sellingPrice', item.sellingPrice || 0);
+                              }}
+                            >
+                              {editingCell?.itemId === item.id && editingCell?.field === 'sellingPrice' ? (
+                                <input
+                                  ref={editInputRef}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editingValue}
+                                  onChange={e => setEditingValue(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') { e.preventDefault(); saveEditingCell(); }
+                                    if (e.key === 'Escape') { e.preventDefault(); cancelEditingCell(); }
+                                  }}
+                                  onBlur={() => saveEditingCell()}
+                                  onClick={e => e.stopPropagation()}
+                                  className="w-20 h-6 text-right text-sm border border-emerald-400 rounded px-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-background text-emerald-600 font-medium"
+                                />
+                              ) : savingCell?.itemId === item.id && savingCell?.field === 'sellingPrice' ? (
+                                <span className="inline-flex items-center gap-1">
+                                  {formatPrice(item.sellingPrice)}
+                                  <Check className="h-3.5 w-3.5 text-emerald-500 animate-in zoom-in-50 duration-300" />
+                                </span>
+                              ) : (
+                                formatPrice(item.sellingPrice)
+                              )}
+                            </TableCell>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">双击编辑</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <TableCell className="text-center">
                         {(() => {
                           const cost = item.allocatedCost || item.estimatedCost || item.costPrice || 0;
@@ -1255,8 +1387,8 @@ function InventoryTab() {
 
         {/* Mobile Card View */}
         <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {sortedItems.map(item => (
-            <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/20' : ''} cursor-pointer`} onClick={() => { setDetailItem(item); setDetailOpen(true); }}>
+          {sortedItems.map((item, cardIdx) => (
+            <Card key={item.id} className={`hover:shadow-md transition-shadow ${selectedIds.has(item.id) ? 'ring-2 ring-emerald-400/50 bg-emerald-50 dark:bg-emerald-950/20' : ''} cursor-pointer animate-in fade-in-0 slide-in-from-bottom-2`} style={{ animationDelay: `${Math.min(cardIdx, 8) * 50}ms`, animationDuration: '300ms' }} onClick={() => { setDetailItem(item); setDetailOpen(true); }}>
               <CardContent className="p-4 space-y-3">
                 {/* Header: Thumbnail + Checkbox + SKU + Status */}
                 <div className="flex items-center gap-3">
@@ -1491,7 +1623,7 @@ function InventoryTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaleDialog({ open: false, item: null })}>取消</Button>
-            <Button onClick={handleSale} className="bg-emerald-600 hover:bg-emerald-700">确认出库</Button>
+            <Button onClick={handleSale} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform">确认出库</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1599,7 +1731,7 @@ function InventoryTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBatchSellOpen(false)} disabled={batchLoading}>取消</Button>
-            <Button onClick={handleBatchSell} disabled={batchLoading || selectedInStockItems.length === 0} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={handleBatchSell} disabled={batchLoading || selectedInStockItems.length === 0} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform">
               {batchLoading ? `处理中 ${batchProgress ? `${batchProgress.current}/${batchProgress.total}` : '...'}` : `确认出库 ${selectedInStockItems.length} 件`}
             </Button>
           </DialogFooter>
@@ -1854,7 +1986,7 @@ function InventoryTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBatchLabelPrintOpen(false)}>取消</Button>
-            <Button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform">
               <Printer className="h-4 w-4 mr-1" />打印
             </Button>
           </DialogFooter>

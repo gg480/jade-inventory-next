@@ -31,10 +31,10 @@ import {
 
 // ========== Count-up Animation Hook ==========
 function useCountUp(target: number, duration: number = 800) {
-  const [display, setDisplay] = useState(target);
+  const [display, setDisplay] = useState(0);
   const rafRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
-  const prevTargetRef = useRef<number>(target);
+  const prevTargetRef = useRef<number>(-1);
 
   useEffect(() => {
     if (prevTargetRef.current === target) return;
@@ -516,7 +516,7 @@ function DashboardTab() {
       {/* ====== 1. Overview Cards ====== */}
       {summary && !isEmptyDashboard && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-          <Card className="card-glow card-stagger-1 relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className={`card-glow card-stagger-1 relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
             <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
               <div className="flex items-center justify-between">
@@ -552,7 +552,7 @@ function DashboardTab() {
               )}
             </CardContent>
           </Card>
-          <Card className="card-glow card-stagger-2 relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className={`card-glow card-stagger-2 relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
             <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-20 w-20 text-sky-500" /></div>
               <div className="flex items-center justify-between">
@@ -600,7 +600,7 @@ function DashboardTab() {
               )}
             </CardContent>
           </Card>
-          <Card className="card-glow card-stagger-3 relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className={`card-glow card-stagger-3 relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
             <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><AlertTriangle className="h-20 w-20 text-red-500" /></div>
               <div className="flex items-center justify-between">
@@ -637,7 +637,7 @@ function DashboardTab() {
               )}
             </CardContent>
           </Card>
-          <Card className="card-glow card-stagger-4 relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className={`card-glow card-stagger-4 relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><CheckCircle className="h-20 w-20 text-amber-500" /></div>
               <div className="flex items-center justify-between">
@@ -1075,7 +1075,7 @@ function DashboardTab() {
             ]).map(f => (
               <Button key={f.key} size="sm" variant={distFilter === f.key ? 'default' : 'outline'}
                 onClick={() => setDistFilter(f.key)}
-                className={distFilter === f.key ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+                className={distFilter === f.key ? 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform' : ''}
               >
                 {f.label}
               </Button>
@@ -1106,7 +1106,8 @@ function DashboardTab() {
               </>
             )}
             <div className="ml-auto flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={handleManualRefresh} disabled={loading}><RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? 'animate-spin' : ''}`} />刷新</Button>
+              {lastUpdated && <span className="text-[11px] text-muted-foreground tabular-nums">最后刷新: {lastUpdated}</span>}
+              <Button size="sm" variant="outline" onClick={handleManualRefresh} disabled={loading} className="active:scale-[0.97] transition-transform"><RefreshCw className={`h-3 w-3 mr-1 ${refreshing ? 'animate-spin' : ''}`} />刷新</Button>
             </div>
           </div>
         </CardContent>
@@ -2296,7 +2297,7 @@ function DashboardTab() {
             localStorage.setItem('sales_target', String(val));
             toast.success(`本月目标已设置为 ${formatPrice(val)}`);
             setShowTargetDialog(false);
-          }} className="bg-emerald-600 hover:bg-emerald-700">保存</Button>
+          }} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform">保存</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

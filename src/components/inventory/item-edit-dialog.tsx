@@ -484,7 +484,7 @@ function ItemEditDialog({ itemId, open, onOpenChange, onSuccess }: { itemId: num
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button onClick={handleSaveAndContinue} className="bg-sky-600 hover:bg-sky-700 flex-1 sm:flex-none" disabled={saving || loading}>{saving ? '保存中...' : '保存并继续'}</Button>
-            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 flex-1 sm:flex-none" disabled={saving || loading}>{saving ? '保存中...' : '保存修改'}</Button>
+            <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform flex-1 sm:flex-none" disabled={saving || loading}>{saving ? '保存中...' : '保存修改'}</Button>
           </div>
         </DialogFooter>
       </DialogContent>

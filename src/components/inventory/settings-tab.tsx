@@ -651,7 +651,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
         <TabsContent value="dicts" className="mt-4 space-y-4">
           {/* Materials */}
           <Card className="border-l-4 border-l-emerald-400 hover:shadow-sm transition-shadow duration-200">
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Gem className="h-4 w-4 text-emerald-500" />材质 ({materials.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateMaterial(true); setMaterialForm({ name: '', category: '', subType: '', origin: '', costPerGram: '' }); }}><Plus className="h-3 w-3 mr-1" />新增材质</Button></div></CardHeader>
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Gem className="h-4 w-4 text-emerald-500" />材质 ({materials.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform h-7 text-xs" onClick={() => { setShowCreateMaterial(true); setMaterialForm({ name: '', category: '', subType: '', origin: '', costPerGram: '' }); }}><Plus className="h-3 w-3 mr-1" />新增材质</Button></div></CardHeader>
             <CardContent>
               {/* Material Statistics Info Bar */}
               {(() => {
@@ -705,7 +705,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </Card>
           {/* Types */}
           <Card className="border-l-4 border-l-blue-400 hover:shadow-sm transition-shadow duration-200">
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Box className="h-4 w-4 text-blue-500" />器型 ({types.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateType(true); setTypeForm({ name: '', specFields: {} }); }}><Plus className="h-3 w-3 mr-1" />新增器型</Button></div></CardHeader>
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Box className="h-4 w-4 text-blue-500" />器型 ({types.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform h-7 text-xs" onClick={() => { setShowCreateType(true); setTypeForm({ name: '', specFields: {} }); }}><Plus className="h-3 w-3 mr-1" />新增器型</Button></div></CardHeader>
             <CardContent>
               <div className="max-h-48 overflow-y-auto custom-scrollbar">
                 <Table>
@@ -733,7 +733,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </Card>
           {/* Tags */}
           <Card className="border-l-4 border-l-purple-400 hover:shadow-sm transition-shadow duration-200">
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4 text-purple-500" />标签 ({tags.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateTag(true); setTagForm({ name: '', groupName: '' }); }}><Plus className="h-3 w-3 mr-1" />新增标签</Button></div></CardHeader>
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4 text-purple-500" />标签 ({tags.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform h-7 text-xs" onClick={() => { setShowCreateTag(true); setTagForm({ name: '', groupName: '' }); }}><Plus className="h-3 w-3 mr-1" />新增标签</Button></div></CardHeader>
             <CardContent>
               {/* Group filter */}
               {Object.keys(tagGroups).length > 1 && (
@@ -824,7 +824,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
 
         <TabsContent value="suppliers" className="mt-4">
           <Card className="border-l-4 border-l-teal-400 hover:shadow-sm transition-shadow duration-200">
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Factory className="h-4 w-4 text-teal-500" />供应商 ({suppliers.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateSupplier(true); setSupplierForm({ name: '', contact: '', phone: '', notes: '' }); }}><Plus className="h-3 w-3 mr-1" />新增供应商</Button></div></CardHeader>
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Factory className="h-4 w-4 text-teal-500" />供应商 ({suppliers.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform h-7 text-xs" onClick={() => { setShowCreateSupplier(true); setSupplierForm({ name: '', contact: '', phone: '', notes: '' }); }}><Plus className="h-3 w-3 mr-1" />新增供应商</Button></div></CardHeader>
             <CardContent>
               {/* Supplier Search */}
               <div className="mb-3">
@@ -1030,7 +1030,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 pt-1">
-                    <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs" onClick={() => {
+                    <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform text-xs" onClick={() => {
                       localStorage.setItem(STORAGE_KEY, JSON.stringify(systemConfig));
                       toast.success('设置已保存');
                     }}>
@@ -1180,7 +1180,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
                 </p>
               </div>
               <div className="flex items-center gap-4">
-                <Button className="bg-emerald-600 hover:bg-emerald-700" asChild onClick={() => {
+                <Button className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" asChild onClick={() => {
                   const nowIso = new Date().toISOString();
                   const nowDisplay = new Date().toLocaleString('zh-CN');
                   setLastBackupTime(nowDisplay);
@@ -1386,7 +1386,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
               )}
               {/* Import button */}
               <Button
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform"
                 disabled={!csvFile || csvImporting}
                 onClick={handleCsvImport}
               >
@@ -1567,7 +1567,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           {/* Import button */}
           <div className="flex items-center gap-3">
             <Button
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform"
               disabled={!importFile || importing}
               onClick={handleImport}
             >
@@ -1694,7 +1694,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateSupplier(false)}>取消</Button>
-            <Button onClick={handleCreateSupplier} className="bg-emerald-600 hover:bg-emerald-700" disabled={!supplierForm.name}>创建</Button>
+            <Button onClick={handleCreateSupplier} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!supplierForm.name}>创建</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1713,7 +1713,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditSupplier(null)}>取消</Button>
-            <Button onClick={handleUpdateSupplier} className="bg-emerald-600 hover:bg-emerald-700" disabled={!supplierForm.name}>保存修改</Button>
+            <Button onClick={handleUpdateSupplier} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!supplierForm.name}>保存修改</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1759,7 +1759,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </datalist>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateMaterial(false)}>取消</Button>
-            <Button onClick={handleCreateMaterial} className="bg-emerald-600 hover:bg-emerald-700" disabled={!materialForm.name}>创建</Button>
+            <Button onClick={handleCreateMaterial} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!materialForm.name}>创建</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1793,7 +1793,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </datalist>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditMaterial(null)}>取消</Button>
-            <Button onClick={handleUpdateMaterial} className="bg-emerald-600 hover:bg-emerald-700" disabled={!materialForm.name}>保存修改</Button>
+            <Button onClick={handleUpdateMaterial} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!materialForm.name}>保存修改</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1854,7 +1854,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateType(false)}>取消</Button>
-            <Button onClick={handleCreateType} className="bg-emerald-600 hover:bg-emerald-700" disabled={!typeForm.name}>创建</Button>
+            <Button onClick={handleCreateType} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!typeForm.name}>创建</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1914,7 +1914,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
             </div>
             <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
               <span className="text-sm">状态</span>
-              <Button size="sm" variant={editType?.isActive ? 'outline' : 'default'} className={editType?.isActive ? 'text-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'} onClick={async () => {
+              <Button size="sm" variant={editType?.isActive ? 'outline' : 'default'} className={editType?.isActive ? 'text-orange-600' : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform'} onClick={async () => {
                 if (!editType) return;
                 try { await dictsApi.deleteType(editType.id); toast.success(editType.isActive ? '已停用' : '已启用'); const tp = await dictsApi.getTypes(true); setTypes(tp || []); setEditType(null); } catch (e: any) { toast.error(e.message); }
               }}>{editType?.isActive ? '停用' : '启用'}</Button>
@@ -1922,7 +1922,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditType(null)}>取消</Button>
-            <Button onClick={handleUpdateType} className="bg-emerald-600 hover:bg-emerald-700" disabled={!typeForm.name}>保存修改</Button>
+            <Button onClick={handleUpdateType} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!typeForm.name}>保存修改</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1965,7 +1965,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateTag(false)}>取消</Button>
-            <Button onClick={handleCreateTag} className="bg-emerald-600 hover:bg-emerald-700" disabled={!tagForm.name}>创建</Button>
+            <Button onClick={handleCreateTag} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!tagForm.name}>创建</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1996,12 +1996,12 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
             </div>
             <div className="flex items-center justify-between p-2 bg-muted/50 rounded">
               <span className="text-sm">状态</span>
-              <Button size="sm" variant={editTag?.isActive ? 'outline' : 'default'} className={editTag?.isActive ? 'text-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'} onClick={() => { if (editTag) toggleTagActive(editTag.id, editTag.isActive); }}>{editTag?.isActive ? '停用' : '启用'}</Button>
+              <Button size="sm" variant={editTag?.isActive ? 'outline' : 'default'} className={editTag?.isActive ? 'text-orange-600' : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform'} onClick={() => { if (editTag) toggleTagActive(editTag.id, editTag.isActive); }}>{editTag?.isActive ? '停用' : '启用'}</Button>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTag(null)}>取消</Button>
-            <Button onClick={handleUpdateTag} className="bg-emerald-600 hover:bg-emerald-700" disabled={!tagForm.name}>保存修改</Button>
+            <Button onClick={handleUpdateTag} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!tagForm.name}>保存修改</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2037,7 +2037,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setRepricePreview(null)}>取消</Button>
-            <Button onClick={handleConfirmReprice} className="bg-emerald-600 hover:bg-emerald-700" disabled={!repricePreview?.affectedItems?.length}>确认调价</Button>
+            <Button onClick={handleConfirmReprice} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!repricePreview?.affectedItems?.length}>确认调价</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -320,7 +320,7 @@ function BatchesTab() {
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新建批次</Button>
+        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新建批次</Button>
         <Button size="sm" variant="outline" className="h-9 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300" onClick={() => { if (filteredBatches.length > 0) setQuickAddBatch(filteredBatches[0]); else toast.error('没有可用的批次'); }}>
           <Package className="h-3 w-3 mr-1" />快速添加货品
         </Button>
@@ -596,7 +596,7 @@ function BatchesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialog({ open: false, batch: null })}>取消</Button>
-            <Button onClick={handleEdit} className="bg-emerald-600 hover:bg-emerald-700">保存</Button>
+            <Button onClick={handleEdit} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform">保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

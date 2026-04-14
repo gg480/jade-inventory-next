@@ -83,6 +83,9 @@ function SalesTab() {
   const [returnDialog, setReturnDialog] = useState<{ open: boolean; sale: any }>({ open: false, sale: null });
   const [returnForm, setReturnForm] = useState({ refundAmount: 0, returnReason: '', returnDate: new Date().toISOString().slice(0, 10) });
   const [returnSubmitting, setReturnSubmitting] = useState(false);
+
+  // Row click flash highlight
+  const [flashRowId, setFlashRowId] = useState<number | null>(null);
   const RETURN_REASONS = [
     { value: '质量问题', label: '质量问题', color: 'text-red-600' },
     { value: '尺寸不合适', label: '尺寸不合适', color: 'text-amber-600' },
@@ -470,7 +473,7 @@ function SalesTab() {
                 key={p.key}
                 size="sm"
                 variant={datePreset === p.key ? 'default' : 'outline'}
-                className={`h-7 text-xs ${datePreset === p.key ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
+                className={`h-7 text-xs ${datePreset === p.key ? 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform' : ''}`}
                 onClick={() => handleDatePreset(p.key)}
               >
                 {p.label}
@@ -492,7 +495,7 @@ function SalesTab() {
             </div>
           </div>
           <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowBundle(true)}><Link2 className="h-3 w-3 mr-1" />套装销售</Button>
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform h-9" onClick={() => setShowBundle(true)}><Link2 className="h-3 w-3 mr-1" />套装销售</Button>
             <Button size="sm" variant="outline" className="h-9 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30" onClick={handleExportCSV} disabled={sales.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
             <a href={exportApi.sales()} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="outline" className="h-9"><FileDown className="h-3 w-3 mr-1" />导出</Button>
@@ -510,7 +513,7 @@ function SalesTab() {
           <h3 className="text-xl font-semibold text-foreground mb-2">暂无销售记录</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-sm text-center">开始第一笔销售吧！在库存中选择货品进行出库</p>
           <Button
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform"
             onClick={() => useAppStore.getState().setActiveTab('inventory')}
           >
             <Package className="h-4 w-4 mr-2" />
@@ -542,7 +545,7 @@ function SalesTab() {
                       const marginPct = sale.actualPrice > 0 ? ((profit / sale.actualPrice) * 100).toFixed(1) : '0.0';
                       return (
                       <React.Fragment key={sale.id}>
-                      <TableRow className={`hover:bg-muted/50 transition-all duration-150 cursor-pointer ${rowBg} ${selectedSaleIds.has(String(sale.id)) ? 'bg-emerald-50/60 dark:bg-emerald-950/30' : ''}`} onClick={() => toggleExpand(sale.id)}>
+                      <TableRow className={`hover:bg-muted/50 transition-all duration-150 cursor-pointer ${rowBg} ${selectedSaleIds.has(String(sale.id)) ? 'bg-emerald-50/60 dark:bg-emerald-950/30' : ''} ${flashRowId === sale.id ? 'bg-emerald-50/50 dark:bg-emerald-950/30 animate-in fade-in-0 duration-300' : ''}`} onClick={() => { toggleExpand(sale.id); setFlashRowId(sale.id); setTimeout(() => setFlashRowId(null), 500); }}>
                         <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedSaleIds.has(String(sale.id))} onCheckedChange={() => toggleSelectSale(sale.id)} /></TableCell>
                         <TableCell className="font-mono text-xs"><div className="flex items-center gap-1.5">{isExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}{sale.saleNo}</div></TableCell>
                         <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
@@ -873,7 +876,7 @@ function SalesTab() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setPaymentEdit({ open: false, sale: null })}>取消</Button>
-            <Button onClick={handlePaymentSave} className="bg-emerald-600 hover:bg-emerald-700" disabled={paymentSubmitting}>
+            <Button onClick={handlePaymentSave} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={paymentSubmitting}>
               {paymentSubmitting ? '保存中...' : '保存'}
             </Button>
           </DialogFooter>

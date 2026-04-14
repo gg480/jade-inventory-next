@@ -2999,3 +2999,101 @@ Stage Summary:
 - 新建1个API端点（/api/dashboard/kpi-details）
 - 4个文件变更
 - 所有代码验证通过
+
+---
+
+## Task 17: 库存行内快速编辑 + 客户购买时间线 + Dashboard刷新动画 + UI微交互 (2026-06-18)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ dev server 正常运行
+
+### 完成的修改
+
+#### 1. 库存行内快速编辑 (inventory-tab.tsx)
+- 桌面表格的成本/售价单元格支持双击进入编辑模式
+- 编辑时显示预填充当前值的输入框
+- 按Enter保存修改（调用itemsApi.updateItem）
+- 按Escape取消编辑
+- 保存成功后短暂显示绿色✓图标（1.2秒后消失）
+- 仅桌面表格视图生效，移动端卡片不触发
+- 新增状态: `editingCell`, `editingValue`, `savingCell`, `editInputRef`
+- 新增函数: `startEditingCell()`, `saveEditingCell()`, `cancelEditingCell()`
+- 悬停可编辑单元格时显示Tooltip "双击编辑"
+- 导入: `Tooltip`, `TooltipContent`, `TooltipProvider`, `TooltipTrigger`, `Check`图标, `useRef`
+
+#### 2. 客户购买时间线 (customers-tab.tsx)
+- 展开客户详情时，将购买记录从简单列表改为垂直时间线
+- 每条购买记录包含: 日期（左）、SKU+渠道+价格（右）、圆形连接点
+- 颜色编码: 近30天购买=绿色高亮，超过30天=灰色，退货=橙色
+- 时间线顶部显示 "总消费: ¥X (N次)" 摘要
+- 每条记录带 `animate-in fade-in-0 slide-in-from-left-1` 入场动画，错开50ms
+- 最多显示15条记录，超出显示 "还有N条记录" 提示
+- 时间线使用渐变连接线（从emerald到muted）
+
+#### 3. Dashboard刷新脉冲动画 (dashboard-tab.tsx)
+- 刷新按钮点击时RefreshCw图标旋转（已有）
+- 刷新期间4个概览卡片显示shimmer效果（新增`.card-refresh-shimmer` CSS类）
+- 新增"最后刷新: HH:mm"时间戳显示在刷新按钮旁
+- 刷新按钮添加 `active:scale-[0.97]` 按压反馈
+- 在shared.tsx新增 `.card-refresh-shimmer` CSS动画类
+
+#### 4. UI微交互增强
+
+**按钮按压反馈** — 所有主要按钮添加 `active:scale-[0.97] transition-transform`:
+- inventory-tab.tsx: 出库、新增入库、确认出库、批量出库、打印按钮
+- customers-tab.tsx: 新增客户、创建、保存修改、添加标签、保存备注按钮
+- dashboard-tab.tsx: 时段筛选按钮、保存目标按钮
+- sales-tab.tsx: 套装销售、日期预设、确认、付款保存按钮
+- batches-tab.tsx: 新建批次、保存按钮
+- settings-tab.tsx: 所有CRUD按钮（9处）
+- item-create-dialog.tsx: 入库模式切换、确认入库按钮
+- item-edit-dialog.tsx: 保存修改按钮
+
+**表格行点击高亮**:
+- inventory-tab.tsx: 点击行短暂闪现emerald高亮（500ms后淡出）
+- sales-tab.tsx: 同样实现行点击高亮（`flashRowId` 状态 + 500ms定时器）
+
+**卡片入场交错动画**:
+- 客户卡片: 添加 `animate-in fade-in-0 slide-in-from-bottom-2`，错开50ms（最多8个）
+- 库存移动端卡片: 同样实现交错入场动画
+
+**数字计数动画**:
+- Dashboard `useCountUp` hook 修复: 初始值从0改为从0动画到目标值
+- 修复 `prevTargetRef` 初始值从 `target` 改为 `-1`，确保首次加载触发动画
+- `setDisplay` 初始值从 `target` 改为 `0`
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+
+### 关键文件变更
+- `src/components/inventory/inventory-tab.tsx` — 行内快速编辑 + 行点击高亮 + 移动端卡片交错动画 + 按钮按压反馈
+- `src/components/inventory/customers-tab.tsx` — 垂直购买时间线 + 卡片交错动画 + 按钮按压反馈
+- `src/components/inventory/dashboard-tab.tsx` — 刷新shimmer动画 + 最后刷新时间戳 + useCountUp修复 + 按钮按压反馈
+- `src/components/inventory/shared.tsx` — 新增 `.card-refresh-shimmer` CSS类
+- `src/components/inventory/sales-tab.tsx` — 行点击高亮 + 按钮按压反馈
+- `src/components/inventory/batches-tab.tsx` — 按钮按压反馈
+- `src/components/inventory/settings-tab.tsx` — 按钮按压反馈
+- `src/components/inventory/item-create-dialog.tsx` — 按钮按压反馈
+- `src/components/inventory/item-edit-dialog.tsx` — 按钮按压反馈
+
+---
+
+Task ID: 17
+Agent: main
+Task: 库存行内快速编辑 + 客户购买时间线 + Dashboard刷新动画 + UI微交互
+
+Work Log:
+- 读取 worklog.md 了解完整项目历史
+- 读取 inventory-tab.tsx, customers-tab.tsx, dashboard-tab.tsx 三个核心文件
+- 实现库存行内快速编辑（双击编辑、Enter保存、Escape取消、绿色✓反馈、Tooltip提示）
+- 实现客户购买垂直时间线（渐变连接线、颜色编码、交错入场动画、总消费摘要）
+- 实现Dashboard刷新脉冲动画（shimmer效果、最后刷新时间戳）
+- 实现UI微交互增强（按钮按压反馈8个文件、行点击高亮2个文件、卡片交错动画2个文件、数字计数动画修复）
+- 运行 bun run lint → 0 errors, 0 warnings
+- 更新 worklog.md
+
+Stage Summary:
+- 4项主要功能完成（行内快速编辑 + 购买时间线 + 刷新动画 + UI微交互）
+- 9个文件变更
+- 所有代码验证通过

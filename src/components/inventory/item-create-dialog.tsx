@@ -387,10 +387,10 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
         <div className="space-y-4 py-2">
           {/* Mode Toggle */}
           <div className="flex gap-2">
-            <Button size="sm" variant={mode === 'high_value' ? 'default' : 'outline'} onClick={() => setMode('high_value')} className={mode === 'high_value' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}>
+            <Button size="sm" variant={mode === 'high_value' ? 'default' : 'outline'} onClick={() => setMode('high_value')} className={mode === 'high_value' ? 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform' : ''}>
               <Gem className="h-3 w-3 mr-1" /> 高货入库
             </Button>
-            <Button size="sm" variant={mode === 'batch' ? 'default' : 'outline'} onClick={() => setMode('batch')} className={mode === 'batch' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}>
+            <Button size="sm" variant={mode === 'batch' ? 'default' : 'outline'} onClick={() => setMode('batch')} className={mode === 'batch' ? 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform' : ''}>
               <Layers className="h-3 w-3 mr-1" /> 通货入库
             </Button>
           </div>
@@ -623,7 +623,7 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>取消</Button>
-          <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700" disabled={saving}>{saving ? '保存中...' : '确认入库'}</Button>
+          <Button onClick={handleSave} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={saving}>{saving ? '保存中...' : '确认入库'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

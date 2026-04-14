@@ -319,7 +319,7 @@ function CustomerProfileDialog({ customer, open, onClose, onEdit, onTagsUpdated 
                     className="h-8 text-sm flex-1"
                     onKeyDown={e => { if (e.key === 'Enter') handleAddTag(); }}
                   />
-                  <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" onClick={handleAddTag}>添加</Button>
+                  <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" onClick={handleAddTag}>添加</Button>
                 </div>
               )}
               {tags.length > 0 ? (
@@ -420,7 +420,7 @@ function CustomerProfileDialog({ customer, open, onClose, onEdit, onTagsUpdated 
                 className="min-h-[80px] text-sm"
               />
               <div className="flex justify-end">
-                <Button size="sm" className="h-7 bg-emerald-600 hover:bg-emerald-700" disabled={notesSaving} onClick={handleSaveNotes}>
+                <Button size="sm" className="h-7 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={notesSaving} onClick={handleSaveNotes}>
                   {notesSaving ? '保存中...' : '保存备注'}
                 </Button>
               </div>
@@ -664,7 +664,7 @@ function CustomersTab() {
           <Button size="sm" variant="outline" className="h-9 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30" onClick={handleExportCSV} disabled={customers.length === 0}>
             <FileDown className="h-3 w-3 mr-1" />导出CSV
           </Button>
-          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowCreate(true)}>
+          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" onClick={() => setShowCreate(true)}>
             <Plus className="h-3 w-3 mr-1" /> 新增客户
           </Button>
         </div>
@@ -692,12 +692,12 @@ function CustomersTab() {
               default: cmp = 0;
             }
             return order === 'desc' ? -cmp : cmp;
-          }).map(c => {
+          }).map((c, cardIdx) => {
             const vip = getVipLevel(c.totalSpending || 0);
             const VipIcon = vip.icon;
             const customerTags = Array.isArray(c.tags) ? c.tags : [];
             return (
-              <Card key={c.id} className="group/card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => setProfileCustomer(c)}>
+              <Card key={c.id} className="group/card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer animate-in fade-in-0 slide-in-from-bottom-2" style={{ animationDelay: `${Math.min(cardIdx, 8) * 50}ms`, animationDuration: '300ms' }} onClick={() => setProfileCustomer(c)}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -831,45 +831,70 @@ function CustomersTab() {
                         <div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-20" /></div>
                       ) : customerDetail ? (
                         <div className="space-y-3">
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <p className="text-muted-foreground text-xs">总消费</p>
-                              <p className="font-bold text-emerald-600">
-                                {customerDetail.purchaseStats
-                                  ? formatPrice(customerDetail.purchaseStats.totalSpending)
-                                  : customerDetail.saleRecords
-                                    ? formatPrice(customerDetail.saleRecords.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0))
-                                    : '¥0.00'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground text-xs">购买次数</p>
-                              <p className="font-bold">{customerDetail.purchaseStats?.orderCount || customerDetail.saleRecords?.length || 0} 次</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground text-xs">最近购买</p>
-                              <p className="font-medium">{customerDetail.purchaseStats?.lastPurchaseDate || (customerDetail.saleRecords?.length > 0
-                                ? customerDetail.saleRecords.sort((a: any, b: any) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())[0]?.saleDate
-                                : '无')}</p>
-                            </div>
-                          </div>
+                          {/* Purchase Timeline Summary */}
+                          {(() => {
+                            const totalSpending = customerDetail.purchaseStats?.totalSpending
+                              || (customerDetail.saleRecords ? customerDetail.saleRecords.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0) : 0);
+                            const orderCount = customerDetail.purchaseStats?.orderCount || customerDetail.saleRecords?.length || 0;
+                            return (
+                              <div className="flex items-center gap-2 text-sm">
+                                <ShoppingBag className="h-4 w-4 text-emerald-600 shrink-0" />
+                                <span className="font-medium">总消费:</span>
+                                <span className="font-bold text-emerald-600">{formatPrice(totalSpending)}</span>
+                                <span className="text-muted-foreground">({orderCount}次)</span>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Vertical Purchase Timeline */}
                           {customerDetail.saleRecords && customerDetail.saleRecords.length > 0 && (
-                            <div className="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar">
-                              <p className="text-xs font-medium text-muted-foreground">购买记录</p>
-                              {customerDetail.saleRecords.slice(0, 10).map((sr: any) => (
-                                <div key={sr.id} className="flex items-center justify-between text-xs p-1.5 bg-muted/50 rounded hover:bg-muted/80 transition-colors gap-2">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="font-mono shrink-0">{sr.item?.skuCode || sr.saleNo}</span>
-                                    <Badge variant="outline" className="text-[10px] h-4 shrink-0">{sr.channel === 'store' ? '门店' : '微信'}</Badge>
-                                    {sr.item?.batchCode && (
-                                      <Badge variant="outline" className="text-[10px] h-4 px-1 shrink-0 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">{sr.item.batchCode}</Badge>
-                                    )}
-                                  </div>
-                                  <span className="font-medium text-emerald-600 shrink-0">{formatPrice(sr.actualPrice)}</span>
-                                </div>
-                              ))}
+                            <div className="relative pl-6 max-h-64 overflow-y-auto custom-scrollbar">
+                              {/* Vertical connecting line */}
+                              <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-emerald-400 via-emerald-300 to-muted" />
+                              <div className="space-y-2.5">
+                                {customerDetail.saleRecords.slice(0, 15).map((sr: any, idx: number) => {
+                                  const isReturn = sr.returnId != null;
+                                  const saleDate = sr.saleDate || '';
+                                  const daysSince = Math.floor((Date.now() - new Date(saleDate).getTime()) / 86400000);
+                                  const isRecent = daysSince < 30;
+                                  return (
+                                    <div
+                                      key={sr.id}
+                                      className="relative flex items-start gap-3 animate-in fade-in-0 slide-in-from-left-1"
+                                      style={{ animationDelay: `${idx * 50}ms`, animationDuration: '300ms' }}
+                                    >
+                                      {/* Timeline dot */}
+                                      <div className={`absolute -left-6 top-1 w-[18px] h-[18px] rounded-full flex items-center justify-center shrink-0 border-2 ${isReturn ? 'bg-orange-100 dark:bg-orange-900/30 border-orange-400' : isRecent ? 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-400' : 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600'}`}>
+                                        {isReturn ? <RotateCcw className="h-2.5 w-2.5 text-orange-600" /> : isRecent ? <ShoppingCartIcon className="h-2.5 w-2.5 text-emerald-600" /> : <div className="h-1.5 w-1.5 rounded-full bg-gray-400 dark:bg-gray-500" />}
+                                      </div>
+                                      {/* Content */}
+                                      <div className={`flex-1 text-xs p-2 rounded-lg transition-colors ${isReturn ? 'bg-orange-50/50 dark:bg-orange-950/20 border-l-2 border-l-orange-400' : isRecent ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-l-2 border-l-emerald-400' : 'bg-muted/50 border-l-2 border-l-gray-300 dark:border-l-gray-600'}`}>
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-1.5 min-w-0">
+                                            <span className={`tabular-nums shrink-0 ${isRecent ? 'text-emerald-600 font-medium' : 'text-muted-foreground'}`}>{saleDate}</span>
+                                            <span className="font-mono shrink-0">{sr.item?.skuCode || sr.saleNo}</span>
+                                            <Badge variant="outline" className="text-[10px] h-4 shrink-0">{sr.channel === 'store' ? '门店' : '微信'}</Badge>
+                                          </div>
+                                          <span className={`font-medium shrink-0 tabular-nums ${isReturn ? 'text-orange-600' : 'text-emerald-600'}`}>
+                                            {isReturn ? '-' : ''}{formatPrice(sr.actualPrice)}
+                                          </span>
+                                        </div>
+                                        {sr.item?.material?.name && (
+                                          <Badge variant="outline" className="text-[10px] h-4 shrink-0 border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400 mt-1">
+                                            {sr.item.material.name}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {customerDetail.saleRecords.length > 15 && (
+                                  <p className="text-xs text-muted-foreground text-center">还有 {customerDetail.saleRecords.length - 15} 条记录</p>
+                                )}
+                              </div>
                             </div>
                           )}
+
                           {/* Purchase Summary */}
                           {customerDetail.saleRecords && customerDetail.saleRecords.length > 0 && (() => {
                             const sales = customerDetail.saleRecords;
@@ -878,7 +903,6 @@ function CustomersTab() {
                             const lastDate = sorted[sorted.length - 1]?.saleDate || '无';
                             const totalSpending = sales.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0);
                             const avgOrder = totalSpending / sales.length;
-                            // Find most purchased item type
                             const typeCount: Record<string, { count: number; name: string }> = {};
                             sales.forEach((sr: any) => {
                               const typeName = sr.item?.material?.name || '其他';
@@ -978,7 +1002,7 @@ function CustomersTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>取消</Button>
-            <Button onClick={handleCreate} className="bg-emerald-600 hover:bg-emerald-700" disabled={!createForm.name}>创建</Button>
+            <Button onClick={handleCreate} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!createForm.name}>创建</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -997,7 +1021,7 @@ function CustomersTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditCustomer(null)}>取消</Button>
-            <Button onClick={handleEditCustomer} className="bg-emerald-600 hover:bg-emerald-700" disabled={!editForm.name}>保存修改</Button>
+            <Button onClick={handleEditCustomer} className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform" disabled={!editForm.name}>保存修改</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
