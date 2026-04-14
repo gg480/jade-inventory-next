@@ -344,10 +344,10 @@ export default function JadeInventoryPage() {
     }
   };
 
-  // Show login page if not authenticated
-  if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
+  // 登录验证已禁用 — 局域网部署不需要认证
+  // if (!isAuthenticated) {
+  //   return <LoginPage onLogin={handleLogin} />;
+  // }
 
   return (
     <div className="min-h-screen flex flex-col bg-background" id="app-root">
@@ -355,7 +355,7 @@ export default function JadeInventoryPage() {
       <div className="fixed top-0 left-0 right-0 z-[100] h-[2px] pointer-events-none">
         <div className="loading-bar h-full w-full" />
       </div>
-      <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout} className="no-print" />
+      <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} className="no-print" />
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 dark:bg-amber-600 text-white text-center text-sm py-1.5 px-4 animate-in slide-in-from-top-1 duration-200">
           <div className="flex items-center justify-center gap-2">
@@ -383,14 +383,7 @@ export default function JadeInventoryPage() {
             <QuickStatsBar />
           </div>
           <div className="flex items-center gap-3">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground hover:text-red-600" onClick={handleLogout}>
-                  <LogOut className="h-3.5 w-3.5 mr-1" />退出
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>退出登录</TooltipContent>
-            </Tooltip>
+            {/* 登录验证已禁用，退出按钮隐藏 */}
             <span className="text-muted-foreground text-xs">按 ? 查看快捷键</span>
             <span className="text-muted-foreground">技术支持: Z.ai</span>
           </div>
