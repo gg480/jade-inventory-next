@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { useAppStore, TabId } from '@/lib/store';
 import { fadeInStyle, cardSlideUpStyle, ErrorBoundary, LoadingSkeleton } from '@/components/inventory/shared';
+import LoginPage from '@/components/inventory/login-page';
 // ALL tab components lazy-loaded to prevent Turbopack OOM on initial compile
 const DashboardTab = lazy(() => import('@/components/inventory/dashboard-tab'));
 const InventoryTab = lazy(() => import('@/components/inventory/inventory-tab'));
@@ -143,6 +144,60 @@ export default function JadeInventoryPage() {
   const [lastUpdateTime, setLastUpdateTime] = useState('');
   const [apiLoading, setApiLoading] = useState(false);
 
+  // ===== Auth Guard =====
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [showApp, setShowApp] = useState(false);
+
+  const handleLogin = useCallback(() => {
+    setIsAuthenticated(true);
+    // Fade in the app after login
+    setTimeout(() => setShowApp(true), 50);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      try {
+        await fetch('/api/auth', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+      } catch { /* ignore */ }
+      localStorage.removeItem('auth_token');
+    }
+    setIsAuthenticated(false);
+    setShowApp(false);
+  }, []);
+
+  // Validate existing session on mount
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      // Use microtask to avoid synchronous setState in effect
+      queueMicrotask(() => setAuthChecking(false));
+      return;
+    }
+    fetch('/api/auth', {
+      headers: { 'Authorization': `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.code === 0) {
+          setIsAuthenticated(true);
+          setShowApp(true);
+        } else {
+          localStorage.removeItem('auth_token');
+          setIsAuthenticated(false);
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('auth_token');
+        setIsAuthenticated(false);
+      })
+      .finally(() => setAuthChecking(false));
+  }, []);
+
   // Dynamic page title based on active tab
   useEffect(() => {
     const titleMap: Record<TabId, string> = {
@@ -179,6 +234,7 @@ export default function JadeInventoryPage() {
     const interval = setInterval(updateTime, 30000);
     return () => clearInterval(interval);
   }, []);
+
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 300);
@@ -309,15 +365,40 @@ export default function JadeInventoryPage() {
       case 'batches': return <BatchesTab />;
       case 'customers': return <CustomersTab />;
       case 'logs': return <LogsTab />;
-      case 'settings': return <SettingsTab />;
+      case 'settings': return <SettingsTab onLogout={handleLogout} />;
       default: return <DashboardTab />;
     }
   };
 
+  // Show auth checking screen
+  if (authChecking) {
+    return (
+      <>
+        <Toaster richColors position="top-right" />
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-3">
+            <Gem className="h-8 w-8 text-emerald-600 animate-pulse" />
+            <p className="text-sm text-muted-foreground">验证登录状态...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <>
+        <Toaster richColors position="top-right" />
+        <LoginPage onLogin={handleLogin} />
+      </>
+    );
+  }
+
   return (
     <>
       <Toaster richColors position="top-right" />
-      <div className="min-h-screen flex flex-col bg-background" id="app-root">
+      <div className={`min-h-screen flex flex-col bg-background transition-opacity duration-500 ${showApp ? 'opacity-100' : 'opacity-0'}`} id="app-root">
       {/* Top Loading Bar */}
       <div className="fixed top-0 left-0 right-0 z-[100] h-[2px] pointer-events-none">
         <div className="loading-bar h-full w-full" />
@@ -360,6 +441,10 @@ export default function JadeInventoryPage() {
             <span className="text-muted-foreground text-xs">按 ? 查看快捷键</span>
             <span className="text-muted-foreground text-xs">最后更新: {lastUpdateTime}</span>
             <span className="text-muted-foreground">技术支持: Z.ai</span>
+            <div className="w-px h-4 bg-border" />
+            <button onClick={handleLogout} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-red-500 transition-colors" title="退出登录">
+              退出登录
+            </button>
           </div>
         </div>
       </footer>

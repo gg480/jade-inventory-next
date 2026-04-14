@@ -101,6 +101,7 @@ function DashboardTab() {
   const [profitAnalysis, setProfitAnalysis] = useState<any>(null);
   const [profitSectionOpen, setProfitSectionOpen] = useState(true);
   const [paymentStats, setPaymentStats] = useState<any>(null);
+  const [kpiDetails, setKpiDetails] = useState<any>(null);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -262,6 +263,17 @@ function DashboardTab() {
         if (payRes.ok) {
           const payData = await payRes.json();
           setPaymentStats(payData.data || payData);
+        }
+      } catch { /* non-critical */ }
+
+      // Load KPI details for mini-cards
+      try {
+        const kpiRes = await fetch('/api/dashboard/kpi-details');
+        if (kpiRes.ok) {
+          const kpiData = await kpiRes.json();
+          if (kpiData.code === 0) {
+            setKpiDetails(kpiData.data);
+          }
         }
       } catch { /* non-critical */ }
 
@@ -686,6 +698,82 @@ function DashboardTab() {
                   )}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ====== KPI Mini-Cards ====== */}
+      {kpiDetails && !isEmptyDashboard && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* 总库存金额 */}
+          <Card className="card-glow relative overflow-hidden hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-default">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <DollarSign className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="text-xs text-muted-foreground">总库存金额</span>
+              </div>
+              <p className="text-lg font-bold text-emerald-600 tabular-nums">¥{kpiDetails.totalStockValue?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </CardContent>
+          </Card>
+          {/* 平均单品成本 */}
+          <Card className="card-glow relative overflow-hidden hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-default">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <BarChart3 className="h-3.5 w-3.5 text-sky-600" />
+                <span className="text-xs text-muted-foreground">平均单品成本</span>
+              </div>
+              <p className="text-lg font-bold tabular-nums">¥{kpiDetails.avgItemCost?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </CardContent>
+          </Card>
+          {/* 最贵货品 */}
+          <Card className="card-glow relative overflow-hidden hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-default">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Gem className="h-3.5 w-3.5 text-amber-600" />
+                <span className="text-xs text-muted-foreground">最贵货品</span>
+              </div>
+              {kpiDetails.mostExpensiveItem ? (
+                <>
+                  <p className="text-sm font-bold truncate" title={kpiDetails.mostExpensiveItem.name}>{kpiDetails.mostExpensiveItem.name}</p>
+                  <p className="text-xs text-emerald-600 font-medium tabular-nums">¥{kpiDetails.mostExpensiveItem.costPrice?.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">暂无</p>
+              )}
+            </CardContent>
+          </Card>
+          {/* 本月新增 */}
+          <Card className="card-glow relative overflow-hidden hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-default">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Package className="h-3.5 w-3.5 text-teal-600" />
+                <span className="text-xs text-muted-foreground">本月新增</span>
+              </div>
+              <p className="text-lg font-bold text-teal-600 tabular-nums">{kpiDetails.itemsCreatedThisMonth}</p>
+              <p className="text-[10px] text-muted-foreground">件货品入库</p>
+            </CardContent>
+          </Card>
+          {/* 待处理退货 */}
+          <Card className="card-glow relative overflow-hidden hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-default">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <RotateCcw className="h-3.5 w-3.5 text-orange-600" />
+                <span className="text-xs text-muted-foreground">待处理退货</span>
+              </div>
+              <p className={`text-lg font-bold tabular-nums ${kpiDetails.pendingReturns > 0 ? 'text-orange-600' : ''}`}>{kpiDetails.pendingReturns}</p>
+              <p className="text-[10px] text-muted-foreground">笔退货记录</p>
+            </CardContent>
+          </Card>
+          {/* 毛利率 */}
+          <Card className="card-glow relative overflow-hidden hover:shadow-md hover:scale-[1.01] transition-all duration-200 cursor-default">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="text-xs text-muted-foreground">毛利率</span>
+              </div>
+              <p className={`text-lg font-bold tabular-nums ${kpiDetails.grossMargin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{kpiDetails.grossMargin}%</p>
+              <p className="text-[10px] text-muted-foreground">本月毛利率</p>
             </CardContent>
           </Card>
         </div>

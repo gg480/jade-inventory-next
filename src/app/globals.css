@@ -270,19 +270,54 @@ button, a, [role="button"], [role="tab"], [role="option"], label[for] {
 
 /* ========== Print Styles ========== */
 @media print {
-  /* Hide navigation, stats bar, buttons, floating elements */
+  /* Hide navigation, footer, stats bar, floating buttons */
   .no-print { display: none !important; }
+  nav { display: none !important; }
+  footer { display: none !important; }
+  button[aria-label="回到顶部"] { display: none !important; }
+  button[aria-label="快捷键帮助"] { display: none !important; }
+
+  /* Hide loading bar, offline banner, toast notifications */
+  .loading-bar { display: none !important; }
+  [data-sonner-toaster] { display: none !important; }
+
+  /* Hide mobile bottom nav and quick stats */
+  .fixed.bottom-14, .fixed.bottom-20 { display: none !important; }
 
   /* Ensure table borders print properly */
   table { border-collapse: collapse; }
-  th, td { border: 1px solid #ddd; }
+  th, td { border: 1px solid #ddd; padding: 4px 8px; }
 
-  /* Force white background */
+  /* Force white background and black text */
   body { background: white !important; color: black !important; }
+  .bg-background, .bg-card { background: white !important; }
 
-  /* Page break hints */
+  /* Remove shadows and transitions for print */
+  * { box-shadow: none !important; text-shadow: none !important; }
+  .card-glow:hover { animation: none !important; box-shadow: none !important; }
+
+  /* Page break hints for long tables and sections */
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
   .page-break-before { page-break-before: always; }
+  .page-break-after { page-break-after: always; }
+
+  /* Card grid adjustments for print */
+  .grid { page-break-inside: avoid; }
 
   /* Hide overlays and modals backdrop */
   [data-radix-popper-content-wrapper] { position: static !important; }
+
+  /* Ensure main content fills the page */
+  main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+
+  /* Print-friendly font sizes */
+  body { font-size: 12px !important; }
+  h1 { font-size: 18px !important; }
+  h2 { font-size: 16px !important; }
+  h3 { font-size: 14px !important; }
+
+  /* Hide decorative background elements */
+  [class*="opacity-10"], [class*="bg-gradient"] { display: none !important; }
 }

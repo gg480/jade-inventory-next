@@ -545,21 +545,17 @@ function CustomersTab() {
       toast.error('没有可导出的客户数据');
       return;
     }
-    const headers = ['客户编号', '姓名', '电话', '微信', '标签', '总消费', '购买次数', 'VIP等级', '最近购买', '地址', '备注'];
+    const headers = ['客户名称', '电话', '微信', 'VIP等级', '累计消费', '订单数', '最近购买日期', '备注'];
     const rows = customers.map((c: any) => {
       const vip = getVipLevel(c.totalSpending || 0);
-      const tags = Array.isArray(c.tags) ? c.tags.join('、') : (c.tags || '');
       return [
-        c.customerCode || '',
         c.name || '',
         c.phone || '',
         c.wechat || '',
-        tags,
+        vip.label,
         c.totalSpending || 0,
         c.orderCount || 0,
-        vip.label,
         c.lastPurchaseDate || '',
-        c.address || '',
         c.notes || '',
       ];
     });
@@ -665,7 +661,7 @@ function CustomersTab() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={handleExportCSV} disabled={customers.length === 0}>
+          <Button size="sm" variant="outline" className="h-9 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30" onClick={handleExportCSV} disabled={customers.length === 0}>
             <FileDown className="h-3 w-3 mr-1" />导出CSV
           </Button>
           <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowCreate(true)}>

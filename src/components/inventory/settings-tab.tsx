@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { dictsApi, configApi, suppliersApi, metalApi, backupApi, importApi, itemsApi, salesApi, batchesApi, customersApi } from '@/lib/api';
+import { dictsApi, configApi, suppliersApi, metalApi, backupApi, importApi, itemsApi, salesApi, batchesApi, customersApi, authApi } from '@/lib/api';
 import { toast } from 'sonner';
 import { formatPrice, EmptyState, LoadingSkeleton } from './shared';
 
@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogDescription, AlertDialogCancel } from '@/components/ui/alert-dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X, Hash, Crown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X, Hash, Crown, Lock, Eye, EyeOff, LogOut } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // ========== 材质大类选项 ==========
@@ -100,7 +100,11 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 // ========== Settings Tab ==========
-function SettingsTab() {
+interface SettingsTabProps {
+  onLogout?: () => void;
+}
+
+function SettingsTab({ onLogout }: SettingsTabProps) {
   const [subTab, setSubTab] = useState('dicts');
   const [materials, setMaterials] = useState<any[]>([]);
   const [types, setTypes] = useState<any[]>([]);
@@ -186,6 +190,13 @@ function SettingsTab() {
   const STORAGE_KEY = 'jade_system_config';
   const defaultSettings = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, profitWarningThreshold: 30, defaultProfitRate: 40 };
   const [systemConfig, setSystemConfig] = useState(defaultSettings);
+
+  // Password change states
+  const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   // Load settings & data stats from localStorage on mount
   useEffect(() => {
@@ -509,6 +520,39 @@ function SettingsTab() {
     }
   }
 
+  // Password change handler
+  async function handleChangePassword() {
+    if (!pwdForm.currentPassword.trim()) {
+      toast.error('请输入当前密码');
+      return;
+    }
+    if (!pwdForm.newPassword.trim()) {
+      toast.error('请输入新密码');
+      return;
+    }
+    if (pwdForm.newPassword.length < 6) {
+      toast.error('新密码长度不能少于6位');
+      return;
+    }
+    if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+      toast.error('两次输入的新密码不一致');
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      await authApi.changePassword({
+        currentPassword: pwdForm.currentPassword,
+        newPassword: pwdForm.newPassword,
+      });
+      toast.success('密码修改成功');
+      setPwdForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (e: any) {
+      toast.error(e.message || '密码修改失败');
+    } finally {
+      setPwdLoading(false);
+    }
+  }
+
   if (loading) return <LoadingSkeleton />;
 
   const tagGroups = tags.reduce((acc: any, tag: any) => {
@@ -780,7 +824,7 @@ function SettingsTab() {
 
         <TabsContent value="suppliers" className="mt-4">
           <Card className="border-l-4 border-l-teal-400 hover:shadow-sm transition-shadow duration-200">
-            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Factory className="h-4 w-4 text-teal-500" />供应商 ({suppliers.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateSupplier(true); setSupplierForm({ name: '', contact: '', notes: '' }); }}><Plus className="h-3 w-3 mr-1" />新增供应商</Button></div></CardHeader>
+            <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Factory className="h-4 w-4 text-teal-500" />供应商 ({suppliers.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateSupplier(true); setSupplierForm({ name: '', contact: '', phone: '', notes: '' }); }}><Plus className="h-3 w-3 mr-1" />新增供应商</Button></div></CardHeader>
             <CardContent>
               {/* Supplier Search */}
               <div className="mb-3">
@@ -845,7 +889,113 @@ function SettingsTab() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="config" className="mt-4">
+        <TabsContent value="config" className="mt-4 space-y-4">
+          {/* Password Change Card */}
+          <Card className="border-l-4 border-l-rose-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Lock className="h-4 w-4 text-rose-500" />修改密码</CardTitle></CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">修改管理员登录密码，修改后需使用新密码登录</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">当前密码</Label>
+                    <div className="relative">
+                      <Input
+                        type={showCurrentPwd ? 'text' : 'password'}
+                        placeholder="输入当前密码"
+                        value={pwdForm.currentPassword}
+                        onChange={e => setPwdForm(f => ({ ...f, currentPassword: e.target.value }))}
+                        className="h-9 text-sm pr-10"
+                        disabled={pwdLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPwd(!showCurrentPwd)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showCurrentPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">新密码</Label>
+                    <div className="relative">
+                      <Input
+                        type={showNewPwd ? 'text' : 'password'}
+                        placeholder="输入新密码（至少6位）"
+                        value={pwdForm.newPassword}
+                        onChange={e => setPwdForm(f => ({ ...f, newPassword: e.target.value }))}
+                        className="h-9 text-sm pr-10"
+                        disabled={pwdLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPwd(!showNewPwd)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showNewPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">确认新密码</Label>
+                    <div className="relative">
+                      <Input
+                        type={showConfirmPwd ? 'text' : 'password'}
+                        placeholder="再次输入新密码"
+                        value={pwdForm.confirmPassword}
+                        onChange={e => setPwdForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                        className="h-9 text-sm pr-10"
+                        disabled={pwdLoading}
+                        onKeyDown={e => { if (e.key === 'Enter') handleChangePassword(); }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="h-8 bg-rose-600 hover:bg-rose-700 text-xs"
+                    onClick={handleChangePassword}
+                    disabled={pwdLoading || !pwdForm.currentPassword || !pwdForm.newPassword || !pwdForm.confirmPassword}
+                  >
+                    {pwdLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        修改中...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-3 w-3 mr-1" />
+                        确认修改
+                      </>
+                    )}
+                  </Button>
+                  {onLogout && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-200 dark:border-red-800"
+                      onClick={onLogout}
+                    >
+                      <LogOut className="h-3 w-3 mr-1" />
+                      退出登录
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
           <Card className="border-l-4 border-l-gray-400 hover:shadow-sm transition-shadow duration-200">
             <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Settings className="h-4 w-4 text-gray-500" />系统配置</CardTitle></CardHeader>
             <CardContent>

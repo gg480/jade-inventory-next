@@ -2853,3 +2853,149 @@ Stage Summary:
 - Drawer fetches full item detail (including images and sale records) from API
 - All existing functionality preserved (edit, sell, return, print label)
 - Lint passes cleanly
+---
+
+## Task 16-a: Auth Guard + Password Change Dialog (2026-03-05)
+
+### 完成的修改
+
+#### 1. 认证守卫 — page.tsx
+- 导入 `LoginPage` 组件和 `useCallback` hook
+- 新增 `isAuthenticated`、`authChecking`、`showApp` 三个状态
+- `handleLogin` 回调：设置认证状态，延迟50ms触发 fade-in 动画
+- `handleLogout` 回调：调用 DELETE /api/auth 清除服务端 session，移除 localStorage token，重置认证状态
+- `useEffect` 验证已有 session：读取 localStorage auth_token → GET /api/auth → 验证成功则直接进入主应用
+- 未认证时渲染 `<LoginPage onLogin={handleLogin} />` 代替主应用
+- 认证检查中显示翡翠 Gem 动画加载提示
+- 主应用容器添加 `transition-opacity duration-500` fade 过渡动画
+- `SettingsTab` 传入 `onLogout` 回调
+- 页脚添加"退出登录"按钮（hover 变红）
+
+#### 2. 修改密码 API — /api/auth/password/route.ts (新建)
+- PUT handler，验证 Authorization token
+- 接受 `{ currentPassword, newPassword }` JSON
+- 验证当前密码与 SysConfig `admin_password` 一致
+- 新密码长度 ≥ 6 位
+- 新密码不能与当前密码相同
+- 使用 `upsert` 更新/创建 `admin_password` SysConfig 记录
+- 返回成功/错误 JSON 响应
+
+#### 3. 修改密码界面 — settings-tab.tsx
+- SettingsTab 组件新增 `onLogout` 可选 prop
+- 系统配置 Tab 顶部新增"修改密码"卡片（rose 左边框装饰）
+- 三个密码输入框：当前密码、新密码、确认新密码
+- 每个输入框有显示/隐藏切换按钮（Eye/EyeOff 图标）
+- 新密码最少6位验证 + 两次密码一致性验证
+- "确认修改"按钮（rose 色，加载中显示 Loader2 动画）
+- "退出登录"按钮（红色 outline 样式，仅在传入 onLogout 时显示）
+- 成功/失败 toast 通知
+
+#### 4. API 客户端 — api.ts
+- 新增 `authApi.changePassword()` 方法
+- 调用 PUT /auth/password 端点
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ 认证守卫正常工作（未登录显示登录页，登录后进入主应用）
+- ✅ 修改密码 API 端点正常
+- ✅ 密码修改后 SysConfig 更新
+
+### 关键文件变更
+- `src/app/page.tsx` — 认证守卫 + LoginPage 集成 + fade 动画 + 退出登录
+- `src/app/api/auth/password/route.ts` — 新建，密码修改 API
+- `src/components/inventory/settings-tab.tsx` — 修改密码卡片 + onLogout prop
+- `src/lib/api.ts` — authApi.changePassword 方法
+
+
+---
+
+## Task 16-b: 客户CSV导出 + Dashboard KPI迷你卡片 + 打印样式增强 (2026-03-05)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ dev server 正常运行
+- 4项功能增强全部完成
+
+### 本轮完成的4项改动
+
+#### 1. 客户CSV导出增强 (customers-tab.tsx)
+- CSV列更新为规范格式：客户名称, 电话, 微信, VIP等级, 累计消费, 订单数, 最近购买日期, 备注
+- 保留BOM（`\uFEFF`）兼容Excel UTF-8编码
+- 保留正确的引号/逗号转义
+- 下载文件名：`客户数据_YYYY-MM-DD.csv`
+- "导出CSV"按钮样式更新为翡翠主题（border-emerald-300 / text-emerald-700 / hover:bg-emerald-50），与销售/库存导出按钮一致
+- 无客户数据时按钮禁用
+
+#### 2. Dashboard KPI迷你卡片 (dashboard-tab.tsx + kpi-details/route.ts)
+- 新建API端点 `/api/dashboard/kpi-details`，提供6项KPI数据：
+  - totalStockValue（总库存金额）
+  - avgItemCost（平均单品成本）
+  - mostExpensiveItem（最贵货品：name + costPrice）
+  - itemsCreatedThisMonth（本月新增入库数）
+  - pendingReturns（待处理退货数）
+  - grossMargin（毛利率%）
+- Dashboard新增6个紧凑型KPI迷你卡片行，位于5个概览卡片之后、付款概览之前：
+  1. 💰 总库存金额 — 翡翠色，¥前缀+千分位格式
+  2. 📊 平均单品成本 — 天蓝色
+  3. 💎 最贵货品 — 琥珀色，显示货品名称+价格
+  4. 📦 本月新增 — 青绿色，显示件数
+  5. 🔄 待处理退货 — 橙色，退货数>0时高亮
+  6. 📈 毛利率 — 正值翡翠色/负值红色，显示百分比
+- 每个迷你卡片使用 card-glow 悬停效果 + hover:scale-[1.01] 微缩放
+- 响应式布局：2列(手机) / 3列(sm) / 6列(lg)
+- fetchData中异步加载KPI数据，失败不阻塞其他数据
+
+#### 3. 打印样式增强 (globals.css)
+- 扩展 `@media print` 规则：
+  - 隐藏导航(nav)、页脚(footer)、回到顶部按钮、快捷键帮助按钮
+  - 隐藏加载条、Toast通知、离线提示横幅
+  - 隐藏移动端底部导航和快速统计栏
+  - 强制白色背景和黑色文字
+  - 移除所有阴影和文字阴影
+  - 禁用 card-glow 动画
+  - 添加表格分页控制：`page-break-inside: auto`（表格）、`page-break-inside: avoid`（行）、`display: table-header-group`（表头）
+  - 新增 `.page-break-after` 类
+  - 主内容区域去除padding/max-width
+  - 打印友好字体大小：12px(body)/18px(h1)/16px(h2)/14px(h3)
+  - 隐藏装饰性背景元素
+
+#### 4. 销售打印小票功能验证 (sales-tab.tsx)
+- 已确认销售页面已有完整的"打印小票"功能：
+  - 桌面端：每行操作列有"小票"按钮（Printer图标）
+  - 移动端：卡片视图有"小票"按钮
+  - 打印对话框：显示完整小票格式（单号/日期/货品/价格/客户/渠道/条码）
+  - 专用打印CSS：80mm小票纸宽度、隐藏其他元素、仅显示小票内容
+  - `window.print()` 触发浏览器打印
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ dev server 正常运行 (GET / 200)
+- ✅ KPI Details API 响应正常
+
+### 关键文件变更
+- `src/app/api/dashboard/kpi-details/route.ts` — 新建，KPI详情API
+- `src/components/inventory/dashboard-tab.tsx` — 新增kpiDetails状态 + 6个KPI迷你卡片
+- `src/components/inventory/customers-tab.tsx` — CSV列格式更新 + 按钮样式增强
+- `src/app/globals.css` — 打印样式全面增强
+
+---
+
+Task ID: 16-b
+Agent: main
+Task: 客户CSV导出 + Dashboard KPI迷你卡片 + 打印样式增强
+
+Work Log:
+- 读取 customers-tab.tsx / dashboard-tab.tsx / sales-tab.tsx / page.tsx / globals.css
+- 确认客户CSV导出已存在，更新列格式匹配规范
+- 创建 /api/dashboard/kpi-details 新API端点
+- 在 dashboard-tab.tsx 添加 kpiDetails 状态和6个KPI迷你卡片
+- 增强 globals.css 打印样式规则
+- 验证销售打印小票功能已完整实现
+- 运行 bun run lint → 0 errors, 0 warnings
+- 更新 worklog.md
+
+Stage Summary:
+- 4项功能增强完成（客户CSV导出列规范 + Dashboard 6个KPI迷你卡片 + 打印样式增强 + 销售小票验证）
+- 新建1个API端点（/api/dashboard/kpi-details）
+- 4个文件变更
+- 所有代码验证通过

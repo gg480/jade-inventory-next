@@ -305,6 +305,12 @@ export const importApi = {
   downloadTemplate: (type: 'items' | 'sales') => `${BASE}/import/template?type=${type}`,
 };
 
+// ========== Auth ==========
+export const authApi = {
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    request<any>('/auth/password', { method: 'PUT', body: JSON.stringify(data) }),
+};
+
 // ========== Batch Price ==========
 export const itemsApiEnhanced = {
   batchPriceAdjust: async (data: { ids: string[]; adjustmentType: 'percentage' | 'fixed'; value: number; direction: 'increase' | 'decrease' }) => {
