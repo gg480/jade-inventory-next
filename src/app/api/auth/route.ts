@@ -26,10 +26,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ code: 401, data: null, message: '密码错误' }, { status: 401 });
     }
 
-    const token = createSession();
+    const token = await createSession();
     return NextResponse.json({
       code: 0,
-      data: { token, expiresIn: 86400 },
+      data: { token, expiresIn: 604800 }, // 7 days in seconds
       message: 'ok',
     });
   } catch (e: any) {
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '');
 
-  if (!token || !validateToken(token)) {
+  if (!token || !await validateToken(token)) {
     return NextResponse.json({ code: 401, data: null, message: '未登录或会话已过期' }, { status: 401 });
   }
 
@@ -59,7 +59,7 @@ export async function DELETE(req: Request) {
   const token = authHeader?.replace('Bearer ', '');
 
   if (token) {
-    deleteSession(token);
+    await deleteSession(token);
   }
 
   return NextResponse.json({ code: 0, data: null, message: 'ok' });

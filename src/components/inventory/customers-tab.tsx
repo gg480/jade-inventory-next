@@ -709,6 +709,52 @@ function CustomersTab() {
                     {c.notes && <p className="truncate">📝 {c.notes}</p>}
                   </div>
 
+                  {/* VIP Progress Bar */}
+                  {(c.totalSpending || 0) > 0 && (() => {
+                    const spend = c.totalSpending || 0;
+                    let progress = 0;
+                    let nextLevelName = '';
+                    let nextMin = 0;
+                    let barColor = '#9ca3af'; // gray for 普通
+                    let levelColor = 'text-gray-500';
+                    if (spend < 1000) {
+                      progress = (spend / 1000) * 100;
+                      nextLevelName = '银卡';
+                      nextMin = 1000;
+                      barColor = '#9ca3af';
+                      levelColor = 'text-gray-500';
+                    } else if (spend < 5000) {
+                      progress = ((spend - 1000) / 4000) * 100;
+                      nextLevelName = '金卡';
+                      nextMin = 5000;
+                      barColor = '#94a3b8';
+                      levelColor = 'text-slate-400';
+                    } else if (spend < 20000) {
+                      progress = ((spend - 5000) / 15000) * 100;
+                      nextLevelName = '钻石';
+                      nextMin = 20000;
+                      barColor = '#f59e0b';
+                      levelColor = 'text-amber-500';
+                    } else {
+                      progress = 100;
+                      barColor = '#0ea5e9';
+                      levelColor = 'text-sky-500';
+                    }
+                    return (
+                      <div className="mt-2 pt-1">
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ height: '3px' }}>
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: barColor }} />
+                        </div>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <span className={`text-[10px] ${levelColor} font-medium`}>{vip.label}</span>
+                          {nextLevelName && progress < 100 && (
+                            <span className="text-[10px] text-muted-foreground">距{nextLevelName} ¥{nextMin - spend}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Expanded Detail */}
                   {expandedCustomerId === c.id && (
                     <div className="mt-3 pt-3 border-t border-border" onClick={e => e.stopPropagation()}>

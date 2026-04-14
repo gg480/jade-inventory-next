@@ -844,6 +844,72 @@ function DashboardTab() {
         </Card>
       )}
 
+      {/* ====== 3.5 库存状态分布 (Donut Chart) ====== */}
+      {summary?.statusCounts && (
+        <Card className="hover:shadow-md transition-shadow duration-300">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <PieChart className="h-4 w-4 text-emerald-600" />
+              库存状态分布
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              const sc = summary.statusCounts;
+              const total = (sc.inStock || 0) + (sc.sold || 0) + (sc.returned || 0);
+              if (total === 0) return <EmptyState icon={PieChart} title="暂无数据" desc="" />;
+              const pieData = [
+                { name: '在库', value: sc.inStock || 0, color: '#059669' },
+                { name: '已售', value: sc.sold || 0, color: '#0284c7' },
+                { name: '已退', value: sc.returned || 0, color: '#ef4444' },
+              ].filter(d => d.value > 0);
+              return (
+                <div className="flex items-center gap-4">
+                  <div className="w-40 h-40 shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RPieChart>
+                        <Pie
+                          data={pieData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius="60%"
+                          outerRadius="80%"
+                          stroke="none"
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                      </RPieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div className="text-center mb-2">
+                      <p className="text-2xl font-bold tabular-nums">{total}</p>
+                      <p className="text-xs text-muted-foreground">货品总数</p>
+                    </div>
+                    {pieData.map((d) => (
+                      <div key={d.name} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                          <span>{d.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold tabular-nums">{d.value}</span>
+                          <span className="text-xs text-muted-foreground w-10 text-right">{((d.value / total) * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
       {/* ====== 4. Counter Profit + Channel Profit + Inventory Value By Category ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">

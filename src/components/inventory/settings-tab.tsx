@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X, Hash, Crown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // ========== 材质大类选项 ==========
@@ -498,6 +498,31 @@ function SettingsTab() {
           <Card className="border-l-4 border-l-emerald-400 hover:shadow-sm transition-shadow duration-200">
             <CardHeader className="pb-2"><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Gem className="h-4 w-4 text-emerald-500" />材质 ({materials.length})</CardTitle><Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-7 text-xs" onClick={() => { setShowCreateMaterial(true); setMaterialForm({ name: '', category: '', subType: '', origin: '', costPerGram: '' }); }}><Plus className="h-3 w-3 mr-1" />新增材质</Button></div></CardHeader>
             <CardContent>
+              {/* Material Statistics Info Bar */}
+              {(() => {
+                const activeMaterials = materials.filter(m => m.isActive);
+                const materialsWithSubType = activeMaterials.filter(m => m.subType).length;
+                const categoryCount = new Set(activeMaterials.map(m => m.category).filter(Boolean)).size;
+                return (
+                  <div className="mb-3 p-3 bg-muted/30 rounded-lg flex items-center gap-4 text-sm flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <Hash className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="text-muted-foreground">材质总数</span>
+                      <span className="font-bold">{activeMaterials.length}种</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Layers className="h-3.5 w-3.5 text-sky-600" />
+                      <span className="text-muted-foreground">有子类</span>
+                      <span className="font-bold">{materialsWithSubType}种</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Crown className="h-3.5 w-3.5 text-amber-600" />
+                      <span className="text-muted-foreground">大类</span>
+                      <span className="font-bold">{categoryCount}个</span>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="max-h-64 overflow-y-auto custom-scrollbar">
                 <Table>
                   <TableHeader><TableRow><TableHead>名称</TableHead><TableHead>大类</TableHead><TableHead>子类</TableHead><TableHead>产地</TableHead><TableHead className="text-right">克重单价</TableHead><TableHead>状态</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader>

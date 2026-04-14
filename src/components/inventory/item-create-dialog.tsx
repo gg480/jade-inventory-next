@@ -109,11 +109,20 @@ function ItemCreateDialog({ open, onOpenChange, onSuccess, defaultBatchId, defau
   }, [batchFilteredByCategory, batchMaterialSubType]);
 
   const selectedType = types.find((t: any) => String(t.id) === (mode === 'high_value' ? highValueForm.typeId : batchForm.typeId));
-  const specFieldsObj = parseSpecFields(selectedType?.specFields);
+  const typeSpecFields = parseSpecFields(selectedType?.specFields);
+  // When no type is selected, show all spec fields; otherwise show only type-specific fields
+  const ALL_SPEC_FIELDS: Record<string, { required: boolean }> = {
+    weight: { required: false }, metalWeight: { required: false }, size: { required: false },
+    braceletSize: { required: false }, beadCount: { required: false }, beadDiameter: { required: false }, ringSize: { required: false },
+  };
+  const specFieldsObj = Object.keys(typeSpecFields).length > 0 ? typeSpecFields : ALL_SPEC_FIELDS;
   const specFieldKeys = Object.keys(specFieldsObj);
 
   function renderSpecFields(form: typeof highValueForm | typeof batchForm, setForm: (f: any) => void) {
     if (specFieldKeys.length === 0) return null;
+
+    // Determine if showing all fields (no type selected) or type-specific fields
+    const showingAllFields = Object.keys(typeSpecFields).length === 0;
 
     const BRACELET_SIZES = [50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72];
     const RING_SIZES = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25];

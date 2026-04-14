@@ -1,8 +1,9 @@
-// Simple in-memory session-based auth for single-user NAS app
+// Database-backed session-based auth for single-user NAS app
+// Sessions persist across server restarts via SQLite
 
-const sessions = new Map<string, { createdAt: number }>();
+import { db } from '@/lib/db';
 
-const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours in ms
+const SESSION_TTL_DAYS = 7; // 7-day session expiry
 
 /** Generate a random session token */
 export function generateToken(): string {
@@ -14,37 +15,70 @@ export function generateToken(): string {
   return token;
 }
 
-/** Create a new session, returns the token */
-export function createSession(): string {
-  // Clean expired sessions
-  const now = Date.now();
-  for (const [key, session] of sessions) {
-    if (now - session.createdAt > SESSION_TTL) {
-      sessions.delete(key);
-    }
+/** Clean expired sessions from the database */
+export async function cleanExpiredSessions(): Promise<void> {
+  try {
+    await db.session.deleteMany({
+      where: {
+        expiresAt: { lt: new Date() },
+      },
+    });
+  } catch {
+    // Silently fail - not critical
   }
+}
+
+/** Create a new session, returns the token */
+export async function createSession(): Promise<string> {
+  // Clean expired sessions first
+  await cleanExpiredSessions();
 
   const token = generateToken();
-  sessions.set(token, { createdAt: now });
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  await db.session.create({
+    data: {
+      token,
+      userId: 'admin',
+      expiresAt,
+    },
+  });
+
   return token;
 }
 
 /** Validate a token, returns true if valid */
-export function validateToken(token: string): boolean {
+export async function validateToken(token: string): Promise<boolean> {
   if (!token) return false;
-  const session = sessions.get(token);
-  if (!session) return false;
 
-  // Check expiration
-  if (Date.now() - session.createdAt > SESSION_TTL) {
-    sessions.delete(token);
+  try {
+    const session = await db.session.findUnique({
+      where: { token },
+    });
+
+    if (!session) return false;
+
+    // Check expiration
+    if (new Date() > session.expiresAt) {
+      // Delete expired session
+      await db.session.delete({ where: { token } }).catch(() => {});
+      return false;
+    }
+
+    return true;
+  } catch {
     return false;
   }
-
-  return true;
 }
 
 /** Delete a session (logout) */
-export function deleteSession(token: string): void {
-  sessions.delete(token);
+export async function deleteSession(token: string): Promise<void> {
+  try {
+    await db.session.delete({
+      where: { token },
+    });
+  } catch {
+    // Session may not exist, that's fine
+  }
 }

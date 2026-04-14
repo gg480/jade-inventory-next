@@ -84,6 +84,8 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File;
     const autoCreate = formData.get('autoCreate') !== 'false'; // default true
     const skipExisting = formData.get('skipExisting') !== 'false'; // default true
+    const batchIdStr = formData.get('batchId') as string | null;
+    const batchId = batchIdStr ? parseInt(batchIdStr) : null;
 
     if (!file) {
       return NextResponse.json({ code: 400, data: null, message: '请上传CSV文件' }, { status: 400 });

@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw, ArrowUpRight, ArrowDownRight, TrendingUp, Search } from 'lucide-react';
+import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw, ArrowUpRight, ArrowDownRight, TrendingUp, Search, Package, DollarSign, ShoppingCart } from 'lucide-react';
 
 // ========== Batch Detail Dialog ==========
 function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | null; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -143,6 +143,40 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
             <div className="space-y-3 py-4"><Skeleton className="h-6 w-40" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-32 w-full" /></div>
           ) : batch ? (
             <div className="space-y-4 py-2">
+              {/* Summary Stats Row */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Package className="h-4 w-4 text-emerald-600" />
+                    <span className="text-xs text-muted-foreground">总数量</span>
+                  </div>
+                  <p className="text-lg font-bold">{batch.quantity || 0}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="h-4 w-4 text-sky-600" />
+                    <span className="text-xs text-muted-foreground">总成本</span>
+                  </div>
+                  <p className="text-lg font-bold">{formatPrice(batch.totalCost)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle className="h-4 w-4 text-amber-600" />
+                    <span className="text-xs text-muted-foreground">已录入</span>
+                  </div>
+                  <p className="text-lg font-bold">{enteredCount}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ShoppingCart className="h-4 w-4 text-purple-600" />
+                    <span className="text-xs text-muted-foreground">已售出</span>
+                  </div>
+                  <p className="text-lg font-bold">{batch.soldCount || 0}</p>
+                </div>
+              </div>
+
+              <Separator />
+
               {/* Progress Bar: 已录入 / 声明 */}
               <div className="p-3 bg-muted/50 rounded-lg space-y-2">
                 <div className="flex items-center justify-between text-sm">

@@ -80,7 +80,13 @@ function ItemEditDialog({ itemId, open, onOpenChange, onSuccess }: { itemId: num
   }, [item?.id]);
 
   const selectedType = types.find((t: any) => String(t.id) === String(item?.typeId));
-  const specFieldsObj = parseSpecFields(selectedType?.specFields);
+  const typeSpecFields = parseSpecFields(selectedType?.specFields);
+  // When no type is selected, show all spec fields; otherwise show only type-specific fields
+  const ALL_SPEC_FIELDS: Record<string, { required: boolean }> = {
+    weight: { required: false }, metalWeight: { required: false }, size: { required: false },
+    braceletSize: { required: false }, beadCount: { required: false }, beadDiameter: { required: false }, ringSize: { required: false },
+  };
+  const specFieldsObj = Object.keys(typeSpecFields).length > 0 ? typeSpecFields : ALL_SPEC_FIELDS;
   const specFieldKeys = Object.keys(specFieldsObj);
 
   function toggleTag(tagId: number) {

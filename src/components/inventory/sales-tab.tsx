@@ -297,7 +297,13 @@ function SalesTab() {
     let end = today.toISOString().slice(0, 10);
     switch (preset) {
       case 'today': start = end; break;
-      case 'week': start = new Date(today.getTime() - 7 * 86400000).toISOString().slice(0, 10); break;
+      case 'week': {
+        // 本周: Monday to today
+        const dayOfWeek = today.getDay();
+        const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        start = new Date(today.getTime() - mondayOffset * 86400000).toISOString().slice(0, 10);
+        break;
+      }
       case 'month': start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10); break;
       case 'quarter': start = new Date(today.getFullYear(), today.getMonth() - 2, 1).toISOString().slice(0, 10); break;
       case 'year': start = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10); break;
@@ -377,9 +383,8 @@ function SalesTab() {
             {[
               { key: 'all', label: '全部' },
               { key: 'today', label: '今日' },
-              { key: 'week', label: '近7天' },
+              { key: 'week', label: '本周' },
               { key: 'month', label: '本月' },
-              { key: 'quarter', label: '本季度' },
               { key: 'year', label: '本年' },
             ].map(p => (
               <Button

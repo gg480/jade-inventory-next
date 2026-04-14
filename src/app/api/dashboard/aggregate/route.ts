@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
 
     // ========== 1. Summary ==========
-    const [totalItems, inStockItems, monthSales] = await Promise.all([
+    const [totalItems, inStockItems, monthSales, soldCount, returnedCount] = await Promise.all([
       db.item.count({ where: { status: 'in_stock', isDeleted: false } }),
       db.item.findMany({
         where: { status: 'in_stock', isDeleted: false },
@@ -25,6 +25,8 @@ export async function GET(req: Request) {
         where: { saleDate: { gte: monthStart } },
         include: { item: true },
       }),
+      db.item.count({ where: { status: 'sold', isDeleted: false } }),
+      db.item.count({ where: { status: 'returned', isDeleted: false } }),
     ]);
 
     const totalStockValue = inStockItems.reduce((sum, i) => sum + (i.allocatedCost || i.costPrice || 0), 0);
@@ -40,6 +42,7 @@ export async function GET(req: Request) {
       monthRevenue: Math.round(monthRevenue * 100) / 100,
       monthProfit: Math.round(monthProfit * 100) / 100,
       monthSoldCount: monthSales.length,
+      statusCounts: { inStock: totalItems, sold: soldCount, returned: returnedCount },
     };
 
     // ========== 2. Batch Profit ==========
