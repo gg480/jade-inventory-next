@@ -14,6 +14,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers,
     ...options,
   });
+  if (!res.ok) {
+    throw new Error(`请求失败: HTTP ${res.status} ${res.statusText}`);
+  }
   const json = await res.json();
   if (json.code !== 0 && json.code !== 200) {
     throw new Error(json.message || '请求失败');

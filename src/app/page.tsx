@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAppStore, TabId } from '@/lib/store';
 import { fadeInStyle, cardSlideUpStyle, ErrorBoundary, LoadingSkeleton } from '@/components/inventory/shared';
 import SalesTab from '@/components/inventory/sales-tab';
@@ -11,15 +11,13 @@ import LogsTab from '@/components/inventory/logs-tab';
 const DashboardTab = lazy(() => import('@/components/inventory/dashboard-tab'));
 const InventoryTab = lazy(() => import('@/components/inventory/inventory-tab'));
 const SettingsTab = lazy(() => import('@/components/inventory/settings-tab'));
-import LoginPage from '@/components/inventory/login-page';
 import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
-import { Gem, Package, ShoppingCart, Zap, Clock, LogOut, ArrowUp, HelpCircle, WifiOff } from 'lucide-react';
+import { Gem, Package, ShoppingCart, Zap, Clock, ArrowUp, HelpCircle, WifiOff } from 'lucide-react';
 import { itemsApi, salesApi, batchesApi } from '@/lib/api';
-import { toast } from 'sonner';
 import {
   Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
 } from '@/components/ui/tooltip';
-import { Button } from '@/components/ui/button';
+
 
 // Ensure keyframes are injected
 void fadeInStyle;
@@ -156,8 +154,6 @@ export default function JadeInventoryPage() {
   const [animKey, setAnimKey] = useState(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [isOnline, setIsOnline] = useState(() => typeof window !== 'undefined' ? navigator.onLine : true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Dynamic page title based on active tab
@@ -194,27 +190,6 @@ export default function JadeInventoryPage() {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const handleLogin = useCallback((token: string) => {
-    setAuthToken(token);
-    setIsAuthenticated(true);
-  }, []);
-
-  const handleLogout = useCallback(async () => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      try {
-        await fetch('/api/auth', {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-      } catch { /* ignore */ }
-    }
-    localStorage.removeItem('auth_token');
-    setAuthToken(null);
-    setIsAuthenticated(false);
-    toast.success('已退出登录');
   }, []);
 
   const handleTabChange = (tab: TabId) => {
@@ -344,11 +319,6 @@ export default function JadeInventoryPage() {
     }
   };
 
-  // 登录验证已禁用 — 局域网部署不需要认证
-  // if (!isAuthenticated) {
-  //   return <LoginPage onLogin={handleLogin} />;
-  // }
-
   return (
     <div className="min-h-screen flex flex-col bg-background" id="app-root">
       {/* Top Loading Bar */}
@@ -395,6 +365,7 @@ export default function JadeInventoryPage() {
         onClick={() => setShowShortcuts(true)}
         className="no-print hidden md:flex fixed bottom-6 left-6 z-20 h-8 w-8 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground shadow-sm hover:shadow-md items-center justify-center transition-all"
         title="快捷键帮助 (? )"
+        aria-label="快捷键帮助"
       >
         <HelpCircle className="h-4 w-4" />
       </button>

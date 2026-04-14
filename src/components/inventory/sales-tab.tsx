@@ -754,7 +754,7 @@ function SalesTab() {
             <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-xl border border-border hover:border-orange-300 dark:hover:border-orange-700 transition-colors">
               <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                 {returnDialog.sale?.itemImage ? (
-                  <img src={returnDialog.sale.itemImage} alt="" className="w-full h-full object-cover" />
+                  <img src={returnDialog.sale.itemImage} alt={returnDialog.sale.itemName || '退货货品图片'} className="w-full h-full object-cover" />
                 ) : (
                   <Gem className="h-6 w-6 text-muted-foreground/40" />
                 )}
@@ -965,7 +965,7 @@ function SalesTab() {
               <div className="flex items-start gap-4">
                 <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                   {detailSale.itemImage ? (
-                    <img src={detailSale.itemImage} alt="" className="w-full h-full object-cover" />
+                    <img src={detailSale.itemImage} alt={detailSale.itemName || '销售货品图片'} className="w-full h-full object-cover" />
                   ) : (
                     <Gem className="h-8 w-8 text-muted-foreground/40" />
                   )}
