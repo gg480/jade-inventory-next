@@ -204,13 +204,14 @@ function LogsTab() {
       }
       return v;
     };
-    const header = '操作时间,操作类型,操作详情,操作人';
+    const targetLabels: Record<string, string> = { item: '货品', batch: '批次', sale: '销售', customer: '客户', supplier: '供应商' };
+    const header = '时间,操作,类型,详情';
     const rows = logs.map((log: any) => {
       const time = log.createdAt || '';
       const action = actionLabels[log.action] || log.action || '';
+      const type = targetLabels[log.targetType] || log.targetType || '';
       const detail = log.detail || '';
-      const operator = log.operator || '系统';
-      return [escape(time), escape(action), escape(detail), escape(operator)].join(',');
+      return [escape(time), escape(action), escape(type), escape(detail)].join(',');
     });
     const csv = '\uFEFF' + header + '\n' + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

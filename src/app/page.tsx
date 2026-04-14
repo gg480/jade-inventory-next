@@ -161,6 +161,21 @@ export default function JadeInventoryPage() {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // Dynamic page title based on active tab
+  useEffect(() => {
+    const titleMap: Record<TabId, string> = {
+      dashboard: '看板 - 翡翠珠宝进销存',
+      inventory: '库存管理 - 翡翠珠宝进销存',
+      sales: '销售记录 - 翡翠珠宝进销存',
+      batches: '批次管理 - 翡翠珠宝进销存',
+      customers: '客户管理 - 翡翠珠宝进销存',
+      logs: '操作日志 - 翡翠珠宝进销存',
+      settings: '系统设置 - 翡翠珠宝进销存',
+    };
+    document.title = titleMap[activeTab] || '翡翠珠宝进销存管理系统';
+    return () => { document.title = '翡翠珠宝进销存管理系统'; };
+  }, [activeTab]);
+
   // Network status detection
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);

@@ -1318,43 +1318,45 @@ function DashboardTab() {
       </div>
 
       {/* ====== 6. Price Range Analysis (2 pie charts) ====== */}
-      {/* ====== Top Customers (消费排行) ====== */}
+      {/* ====== Top Customers (消费排行TOP10) ====== */}
       {topCustomers.length > 0 && (
         <Card className="hover:shadow-md transition-shadow duration-300 border-l-4 border-l-amber-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Trophy className="h-4 w-4 text-amber-600" />
-              消费排行
-              <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">TOP 5</Badge>
+              客户消费排行
+              <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">TOP {Math.min(topCustomers.length, 10)}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-              {topCustomers.map((c: any, idx: number) => {
-                const rankColors = [
-                  'from-amber-400 to-yellow-500 text-white',
-                  'from-gray-300 to-gray-400 text-white',
-                  'from-amber-600 to-amber-700 text-white',
-                  'from-sky-100 to-sky-200 text-sky-700 dark:from-sky-900 dark:to-sky-800 dark:text-sky-300',
-                  'from-gray-50 to-gray-100 text-gray-600 dark:from-gray-800 dark:to-gray-900 dark:text-gray-300',
-                ];
+            <ResponsiveContainer width="100%" height={Math.max(topCustomers.length * 38, 200)} margin={{ left: 10, right: 30 }}>
+              <BarChart data={topCustomers.slice(0, 10).map((c: any, idx: number) => ({ ...c, rank: idx + 1 }))} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(1)}万` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} tick={{ fontSize: 10 }} />
+                <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v: number) => formatPrice(v)} />
+                <Bar dataKey="totalSpending" name="累计消费" radius={[0, 4, 4, 0]} label={({ name, value, rank }: any) => {
+                  const medalEmojis: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+                  const medal = medalEmojis[rank] || '';
+                  return medal;
+                }}>
+                  {topCustomers.slice(0, 10).map((_: any, idx: number) => {
+                    const barColors = ['#f59e0b', '#94a3b8', '#d97706', '#059669', '#0ea5e9', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#6366f1'];
+                    return <Cell key={idx} fill={barColors[idx % barColors.length]} />;
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            {/* Legend with order counts */}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {topCustomers.slice(0, 10).map((c: any, idx: number) => {
+                const medalEmojis: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
                 return (
-                  <div key={c.id} className="relative bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg p-3 hover:shadow-sm transition-shadow">
-                    {/* Rank badge */}
-                    <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br ${rankColors[idx]} text-xs font-bold mb-2`}>
-                      {idx + 1}
-                    </div>
-                    {/* Customer info */}
-                    <p className="font-medium text-sm truncate">{c.name}</p>
-                    <p className="text-lg font-bold text-emerald-600 mt-0.5">{formatPrice(c.totalSpending)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{c.orderCount} 单</p>
-                    {/* VIP badge */}
-                    {c.vipLevel && (
-                      <Badge variant="outline" className="mt-1 text-[10px] h-4 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400">
-                        <Crown className="h-2.5 w-2.5 mr-0.5" />{c.vipLevel}
-                      </Badge>
-                    )}
-                  </div>
+                  <span key={c.id} className="flex items-center gap-1">
+                    <span>{medalEmojis[idx + 1] || ''}</span>
+                    <span className="font-medium text-foreground">{c.name}</span>
+                    <span>{c.orderCount}单</span>
+                  </span>
                 );
               })}
             </div>

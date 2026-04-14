@@ -1001,14 +1001,17 @@ function InventoryTab() {
                               onClick={(e) => { e.stopPropagation(); openLightbox(item.id); }}
                             >
                               <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all" loading="lazy" />
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                <Camera className="h-3.5 w-3.5 text-white drop-shadow-md" />
+                              </div>
                             </button>
                             <div className="absolute left-14 top-0 z-10 hidden group-hover/img:block pointer-events-none">
                               <img src={item.coverImage} alt="" className="w-[200px] h-[200px] rounded-lg object-cover shadow-lg border border-border bg-background" />
                             </div>
                           </div>
                         ) : (
-                          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
-                            <Gem className="h-4 w-4 text-muted-foreground/50" />
+                          <div className="w-10 h-10 rounded-md bg-muted/60 border border-dashed border-muted-foreground/30 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors" title="可添加图片">
+                            <Plus className="h-3.5 w-3.5 text-muted-foreground/40" />
                           </div>
                         )}
                       </TableCell>
@@ -1104,14 +1107,17 @@ function InventoryTab() {
                   {item.coverImage ? (
                     <button
                       type="button"
-                      className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-md shrink-0"
+                      className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-md shrink-0 relative"
                       onClick={(e) => { e.stopPropagation(); openLightbox(item.id); }}
                     >
                       <img src={item.coverImage} alt="" className="w-12 h-12 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all" loading="lazy" />
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <Camera className="h-4 w-4 text-white drop-shadow-md" />
+                      </div>
                     </button>
                   ) : (
-                    <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center shrink-0">
-                      <Gem className="h-5 w-5 text-muted-foreground/50" />
+                    <div className="w-12 h-12 rounded-md bg-muted/60 border border-dashed border-muted-foreground/30 flex items-center justify-center shrink-0 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors" title="可添加图片">
+                      <Plus className="h-4 w-4 text-muted-foreground/40" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">

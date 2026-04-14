@@ -47,7 +47,7 @@ export async function GET() {
       })
       .filter(c => c.orderCount > 0)
       .sort((a, b) => b.totalSpending - a.totalSpending)
-      .slice(0, 5);
+      .slice(0, 10);
 
     return NextResponse.json({
       code: 0,

@@ -176,15 +176,22 @@ function SettingsTab() {
   const [dbSizeLoading, setDbSizeLoading] = useState(false);
 
   // System config (localStorage)
-  const defaultSettings = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, targetMargin: 30 };
+  const STORAGE_KEY = 'jade_system_config';
+  const defaultSettings = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, profitWarningThreshold: 30, defaultProfitRate: 40 };
   const [systemConfig, setSystemConfig] = useState(defaultSettings);
 
   // Load settings & data stats from localStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('app_settings');
+      // Try new key first, fall back to old key for migration
+      let stored: string | null = null;
+      try { stored = localStorage.getItem(STORAGE_KEY); } catch {}
+      if (!stored) {
+        try { stored = localStorage.getItem('app_settings'); } catch {}
+      }
       if (stored) {
-        setSystemConfig({ ...defaultSettings, ...JSON.parse(stored) });
+        const parsed = JSON.parse(stored);
+        setSystemConfig({ ...defaultSettings, ...parsed });
       }
     } catch { /* use defaults */ }
     // Load last backup time from localStorage
@@ -789,29 +796,36 @@ function SettingsTab() {
                       <Input value={systemConfig.storeName} onChange={e => setSystemConfig(c => ({ ...c, storeName: e.target.value }))} className="h-8 text-sm" placeholder="翡翠珠宝" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">货币符号</Label>
+                      <Label className="text-xs">默认货币符号</Label>
                       <Input value={systemConfig.currencySymbol} onChange={e => setSystemConfig(c => ({ ...c, currencySymbol: e.target.value }))} className="h-8 text-sm w-24" placeholder="¥" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">低库存预警天数</Label>
-                      <Input type="number" value={systemConfig.lowStockDays} onChange={e => setSystemConfig(c => ({ ...c, lowStockDays: parseInt(e.target.value) || 90 }))} className="h-8 text-sm w-24" min="1" />
+                      <Label className="text-xs">利润预警阈值 (%)</Label>
+                      <Input type="number" value={systemConfig.profitWarningThreshold} onChange={e => setSystemConfig(c => ({ ...c, profitWarningThreshold: parseInt(e.target.value) || 30 }))} className="h-8 text-sm w-24" min="0" max="100" />
+                      <p className="text-[10px] text-muted-foreground">低于此比例的利润将触发预警</p>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">目标毛利率 (%)</Label>
-                      <Input type="number" value={systemConfig.targetMargin} onChange={e => setSystemConfig(c => ({ ...c, targetMargin: parseInt(e.target.value) || 30 }))} className="h-8 text-sm w-24" min="0" max="100" />
+                      <Label className="text-xs">压货天数阈值 (天)</Label>
+                      <Input type="number" value={systemConfig.lowStockDays} onChange={e => setSystemConfig(c => ({ ...c, lowStockDays: parseInt(e.target.value) || 90 }))} className="h-8 text-sm w-24" min="1" />
+                      <p className="text-[10px] text-muted-foreground">超过此天数未售出将标记为压货</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">默认利润率 (%)</Label>
+                      <Input type="number" value={systemConfig.defaultProfitRate} onChange={e => setSystemConfig(c => ({ ...c, defaultProfitRate: parseInt(e.target.value) || 40 }))} className="h-8 text-sm w-24" min="0" max="100" />
+                      <p className="text-[10px] text-muted-foreground">新建货品时的默认利润率</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 pt-1">
                     <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700 text-xs" onClick={() => {
-                      localStorage.setItem('app_settings', JSON.stringify(systemConfig));
+                      localStorage.setItem(STORAGE_KEY, JSON.stringify(systemConfig));
                       toast.success('设置已保存');
                     }}>
                       <CheckCircle className="h-3 w-3 mr-1" />保存设置
                     </Button>
                     <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => {
-                      const defaults = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, targetMargin: 30 };
+                      const defaults = { storeName: '翡翠珠宝', currencySymbol: '¥', lowStockDays: 90, profitWarningThreshold: 30, defaultProfitRate: 40 };
                       setSystemConfig(defaults);
-                      localStorage.removeItem('app_settings');
+                      localStorage.removeItem(STORAGE_KEY);
                       toast.success('已恢复默认设置');
                     }}>
                       恢复默认
