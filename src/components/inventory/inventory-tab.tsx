@@ -32,6 +32,7 @@ import {
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
   ShoppingCart, Tag, MapPin, X, Gem, CheckSquare, ChevronDown, ChevronUp, SlidersHorizontal,
   Info, FileText, FileCheck, CalendarDays, Target, MoreHorizontal, Copy, FileSpreadsheet, Loader2,
+  CircleDot,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -76,10 +77,6 @@ function ActiveFilterTags({ filters, materials, allBatches, allCounters, onClear
   if (filters.materialId) {
     const mat = materials.find((m: any) => String(m.id) === filters.materialId);
     tags.push({ key: 'materialId', label: mat?.name || filters.materialId });
-  }
-  if (filters.status && filters.status !== 'in_stock') {
-    const statusLabels: Record<string, string> = { in_stock: '在库', sold: '已售', returned: '已退' };
-    tags.push({ key: 'status', label: statusLabels[filters.status] || filters.status });
   }
   if (filters.counter) tags.push({ key: 'counter', label: `${filters.counter}号柜` });
   if (filters.batchId) {
@@ -126,7 +123,8 @@ function InventoryTab() {
   const [allBatches, setAllBatches] = useState<any[]>([]);
   const [pagination, setPagination] = useState({ total: 0, page: 1, size: 20, pages: 0 });
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' });
+  const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: '', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' });
+  const [activeStatuses, setActiveStatuses] = useState<Set<string>>(new Set(['in_stock']));
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -215,9 +213,30 @@ function InventoryTab() {
     return Array.from(counterSet).sort((a, b) => a - b);
   }, [items]);
 
-  // Client-side filter for price range and purchase date (applied after server fetch)
+  // Status counts for filter buttons
+  const statusCounts = useMemo(() => ({
+    in_stock: items.filter(i => i.status === 'in_stock').length,
+    sold: items.filter(i => i.status === 'sold').length,
+    returned: items.filter(i => i.status === 'returned').length,
+  }), [items]);
+
+  // Toggle status filter
+  function toggleStatusFilter(status: string) {
+    setActiveStatuses(prev => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  }
+
+  // Client-side filter for price range, purchase date, and multi-status (applied after server fetch)
   const filteredItems = useMemo(() => {
     let result = items;
+    // Multi-status filter
+    if (activeStatuses.size > 0 && activeStatuses.size < 3) {
+      result = result.filter(i => activeStatuses.has(i.status));
+    }
     if (filters.minPrice) {
       const min = parseFloat(filters.minPrice);
       if (!isNaN(min)) result = result.filter(i => (i.sellingPrice || 0) >= min);
@@ -233,7 +252,7 @@ function InventoryTab() {
       result = result.filter(i => (i.purchaseDate || '') <= filters.purchaseEndDate);
     }
     return result;
-  }, [items, filters.minPrice, filters.maxPrice, filters.purchaseStartDate, filters.purchaseEndDate]);
+  }, [items, activeStatuses, filters.minPrice, filters.maxPrice, filters.purchaseStartDate, filters.purchaseEndDate]);
 
   // Client-side sort for table display
   const sortedItems = useMemo(() => {
@@ -284,7 +303,8 @@ function InventoryTab() {
     try {
       const params: any = { page: pagination.page, size: pagination.size };
       if (filters.materialId) params.material_id = filters.materialId;
-      if (filters.status) params.status = filters.status;
+      // Status: only send if exactly one active status; otherwise fetch all and filter client-side
+      if (activeStatuses.size === 1) params.status = Array.from(activeStatuses)[0];
       if (filters.keyword) params.keyword = filters.keyword;
       if (filters.counter) params.counter = filters.counter;
       if (filters.batchId) params.batch_id = filters.batchId;
@@ -298,12 +318,12 @@ function InventoryTab() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.size, filters, sortBy, sortOrder]);
+  }, [pagination.page, pagination.size, filters, activeStatuses, sortBy, sortOrder]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
   // Clear selection when page/filters change
-  useEffect(() => { setSelectedIds(new Set()); }, [pagination.page, filters, sortBy, sortOrder]);
+  useEffect(() => { setSelectedIds(new Set()); }, [pagination.page, filters, activeStatuses, sortBy, sortOrder]);
 
   // Selection handlers
   function toggleSelect(id: number) {
@@ -773,6 +793,35 @@ function InventoryTab() {
       {/* Filters + Actions */}
       <Card>
         <CardContent className="p-4">
+          {/* Status Filter Toggle Buttons */}
+          <div className="flex items-center gap-2 mb-3">
+            <CircleDot className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground font-medium">状态筛选</span>
+            {[
+              { key: 'in_stock', label: '在库', activeClass: 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600', count: statusCounts.in_stock },
+              { key: 'sold', label: '已售', activeClass: 'bg-gray-500 hover:bg-gray-600 text-white border-gray-500', count: statusCounts.sold },
+              { key: 'returned', label: '已退', activeClass: 'bg-red-500 hover:bg-red-600 text-white border-red-500', count: statusCounts.returned },
+            ].map(s => {
+              const isActive = activeStatuses.has(s.key);
+              return (
+                <Button
+                  key={s.key}
+                  size="sm"
+                  variant={isActive ? 'default' : 'outline'}
+                  className={`h-7 text-xs px-3 rounded-full transition-all duration-150 ${isActive ? s.activeClass : ''}`}
+                  onClick={() => toggleStatusFilter(s.key)}
+                >
+                  {s.label}
+                  <Badge variant="secondary" className={`ml-1.5 h-4 min-w-[18px] px-1 text-[10px] ${isActive ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
+                    {s.count}
+                  </Badge>
+                </Button>
+              );
+            })}
+            {activeStatuses.size === 0 && (
+              <span className="text-xs text-muted-foreground ml-1">显示全部状态</span>
+            )}
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
             <div className="space-y-1 relative">
               <Label className="text-xs">关键词</Label>
@@ -812,30 +861,10 @@ function InventoryTab() {
               </Select>
             </div>
             <div className="space-y-1"><Label className="text-xs">状态</Label>
-              <Select value={filters.status || 'all'} onValueChange={v => setFilters(f => ({ ...f, status: v }))}>
+              <Select value={activeStatuses.size === 1 ? Array.from(activeStatuses)[0] : activeStatuses.size === 0 ? 'all' : 'multi'} onValueChange={v => { if (v === 'all') setActiveStatuses(new Set()); else setActiveStatuses(new Set([v])); }}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="all">全部</SelectItem><SelectItem value="in_stock">在库</SelectItem><SelectItem value="sold">已售</SelectItem><SelectItem value="returned">已退</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="all">全部</SelectItem><SelectItem value="in_stock">在库</SelectItem><SelectItem value="sold">已售</SelectItem><SelectItem value="returned">已退</SelectItem><SelectItem value="multi" disabled>多选(用上方按钮)</SelectItem></SelectContent>
               </Select>
-            </div>
-            <div className="space-y-1 hidden md:block"><Label className="text-xs">快捷筛选</Label>
-              <div className="flex items-center gap-1">
-                {[
-                  { key: 'all', label: '全部' },
-                  { key: 'in_stock', label: '在库' },
-                  { key: 'sold', label: '已售' },
-                  { key: 'returned', label: '已退' },
-                ].map(s => (
-                  <Button
-                    key={s.key}
-                    size="sm"
-                    variant={filters.status === s.key ? 'default' : 'outline'}
-                    className={`h-8 text-xs px-2.5 rounded-full ${filters.status === s.key ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 border-0' : ''}`}
-                    onClick={() => setFilters(f => ({ ...f, status: s.key }))}
-                  >
-                    {s.label}
-                  </Button>
-                ))}
-              </div>
             </div>
             <div className="space-y-1"><Label className="text-xs">柜台</Label>
               <Select value={filters.counter || 'all'} onValueChange={v => setFilters(f => ({ ...f, counter: v === 'all' ? '' : v }))}>
@@ -854,7 +883,7 @@ function InventoryTab() {
             </div>
             <div className="flex items-end gap-2">
               <Button size="sm" onClick={() => { setPagination(p => ({ ...p, page: 1 })); fetchItems(); }} className="h-9"><Search className="h-3 w-3 mr-1" />搜索</Button>
-              <Button size="sm" variant="outline" onClick={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' })} className="h-9">重置</Button>
+              <Button size="sm" variant="outline" onClick={() => { setFilters({ materialCategory: '', materialId: '', status: '', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' }); setActiveStatuses(new Set(['in_stock'])); }} className="h-9">重置</Button>
             </div>
           </div>
           {/* More Filters Toggle */}
@@ -882,7 +911,7 @@ function InventoryTab() {
             </div>
           )}
           {/* Active filter tags */}
-          <ActiveFilterTags filters={filters} materials={materials} allBatches={allBatches} allCounters={allCounters} onClearAll={() => setFilters({ materialCategory: '', materialId: '', status: 'in_stock', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' })} onClear={(key: string) => setFilters(f => ({ ...f, [key]: key === 'status' ? 'in_stock' : '' }))} />
+          <ActiveFilterTags filters={filters} materials={materials} allBatches={allBatches} allCounters={allCounters} onClearAll={() => { setFilters({ materialCategory: '', materialId: '', status: '', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' }); setActiveStatuses(new Set(['in_stock'])); }} onClear={(key: string) => setFilters(f => ({ ...f, [key]: '' }))} />
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2 flex-wrap">
               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新增入库</Button>

@@ -257,9 +257,9 @@ function BatchesTab() {
                         <TableCell className="text-right">{formatPrice(b.totalCost)}</TableCell>
                         <TableCell className="text-right text-muted-foreground">
                           {b.quantity > 0 ? formatPrice(b.totalCost / b.quantity) : '-'}
-                          {(b.itemsCount || 0) > 0 && (() => {
-                            const avgActualCost = (b.revenue || 0) / (b.soldCount || 1);
-                            return b.soldCount > 0 ? <span className="text-[10px] block text-emerald-600">均¥{Math.round(avgActualCost).toLocaleString()}</span> : null;
+                          {b.soldCount > 0 && (() => {
+                            const avgSellingPrice = (b.revenue || 0) / b.soldCount;
+                            return <span className="text-[10px] block text-emerald-600">均售价¥{Math.round(avgSellingPrice).toLocaleString()}</span>;
                           })()}
                         </TableCell>
                         <TableCell className="text-right">{b.quantity}</TableCell>
@@ -273,10 +273,10 @@ function BatchesTab() {
                             return (
                               <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <span className={itemsCount >= quantity ? 'text-emerald-600 font-medium' : itemsCount > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
-                                    {itemsCount}/{quantity}
+                                  <span className="text-[10px] text-muted-foreground">进度</span>
+                                  <span className={itemsCount >= quantity ? 'text-emerald-600 font-medium text-xs' : itemsCount > 0 ? 'text-amber-600 text-xs' : 'text-muted-foreground text-xs'}>
+                                    {itemsCount}/{quantity} {pct}%
                                   </span>
-                                  <span className="text-xs text-muted-foreground">{pct}%</span>
                                 </div>
                                 <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                   <div
@@ -350,10 +350,10 @@ function BatchesTab() {
                       return (
                         <div className="flex-1 ml-3 space-y-0.5">
                           <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground">进度</span>
                             <span className={`text-xs ${itemsCount >= quantity ? 'text-emerald-600 font-medium' : itemsCount > 0 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                              {itemsCount}/{quantity}件
+                              {itemsCount}/{quantity}件 {pct}%
                             </span>
-                            <span className="text-[10px] text-muted-foreground">{pct}%</span>
                           </div>
                           <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
@@ -371,6 +371,10 @@ function BatchesTab() {
                       <p className="text-xs text-muted-foreground">总成本</p>
                       <p className="font-medium">{formatPrice(b.totalCost)}</p>
                       {b.quantity > 0 && <p className="text-xs text-muted-foreground">单价 {formatPrice(b.totalCost / b.quantity)}</p>}
+                      {b.soldCount > 0 && (() => {
+                        const avgSellingPrice = (b.revenue || 0) / b.soldCount;
+                        return <p className="text-xs text-emerald-600">均售价 {formatPrice(avgSellingPrice)}</p>;
+                      })()}
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">已回款</p>

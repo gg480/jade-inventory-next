@@ -366,6 +366,21 @@ function DashboardTab() {
   }, [topSellers]);
 
   // Count-up animations for overview cards
+  // ===== Real-Time Clock (must be before early return) =====
+  const [clockTime, setClockTime] = useState('');
+  const [clockDate, setClockDate] = useState('');
+  useEffect(() => {
+    function updateClock() {
+      const now = new Date();
+      setClockTime(now.toLocaleTimeString('zh-CN', { hour12: false }));
+      const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+      setClockDate(`${now.getFullYear()}年${String(now.getMonth() + 1).padStart(2, '0')}月${String(now.getDate()).padStart(2, '0')}日 周${weekDays[now.getDay()]}`);
+    }
+    updateClock();
+    const timer = setInterval(updateClock, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const animTotalItems = useCountUp(summary?.totalItems ?? 0, 800);
   const animStockAging = useCountUp(stockAging.totalItems || 0, 800);
   const paidBackCount = batchProfit.filter((b: any) => b.status === 'paid_back' || b.status === 'cleared').length;
@@ -391,6 +406,12 @@ function DashboardTab() {
 
   return (
     <div className="space-y-6">
+      {/* ====== Real-Time Clock ====== */}
+      <div className="flex items-center justify-end gap-3">
+        <span className="text-sm text-muted-foreground tabular-nums">{clockDate}</span>
+        <span className="text-sm font-medium text-muted-foreground tabular-nums">{clockTime}</span>
+      </div>
+
       {/* ====== 1. Overview Cards ====== */}
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

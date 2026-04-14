@@ -59,35 +59,43 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const { itemId, actualPrice, channel, saleDate, customerId, note } = body;
+  try {
+    const body = await req.json();
+    const { itemId, actualPrice, channel, saleDate, customerId, note } = body;
 
-  // Validate item
-  const item = await db.item.findUnique({ where: { id: itemId } });
-  if (!item || item.isDeleted) {
-    return NextResponse.json({ code: 400, data: null, message: '货品不存在' }, { status: 400 });
+    // Validate item
+    const item = await db.item.findUnique({ where: { id: itemId } });
+    if (!item || item.isDeleted) {
+      return NextResponse.json({ code: 400, data: null, message: '货品不存在' }, { status: 400 });
+    }
+    if (item.status !== 'in_stock') {
+      return NextResponse.json({ code: 400, data: null, message: '货品不在库，无法出售' }, { status: 400 });
+    }
+
+    const saleNo = await generateSaleNo();
+
+    // Use transaction for atomicity: create sale + update item status
+    const record = await db.$transaction(async (tx) => {
+      const sale = await tx.saleRecord.create({
+        data: { saleNo, itemId, actualPrice, channel, saleDate, customerId, note },
+      });
+
+      await tx.item.update({ where: { id: itemId }, data: { status: 'sold' } });
+
+      return sale;
+    });
+
+    // Log sell_item (outside transaction - not critical)
+    await logAction('sell_item', 'sale', record.id, {
+      saleNo,
+      itemSku: item.skuCode,
+      actualPrice,
+      channel,
+      saleDate,
+    });
+
+    return NextResponse.json({ code: 0, data: record, message: 'ok' });
+  } catch (e: any) {
+    return NextResponse.json({ code: 500, data: null, message: `销售失败: ${e.message}` }, { status: 500 });
   }
-  if (item.status !== 'in_stock') {
-    return NextResponse.json({ code: 400, data: null, message: '货品不在库，无法出售' }, { status: 400 });
-  }
-
-  const saleNo = await generateSaleNo();
-
-  const record = await db.saleRecord.create({
-    data: { saleNo, itemId, actualPrice, channel, saleDate, customerId, note },
-  });
-
-  // Update item status
-  await db.item.update({ where: { id: itemId }, data: { status: 'sold' } });
-
-  // Log sell_item
-  await logAction('sell_item', 'sale', record.id, {
-    saleNo,
-    itemSku: item.skuCode,
-    actualPrice,
-    channel,
-    saleDate,
-  });
-
-  return NextResponse.json({ code: 0, data: record, message: 'ok' });
 }

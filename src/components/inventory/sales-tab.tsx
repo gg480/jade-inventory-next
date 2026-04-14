@@ -381,27 +381,11 @@ function SalesTab() {
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
             {[
-              { key: 'all', label: '全部' },
               { key: 'today', label: '今日' },
               { key: 'week', label: '本周' },
               { key: 'month', label: '本月' },
-              { key: 'year', label: '本年' },
-            ].map(p => (
-              <Button
-                key={p.key}
-                size="sm"
-                variant={datePreset === p.key ? 'default' : 'outline'}
-                className={`h-7 text-xs ${datePreset === p.key ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-                onClick={() => handleDatePreset(p.key)}
-              >
-                {p.label}
-              </Button>
-            ))}
-            <div className="w-px h-5 bg-border mx-1" />
-            {[
               { key: 'days30', label: '近30天' },
-              { key: 'days90', label: '近90天' },
-              { key: 'thisYear', label: '今年' },
+              { key: 'all', label: '全部' },
             ].map(p => (
               <Button
                 key={p.key}
@@ -428,7 +412,7 @@ function SalesTab() {
               <Button size="sm" onClick={() => { setPagination(p => ({ ...p, page: 1 })); fetchSales(); }} className="h-9"><Search className="h-3 w-3 mr-1" />搜索</Button>
             </div>
           </div>
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowBundle(true)}><Link2 className="h-3 w-3 mr-1" />套装销售</Button>
             <Button size="sm" variant="outline" className="h-9" onClick={handleExportCSV} disabled={sales.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
             <a href={exportApi.sales()} target="_blank" rel="noopener noreferrer">

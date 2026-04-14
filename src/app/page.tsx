@@ -16,7 +16,6 @@ import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/invento
 import { Gem, Package, ShoppingCart, Zap, Clock, LogOut, ArrowUp, HelpCircle, WifiOff } from 'lucide-react';
 import { itemsApi, salesApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { Toaster } from '@/components/ui/sonner';
 import {
   Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
 } from '@/components/ui/tooltip';
@@ -406,7 +405,6 @@ export default function JadeInventoryPage() {
       >
         <HelpCircle className="h-4 w-4" />
       </button>
-      <Toaster richColors position="top-right" />
       {/* Scroll-to-Top Button */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}

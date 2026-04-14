@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Users, Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, Crown, Sparkles, TrendingUp, Shield, ShieldCheck,
-  Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock, FileDown, ArrowUpDown,
+  Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock, FileDown, ArrowUpDown, FileText,
   DollarSign as DollarSignIcon, ShoppingCart as ShoppingCartIcon, ArrowDownAZ,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip as RTooltip, ResponsiveContainer, Tooltip } from 'recharts';
@@ -663,7 +663,7 @@ function CustomersTab() {
             const VipIcon = vip.icon;
             const customerTags = Array.isArray(c.tags) ? c.tags : [];
             return (
-              <Card key={c.id} className="hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => setProfileCustomer(c)}>
+              <Card key={c.id} className="group/card hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer" onClick={() => setProfileCustomer(c)}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -671,6 +671,17 @@ function CustomersTab() {
                       <Badge variant="outline" className="text-xs">{c.customerCode}</Badge>
                     </div>
                     <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                      {/* Quick Actions: Phone call + WeChat copy */}
+                      {c.phone && (
+                        <a href={`tel:${c.phone}`} className="inline-flex items-center justify-center h-7 w-7 rounded-md text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors md:opacity-0 md:group-hover/card:opacity-100" title="拨打电话">
+                          <Phone className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {c.wechat && (
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-sky-600 md:opacity-0 md:group-hover/card:opacity-100" onClick={() => { navigator.clipboard.writeText(c.wechat).then(() => toast.success('微信号已复制到剪贴板')).catch(() => toast.error('复制失败')); }} title="复制微信号">
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-amber-600" onClick={() => openEditDialog(c)} title="编辑客户"><Pencil className="h-3.5 w-3.5" /></Button>
                       {(c.orderCount || 0) === 0 && (
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-600" onClick={() => setDeleteCustomerConfirm(c)} title="删除客户"><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -704,49 +715,28 @@ function CustomersTab() {
                   )}
 
                   <div className="space-y-1 text-sm text-muted-foreground">
-                    {c.phone && <p>📞 {c.phone}</p>}
-                    {c.wechat && <p>💬 {c.wechat}</p>}
-                    {c.notes && <p className="truncate">📝 {c.notes}</p>}
+                    {c.phone && <p className="flex items-center gap-1.5"><Phone className="h-3 w-3 shrink-0" />{c.phone}</p>}
+                    {c.wechat && <p className="flex items-center gap-1.5"><MessageCircle className="h-3 w-3 shrink-0" />{c.wechat}</p>}
+                    {c.notes && <p className="flex items-center gap-1.5 truncate"><FileText className="h-3 w-3 shrink-0" />{c.notes}</p>}
                   </div>
 
                   {/* VIP Progress Bar */}
                   {(c.totalSpending || 0) > 0 && (() => {
                     const spend = c.totalSpending || 0;
-                    let progress = 0;
-                    let nextLevelName = '';
-                    let nextMin = 0;
-                    let barColor = '#9ca3af'; // gray for 普通
-                    let levelColor = 'text-gray-500';
-                    if (spend < 1000) {
-                      progress = (spend / 1000) * 100;
-                      nextLevelName = '银卡';
-                      nextMin = 1000;
-                      barColor = '#9ca3af';
-                      levelColor = 'text-gray-500';
-                    } else if (spend < 5000) {
-                      progress = ((spend - 1000) / 4000) * 100;
-                      nextLevelName = '金卡';
-                      nextMin = 5000;
-                      barColor = '#94a3b8';
-                      levelColor = 'text-slate-400';
-                    } else if (spend < 20000) {
-                      progress = ((spend - 5000) / 15000) * 100;
-                      nextLevelName = '钻石';
-                      nextMin = 20000;
-                      barColor = '#f59e0b';
-                      levelColor = 'text-amber-500';
-                    } else {
-                      progress = 100;
-                      barColor = '#0ea5e9';
-                      levelColor = 'text-sky-500';
-                    }
+                    const currentVip = getVipLevel(spend);
+                    const isMaxLevel = currentVip.max === Infinity;
+                    const progress = isMaxLevel ? 100 : ((spend - currentVip.min) / (currentVip.max - currentVip.min)) * 100;
+                    const barColor = spend >= 50000 ? '#8b5cf6' : spend >= 20000 ? '#f59e0b' : spend >= 5000 ? '#94a3b8' : '#9ca3af';
+                    const levelColor = spend >= 50000 ? 'text-violet-500' : spend >= 20000 ? 'text-amber-500' : spend >= 5000 ? 'text-slate-400' : 'text-gray-500';
+                    const nextLevelName = isMaxLevel ? '' : spend >= 20000 ? '钻石' : spend >= 5000 ? '金卡' : '银卡';
+                    const nextMin = currentVip.max === Infinity ? spend : currentVip.max;
                     return (
                       <div className="mt-2 pt-1">
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ height: '3px' }}>
                           <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(progress, 100)}%`, backgroundColor: barColor }} />
                         </div>
                         <div className="flex items-center justify-between mt-0.5">
-                          <span className={`text-[10px] ${levelColor} font-medium`}>{vip.label}</span>
+                          <span className={`text-[10px] ${levelColor} font-medium`}>{currentVip.label}</span>
                           {nextLevelName && progress < 100 && (
                             <span className="text-[10px] text-muted-foreground">距{nextLevelName} ¥{nextMin - spend}</span>
                           )}

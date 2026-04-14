@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Gem, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Gem, Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 
 interface LoginPageProps {
   onLogin: (token: string) => void;
@@ -19,16 +18,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
-  const [rememberPassword, setRememberPassword] = useState(false);
-
-  // Load saved password on mount
-  useEffect(() => {
-    const savedPwd = localStorage.getItem('jade_saved_password');
-    if (savedPwd) {
-      setPassword(savedPwd);
-      setRememberPassword(true);
-    }
-  }, []);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -60,13 +49,6 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     if (!password.trim()) {
       toast.error('请输入密码');
       return;
-    }
-
-    // Save/clear password preference
-    if (rememberPassword) {
-      localStorage.setItem('jade_saved_password', password.trim());
-    } else {
-      localStorage.removeItem('jade_saved_password');
     }
 
     setLoading(true);
@@ -160,17 +142,10 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="remember"
-                  checked={rememberPassword}
-                  onCheckedChange={(v) => setRememberPassword(v === true)}
-                  className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
-                />
-                <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer select-none">
-                  记住密码
-                </Label>
-              </div>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                登录后将保持7天会话有效期
+              </p>
               <Button
                 type="submit"
                 className="w-full h-11 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-medium shadow-lg shadow-emerald-500/20 transition-all duration-200"

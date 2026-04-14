@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "玉器进销存 - Jade Inventory",
-  description: "玉器店进销存管理系统 - Jade Jewelry Inventory Management System",
-  keywords: ["jade", "inventory", "management", "进销存", "玉器"],
+  title: "翡翠进销存管理系统",
+  description: "翡翠珠宝进销存管理 - 库存/销售/批次/客户一体化管理",
+  keywords: ["翡翠", "珠宝", "进销存", "库存管理", "销售管理"],
   authors: [{ name: "Z.ai Team" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",

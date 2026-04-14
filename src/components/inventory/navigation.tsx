@@ -117,11 +117,11 @@ function ShortcutsHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     { keys: 'Enter', description: '在搜索框内触发搜索' },
     { keys: 'Esc', description: '关闭对话框/面板' },
     { keys: '?', description: '显示快捷键帮助' },
-    { keys: '1-7', description: '切换标签页 (Dashboard/库存/销售/批次/客户/设置/日志)' },
+    { keys: '1-7', description: '切换标签页 (看板/库存/销售/批次/客户/设置/日志)' },
   ];
 
   const tabShortcuts = [
-    { key: '1', tab: 'Dashboard' },
+    { key: '1', tab: '看板' },
     { key: '2', tab: '库存' },
     { key: '3', tab: '销售' },
     { key: '4', tab: '批次' },
