@@ -31,6 +31,34 @@ export async function GET(req: Request) {
   }, 0);
   const monthSoldCount = monthSales.length;
 
+  // Today's sales (lightweight count for QuickStatsBar)
+  const todaySales = await db.saleRecord.findMany({
+    where: { saleDate: { gte: todayStr } },
+    select: { actualPrice: true },
+  });
+  const todaySalesCount = todaySales.length;
+  const todayRevenue = todaySales.reduce((sum, s) => sum + s.actualPrice, 0);
+
+  // Stock aging count
+  const agingDate = new Date(now.getTime() - agingDays * 86400000).toISOString().slice(0, 10);
+  const overstockCount = await db.item.count({
+    where: { status: 'in_stock', isDeleted: false, purchaseDate: { lte: agingDate } },
+  });
+
+  // Batch payback info
+  const batches = await db.batch.findMany({
+    include: { items: { where: { isDeleted: false }, select: { status: true, allocatedCost: true } } },
+  });
+  let totalBatchCost = 0;
+  let totalBatchPayback = 0;
+  let incompleteBatches = 0;
+  for (const b of batches) {
+    totalBatchCost += b.totalCost || 0;
+    const sold = b.items.filter(i => i.status === 'sold');
+    totalBatchPayback += sold.reduce((sum, i) => sum + (i.allocatedCost || 0), 0);
+    if (b.items.length < b.quantity) incompleteBatches++;
+  }
+
   return NextResponse.json({
     code: 0,
     data: {
@@ -39,6 +67,11 @@ export async function GET(req: Request) {
       monthRevenue: Math.round(monthRevenue * 100) / 100,
       monthProfit: Math.round(monthProfit * 100) / 100,
       monthSoldCount,
+      todaySales: todaySalesCount,
+      todayRevenue: Math.round(todayRevenue * 100) / 100,
+      overstockCount,
+      batchPaybackRate: totalBatchCost > 0 ? Math.round(totalBatchPayback / totalBatchCost * 10000) / 100 : 0,
+      incompleteBatches,
     },
     message: 'ok',
   });

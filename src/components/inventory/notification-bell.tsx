@@ -8,12 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Bell, AlertTriangle, Package, TrendingDown, Clock, ShoppingCart,
-  CheckCircle2, ExternalLink, Eye,
+  CheckCircle2, ExternalLink, Eye, Wallet,
 } from 'lucide-react';
 
 interface Notification {
   id: string;
-  type: 'overdue' | 'batch_incomplete' | 'low_margin' | 'today_summary';
+  type: 'overdue' | 'batch_incomplete' | 'low_margin' | 'today_summary' | 'payment_pending' | 'payment_overdue';
   title: string;
   description: string;
   icon: React.ReactNode;
@@ -52,78 +52,89 @@ export default function NotificationBell() {
     const notifs: Notification[] = [];
 
     try {
-      // 1. Overdue inventory
-      const summary = await dashboardApi.getSummary();
-      const agingData = await dashboardApi.getStockAging();
+      // Use lightweight /api/stats/quick instead of multiple heavy API calls
+      const statsRes = await fetch('/api/stats/quick');
+      if (statsRes.ok) {
+        const stats = await statsRes.json();
 
-      if (agingData?.overdue && agingData.overdue > 0) {
-        notifs.push({
-          id: 'overdue',
-          type: 'overdue',
-          title: '压货预警',
-          description: `${agingData.overdue} 件货品库存超过90天，建议尽快处理`,
-          icon: <AlertTriangle className="h-4 w-4" />,
-          color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30',
-          dotColor: 'bg-amber-500',
-          tab: 'inventory',
-          timestamp: new Date().toISOString(),
-        });
+        // 1. Overdue inventory (check via stock aging in dashboard summary)
+        try {
+          const summaryRes = await fetch('/api/dashboard/summary');
+          if (summaryRes.ok) {
+            const summaryData = await summaryRes.json();
+            const data = summaryData.data || summaryData;
+            if (data.overstockCount > 0) {
+              notifs.push({
+                id: 'overdue',
+                type: 'overdue',
+                title: '压货预警',
+                description: `${data.overstockCount} 件货品库龄超过90天，占用资金建议尽快处理`,
+                icon: <AlertTriangle className="h-4 w-4" />,
+                color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30',
+                dotColor: 'bg-amber-500',
+                tab: 'inventory',
+                timestamp: new Date().toISOString(),
+              });
+            }
+          }
+        } catch { /* non-critical */ }
+
+        // 2. Batch incomplete
+        if (stats.incompleteBatches > 0) {
+          notifs.push({
+            id: 'batch_incomplete',
+            type: 'batch_incomplete',
+            title: '批次待录入',
+            description: `${stats.incompleteBatches} 个批次尚未录满，请及时补录货品`,
+            icon: <Package className="h-4 w-4" />,
+            color: 'text-red-600 bg-red-50 dark:bg-red-950/30',
+            dotColor: 'bg-red-500',
+            tab: 'batches',
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // 3. Today's summary
+        if (stats.todaySalesCount > 0 || stats.todayRevenue > 0) {
+          notifs.push({
+            id: 'today_summary',
+            type: 'today_summary',
+            title: '今日销售',
+            description: `已售 ${stats.todaySalesCount} 件，营收 ¥${stats.todayRevenue.toFixed(0)}`,
+            icon: <ShoppingCart className="h-4 w-4" />,
+            color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30',
+            dotColor: 'bg-emerald-500',
+            tab: 'dashboard',
+            timestamp: new Date().toISOString(),
+          });
+        }
       }
 
-      // 2. Batch incomplete
-      const batchesData = await batchesApi.getBatches({ page: 1, size: 1000 });
-      const incompleteBatches = (batchesData.items || []).filter((b: any) => (b.itemsCount || 0) < (b.quantity || 0));
-      if (incompleteBatches.length > 0) {
-        notifs.push({
-          id: 'batch_incomplete',
-          type: 'batch_incomplete',
-          title: '批次待录入',
-          description: `${incompleteBatches.length} 个批次尚未录满，共 ${incompleteBatches.reduce((s: number, b: any) => s + ((b.quantity || 0) - (b.itemsCount || 0)), 0)} 件待录入`,
-          icon: <Package className="h-4 w-4" />,
-          color: 'text-red-600 bg-red-50 dark:bg-red-950/30',
-          dotColor: 'bg-red-500',
-          tab: 'batches',
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // 3. Low margin items
-      const allItems = await itemsApi.getItems({ page: 1, size: 200, status: 'in_stock' });
-      const lowMarginItems = (allItems.items || []).filter((i: any) => {
-        const cost = i.allocatedCost || i.estimatedCost || i.costPrice || 0;
-        const price = i.sellingPrice || 0;
-        return cost > 0 && price > 0 && (price - cost) / price < 0.3;
-      });
-      if (lowMarginItems.length > 0) {
-        notifs.push({
-          id: 'low_margin',
-          type: 'low_margin',
-          title: '低毛利预警',
-          description: `${lowMarginItems.length} 件在库货品毛利率低于30%，建议调整定价`,
-          icon: <TrendingDown className="h-4 w-4" />,
-          color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/30',
-          dotColor: 'bg-orange-500',
-          tab: 'inventory',
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // 4. Today's summary
-      const today = new Date().toISOString().slice(0, 10);
-      const todaySales = await dashboardApi.getSummary({ start_date: today, end_date: today });
-      if (todaySales && (todaySales.totalSales > 0 || todaySales.totalRevenue > 0)) {
-        notifs.push({
-          id: 'today_summary',
-          type: 'today_summary',
-          title: '今日销售',
-          description: `已售 ${todaySales.totalSales || 0} 件，营收 ¥${((todaySales.totalRevenue || 0)).toFixed(0)}`,
-          icon: <ShoppingCart className="h-4 w-4" />,
-          color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30',
-          dotColor: 'bg-emerald-500',
-          tab: 'dashboard',
-          timestamp: new Date().toISOString(),
-        });
-      }
+      // 4. Low margin items (lightweight - only fetch small page)
+      try {
+        const itemsRes = await fetch('/api/items?page=1&size=50&status=in_stock');
+        if (itemsRes.ok) {
+          const itemsData = await itemsRes.json();
+          const lowMarginItems = (itemsData.items || []).filter((i: any) => {
+            const cost = i.allocatedCost || i.costPrice || 0;
+            const price = i.sellingPrice || 0;
+            return cost > 0 && price > 0 && (price - cost) / price < 0.3;
+          });
+          if (lowMarginItems.length > 0) {
+            notifs.push({
+              id: 'low_margin',
+              type: 'low_margin',
+              title: '低毛利预警',
+              description: `${lowMarginItems.length} 件在库货品毛利率低于30%，建议调整定价`,
+              icon: <TrendingDown className="h-4 w-4" />,
+              color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/30',
+              dotColor: 'bg-orange-500',
+              tab: 'inventory',
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+      } catch { /* non-critical */ }
     } catch {
       // Silently fail - notifications are non-critical
     }

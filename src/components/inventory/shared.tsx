@@ -89,11 +89,21 @@ function EmptyState({ icon: Icon, title, desc }: { icon: React.ElementType; titl
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-6 p-1 animate-pulse">
+    <div className="space-y-6 p-1">
+      {/* Jade-themed loading indicator */}
+      <div className="flex items-center justify-center py-8">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full border-3 border-emerald-200 dark:border-emerald-800 border-t-emerald-600 dark:border-t-emerald-400 animate-spin" />
+            <Gem className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <p className="text-sm text-muted-foreground animate-pulse">加载中...</p>
+        </div>
+      </div>
       {/* Overview cards skeleton */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="bg-muted/50 rounded-xl p-4 space-y-3">
+          <div key={i} className="bg-muted/50 rounded-xl p-4 space-y-3 animate-pulse">
             <div className="h-3 bg-muted rounded w-16" />
             <div className="h-7 bg-muted rounded w-24" />
             <div className="h-3 bg-muted rounded w-32" />
@@ -101,17 +111,17 @@ function LoadingSkeleton() {
         ))}
       </div>
       {/* Chart skeleton */}
-      <div className="bg-muted/50 rounded-xl p-6 space-y-4">
+      <div className="bg-muted/50 rounded-xl p-6 space-y-4 animate-pulse">
         <div className="h-4 bg-muted rounded w-40" />
         <div className="h-52 bg-muted rounded-lg" />
       </div>
       {/* Second row chart skeleton */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-muted/50 rounded-xl p-6 space-y-4">
+        <div className="bg-muted/50 rounded-xl p-6 space-y-4 animate-pulse">
           <div className="h-4 bg-muted rounded w-36" />
           <div className="h-44 bg-muted rounded-lg" />
         </div>
-        <div className="bg-muted/50 rounded-xl p-6 space-y-4">
+        <div className="bg-muted/50 rounded-xl p-6 space-y-4 animate-pulse">
           <div className="h-4 bg-muted rounded w-36" />
           <div className="h-44 bg-muted rounded-lg" />
         </div>

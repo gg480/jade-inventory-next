@@ -14,12 +14,14 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 import {
   Package, ShoppingCart, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight,
   BarChart3, PieChart, AlertTriangle, CheckCircle, Gem, Layers, Tag, RefreshCw,
   Activity, Flame, Trophy, Users, CalendarDays, RotateCcw, Crown, Sparkles,
-  Target, Store, LayoutGrid,
+  Target, Store, LayoutGrid, ChevronDown, ChevronRight, Wallet, Medal, Clock,
+  AlertCircle,
 } from 'lucide-react';
 
 import {
@@ -94,9 +96,13 @@ function DashboardTab() {
   const [stockAgingTrend, setStockAgingTrend] = useState<any[]>([]);
   const [salesByChannel, setSalesByChannel] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
+  const [profitAnalysis, setProfitAnalysis] = useState<any>(null);
+  const [profitSectionOpen, setProfitSectionOpen] = useState(true);
+  const [paymentStats, setPaymentStats] = useState<any>(null);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>('');
   const [minDays, setMinDays] = useState(90);
   const [warningDaysLoaded, setWarningDaysLoaded] = useState(false);
   const [distFilter, setDistFilter] = useState<PeriodFilter>('year');
@@ -222,6 +228,7 @@ function DashboardTab() {
         dashboardApi.getTopCustomers(),
         dashboardApi.getSalesByChannel(params),
         dashboardApi.getTrend({ months: 1 }),
+        dashboardApi.getProfitAnalysis(params),
       ]);
       const val = <T,>(idx: number, fallback: T) =>
         remainingResults[idx].status === 'fulfilled' ? remainingResults[idx].value as T : fallback;
@@ -244,6 +251,18 @@ function DashboardTab() {
       setSalesByChannel(val(15, []));
       // Sparkline data from monthly trend (index 16)
       const monthlyTrend = val(16, []);
+      // Profit analysis data (index 17)
+      setProfitAnalysis(val(17, null));
+
+      // Load payment stats (separate lightweight API)
+      try {
+        const payRes = await fetch('/api/sales/payment');
+        if (payRes.ok) {
+          const payData = await payRes.json();
+          setPaymentStats(payData.data || payData);
+        }
+      } catch { /* non-critical */ }
+
       if (Array.isArray(monthlyTrend) && monthlyTrend.length > 0) {
         // For daily sparkline, generate synthetic daily data from the monthly trend
         const lastMonth = monthlyTrend[monthlyTrend.length - 1];
@@ -290,6 +309,7 @@ function DashboardTab() {
       toast.error('加载看板数据失败');
     } finally {
       setLoading(false);
+      setLastUpdated(new Date().toLocaleTimeString('zh-CN', { hour12: false }));
     }
   }, [minDays, getDateRange, warningDaysLoaded]);
 
@@ -441,10 +461,16 @@ function DashboardTab() {
 
   return (
     <div className="space-y-6">
-      {/* ====== Real-Time Clock ====== */}
-      <div className="flex items-center justify-end gap-3">
-        <span className="text-sm text-muted-foreground tabular-nums">{clockDate}</span>
-        <span className="text-sm font-medium text-muted-foreground tabular-nums">{clockTime}</span>
+      {/* ====== Real-Time Clock + Data Update Time ====== */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          {lastUpdated ? <span>数据更新于 {lastUpdated}</span> : <span>加载中...</span>}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground tabular-nums">{clockDate}</span>
+          <span className="text-sm font-medium text-muted-foreground tabular-nums">{clockTime}</span>
+        </div>
       </div>
 
       {/* ====== Empty State ====== */}
@@ -458,9 +484,9 @@ function DashboardTab() {
 
       {/* ====== 1. Overview Cards ====== */}
       {summary && !isEmptyDashboard && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
           <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
-            <CardContent className="p-4">
+            <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
               <p className="text-sm text-muted-foreground">库存总计</p>
               <p className="text-3xl font-extrabold mt-1 tabular-nums">{animTotalItems}</p>
@@ -483,7 +509,7 @@ function DashboardTab() {
             </CardContent>
           </Card>
           <Card className="card-glow relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
-            <CardContent className="p-4">
+            <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-20 w-20 text-sky-500" /></div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">本月销售</p>
@@ -521,7 +547,7 @@ function DashboardTab() {
             </CardContent>
           </Card>
           <Card className="card-glow relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
-            <CardContent className="p-4">
+            <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><AlertTriangle className="h-20 w-20 text-red-500" /></div>
               <p className="text-sm text-muted-foreground">压货预警</p>
               <p className="text-3xl font-extrabold text-red-600 mt-1 tabular-nums">{animStockAging}</p>
@@ -579,6 +605,80 @@ function DashboardTab() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* ====== Payment Overview Cards ====== */}
+      {paymentStats && paymentStats.total > 0 && (
+        <Card className="border-emerald-200 dark:border-emerald-800">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Wallet className="h-4 w-4 text-emerald-600" />
+              <span className="text-sm font-medium">付款概览</span>
+              <Badge variant="outline" className="text-[10px] h-4 px-1.5 ml-auto">
+                共 {paymentStats.total} 笔
+              </Badge>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="text-center p-2.5 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <CheckCircle className="h-3 w-3 text-emerald-600" />
+                  <span className="text-xs text-muted-foreground">已付</span>
+                </div>
+                <p className="text-lg font-bold text-emerald-600 tabular-nums">{paymentStats.paid || 0}</p>
+              </div>
+              <div className="text-center p-2.5 bg-yellow-50/50 dark:bg-yellow-950/20 rounded-lg">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Clock className="h-3 w-3 text-yellow-600" />
+                  <span className="text-xs text-muted-foreground">待付</span>
+                </div>
+                <p className="text-lg font-bold text-yellow-600 tabular-nums">{paymentStats.pending || 0}</p>
+                {paymentStats.pendingAmount > 0 && (
+                  <p className="text-[10px] text-muted-foreground">{formatPrice(paymentStats.pendingAmount)}</p>
+                )}
+              </div>
+              <div className="text-center p-2.5 bg-orange-50/50 dark:bg-orange-950/20 rounded-lg">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <AlertCircle className="h-3 w-3 text-orange-600" />
+                  <span className="text-xs text-muted-foreground">部分</span>
+                </div>
+                <p className="text-lg font-bold text-orange-600 tabular-nums">{paymentStats.partial || 0}</p>
+              </div>
+              <div className="text-center p-2.5 bg-red-50/50 dark:bg-red-950/20 rounded-lg">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <AlertTriangle className="h-3 w-3 text-red-600" />
+                  <span className="text-xs text-muted-foreground">逾期</span>
+                </div>
+                <p className="text-lg font-bold text-red-600 tabular-nums">{paymentStats.overdue || 0}</p>
+                {paymentStats.overdueAmount > 0 && (
+                  <p className="text-[10px] text-red-600">{formatPrice(paymentStats.overdueAmount)}</p>
+                )}
+              </div>
+            </div>
+            {/* Payment method distribution */}
+            {paymentStats.methodDistribution && paymentStats.methodDistribution.length > 0 && (
+              <div className="mt-3 pt-3 border-t">
+                <p className="text-xs text-muted-foreground mb-2">付款方式分布</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {paymentStats.methodDistribution.map((m: any) => {
+                    const methodConfig: Record<string, { label: string; cls: string }> = {
+                      cash: { label: '现金', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' },
+                      transfer: { label: '转账', cls: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300' },
+                      wechat: { label: '微信', cls: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
+                      alipay: { label: '支付宝', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+                      installment: { label: '分期', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
+                    };
+                    const cfg = methodConfig[m.method] || { label: m.method, cls: 'bg-gray-100 text-gray-700' };
+                    return (
+                      <Badge key={m.method} variant="outline" className={`text-[11px] h-6 px-2 ${cfg.cls}`}>
+                        {cfg.label} {m.count}笔 {formatPrice(m.total)}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* ====== Latest Transactions Card ====== */}
@@ -1233,6 +1333,219 @@ function DashboardTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* ====== 利润分析 (Profit Analysis) ====== */}
+      {!isEmptyDashboard && (
+        <Collapsible open={profitSectionOpen} onOpenChange={setProfitSectionOpen}>
+          <Card className="border-l-4 border-l-emerald-600 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="pb-2 cursor-pointer hover:bg-muted/30 transition-colors">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-emerald-600" />
+                  利润分析
+                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">综合</Badge>
+                  <div className="ml-auto">
+                    {profitSectionOpen ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </CardTitle>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-6">
+                {/* ====== Profit Trend Chart ====== */}
+                {trend.length > 0 && (() => {
+                  const profitTrendData = trend.map((t: any) => ({
+                    yearMonth: (t.yearMonth || '').slice(-5),
+                    revenue: t.revenue || 0,
+                    profit: t.profit || 0,
+                    margin: t.revenue > 0 ? Math.round((t.profit / t.revenue) * 10000) / 100 : 0,
+                  }));
+                  return (
+                    <div className="tab-fade-in">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <TrendingUp className="h-3 w-3 text-emerald-500" />
+                        月度利润趋势
+                      </p>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <ComposedChart data={profitTrendData}>
+                          <defs>
+                            <linearGradient id="profitTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#059669" stopOpacity={0.25} />
+                              <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="yearMonth" tick={{ fontSize: 11 }} />
+                          <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
+                          <YAxis yAxisId="right" orientation="right" tickFormatter={v => `${v}%`} tick={{ fontSize: 10 }} domain={[0, 'auto']} />
+                          <Tooltip formatter={(v: number, name: string) => [name === '利润率' ? `${v}%` : formatPrice(v), name]} />
+                          <Legend formatter={(v: string) => v} />
+                          <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#059669" fill="url(#profitTrendGrad)" strokeWidth={2.5} name="毛利" dot={{ r: 3, fill: '#059669', strokeWidth: 0 }} activeDot={{ r: 5, fill: '#059669', stroke: '#fff', strokeWidth: 2 }} />
+                          <Line yAxisId="right" type="monotone" dataKey="margin" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3, fill: '#f59e0b' }} name="利润率" strokeDasharray="5 3" />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  );
+                })()}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* ====== Profit by Category (Horizontal Bar) ====== */}
+                  {profitByCategory.length > 0 && (() => {
+                    const sortedByProfit = [...profitByCategory].sort((a: any, b: any) => (b.profit || 0) - (a.profit || 0));
+                    return (
+                      <div className="tab-fade-in">
+                        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                          <Gem className="h-3 w-3 text-teal-500" />
+                          按材质利润分布
+                        </p>
+                        <ResponsiveContainer width="100%" height={Math.max(sortedByProfit.length * 40, 200)}>
+                          <BarChart data={sortedByProfit} layout="vertical" margin={{ left: 56 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
+                            <YAxis type="category" dataKey="materialName" width={56} tick={{ fontSize: 11 }} />
+                            <Tooltip formatter={(v: number, name: string) => [formatPrice(v), name]} />
+                            <Legend formatter={(v: string) => v} />
+                            <Bar dataKey="revenue" fill="#05966930" stroke="#059669" strokeWidth={1} name="营收" radius={[0, 4, 4, 0]} />
+                            <Bar dataKey="profit" fill="#0d9488" radius={[0, 4, 4, 0]} name="利润" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    );
+                  })()}
+
+                  {/* ====== Margin Distribution ====== */}
+                  {profitAnalysis?.marginDistribution && (() => {
+                    const distData = profitAnalysis.marginDistribution.filter((d: any) => d.count > 0);
+                    const totalSales = distData.reduce((s: number, d: any) => s + d.count, 0);
+                    const marginColors: Record<string, string> = {
+                      '0-10%': '#ef4444',
+                      '10-20%': '#f59e0b',
+                      '20-30%': '#0ea5e9',
+                      '30%+': '#059669',
+                    };
+                    const marginBgs: Record<string, string> = {
+                      '0-10%': 'bg-red-500',
+                      '10-20%': 'bg-amber-500',
+                      '20-30%': 'bg-sky-500',
+                      '30%+': 'bg-emerald-500',
+                    };
+                    return (
+                      <div className="tab-fade-in">
+                        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                          <BarChart3 className="h-3 w-3 text-amber-500" />
+                          利润率分布
+                        </p>
+                        {distData.length === 0 ? (
+                          <EmptyState icon={BarChart3} title="暂无数据" desc="还没有销售记录" />
+                        ) : totalSales === 0 ? (
+                          <EmptyState icon={BarChart3} title="暂无数据" desc="" />
+                        ) : (
+                          <div className="space-y-3">
+                            <ResponsiveContainer width="100%" height={180}>
+                              <BarChart data={profitAnalysis.marginDistribution}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="range" tick={{ fontSize: 12 }} />
+                                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                                <Tooltip formatter={(v: number, name: string) => [name === '利润额' ? formatPrice(v) : `${v}笔`, name]} />
+                                <Bar dataKey="count" radius={[4, 4, 0, 0]} name="成交笔数">
+                                  {profitAnalysis.marginDistribution.map((d: any, i: number) => (
+                                    <Cell key={i} fill={marginColors[d.range] || '#94a3b8'} />
+                                  ))}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                            <div className="space-y-2 pt-1">
+                              {profitAnalysis.marginDistribution.map((d: any) => {
+                                const pct = totalSales > 0 ? ((d.count / totalSales) * 100).toFixed(1) : '0.0';
+                                return (
+                                  <div key={d.range} className="space-y-1">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <div className="flex items-center gap-1.5">
+                                        <div className={`w-2.5 h-2.5 rounded-full ${marginBgs[d.range] || 'bg-gray-400'}`} />
+                                        <span className="font-medium">{d.range}</span>
+                                        <span className="text-muted-foreground text-xs">{d.count}笔</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-emerald-600">{formatPrice(d.totalProfit)}</span>
+                                        <span className="text-xs text-muted-foreground w-10 text-right">{pct}%</span>
+                                      </div>
+                                    </div>
+                                    <div className="w-full bg-muted rounded-full h-1.5">
+                                      <div className={`${marginBgs[d.range] || 'bg-gray-400'} rounded-full h-1.5 transition-all duration-500`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* ====== Top 5 Most Profitable Items (by margin) ====== */}
+                {profitAnalysis?.topMarginItems?.length > 0 && (() => {
+                  const topItems = profitAnalysis.topMarginItems;
+                  const maxMargin = Math.max(...topItems.map((s: any) => Math.abs(s.margin)), 1);
+                  return (
+                    <div className="tab-fade-in">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <Crown className="h-3 w-3 text-amber-500" />
+                        利润率最高货品 TOP5
+                      </p>
+                      <div className="space-y-2 max-h-80 overflow-y-auto">
+                        {topItems.map((item: any, index: number) => {
+                          const barWidth = Math.max((Math.abs(item.margin) / maxMargin) * 100, 5);
+                          const rankColors = ['text-amber-500', 'text-gray-400', 'text-amber-700', 'text-gray-500', 'text-gray-500'];
+                          const rankBgs = ['bg-amber-50 dark:bg-amber-950/30', 'bg-gray-50 dark:bg-gray-900/30', 'bg-amber-50/50 dark:bg-amber-950/20', '', ''];
+                          return (
+                            <div key={item.itemId} className={`flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors ${rankBgs[index] || ''}`}>
+                              <span className={`text-lg font-bold w-6 text-center ${rankColors[index] || 'text-gray-500'}`}>
+                                {index + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium truncate">{item.name}</span>
+                                  <Badge variant="secondary" className="text-[10px] shrink-0">{item.materialName}</Badge>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${item.margin >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                      style={{ width: `${barWidth}%` }}
+                                    />
+                                  </div>
+                                  <span className={`text-xs font-medium w-14 text-right ${item.margin >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                    {item.margin >= 0 ? '+' : ''}{item.margin.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-sm font-bold">{formatPrice(item.totalProfit)}</p>
+                                <p className="text-[10px] text-muted-foreground">利润 · {item.salesCount}笔</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Fallback when no profit analysis data */}
+                {(!profitAnalysis || (!profitAnalysis.marginDistribution?.some((d: any) => d.count > 0) && !profitAnalysis.topMarginItems?.length)) && trend.length === 0 && profitByCategory.length === 0 && (
+                  <EmptyState icon={Wallet} title="暂无利润数据" desc="开始销售货品后即可查看利润分析" />
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
 
       {/* ====== Inventory Turnover Chart (库存周转率) ====== */}
       {turnoverData.length > 0 && (

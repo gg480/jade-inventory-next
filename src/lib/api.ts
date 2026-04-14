@@ -120,6 +120,10 @@ export const salesApi = {
     request<any>('/sales/bundle', { method: 'POST', body: JSON.stringify(data) }),
   returnSale: (data: any) =>
     request<any>('/sales/return', { method: 'POST', body: JSON.stringify(data) }),
+  updatePayment: (data: { saleId: number; paymentStatus?: string; paymentMethod?: string }) =>
+    request<any>('/sales/payment', { method: 'PATCH', body: JSON.stringify(data) }),
+  getPaymentStats: () =>
+    request<any>('/sales/payment'),
 };
 
 // ========== Customers ==========
@@ -232,6 +236,10 @@ export const dashboardApi = {
   getAggregate: (params?: Record<string, any>) => {
     const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
     return request<any>(`/dashboard/aggregate${qs}`);
+  },
+  getProfitAnalysis: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any>(`/dashboard/profit/analysis${qs}`);
   },
   getInventoryValueByCategory: () => request<any[]>(`/dashboard/inventory-value-by-category`),
   getSalesByChannel: (params?: Record<string, any>) => {

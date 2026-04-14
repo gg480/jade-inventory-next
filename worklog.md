@@ -2813,3 +2813,43 @@ Stage Summary:
 - 解决方案: 使用 bun run dev 启动，首次编译后缓存会减少后续内存使用
 - 下一步: 创建 cron 任务，进行持续开发和迭代
 
+---
+Task ID: 6-a
+Agent: item-detail-dev
+Task: Create inventory item detail drawer
+
+Work Log:
+- Read worklog.md to understand full project history (Tasks 1-15)
+- Read inventory-tab.tsx (~2064 lines) to understand existing Item type, code patterns, and inline slide-in panel
+- Read item-detail-dialog.tsx to understand existing detail dialog implementation
+- Read Sheet component from shadcn/ui (src/components/ui/sheet.tsx)
+- Read Prisma schema to understand Item model and related fields (ItemSpec, ItemImage, etc.)
+- Read items API route to understand returned fields (materialName, typeName, ageDays, coverImage, etc.)
+- Created `src/components/inventory/item-detail-drawer.tsx` — comprehensive Sheet-based drawer component
+  - Sheet component from @/components/ui/sheet, slides from right, w-[480px] max-w-[90vw]
+  - Header: SKU code (emerald color, font-mono), item name, status badge (在库/已售/已退)
+  - Image Gallery: Full image viewer with thumbnail strip, upload, lightbox integration
+  - Basic Info Grid (2-column): 材质, 器型, 产地, 柜台号, 采购日期, 证书号, 所属批次
+  - Pricing Section: emerald background card with 成本价/售价/底价 + 潜在利润/利润率
+  - Specifications: Formatted with units (g, mm) from spec data
+  - Tags section with color palette
+  - Notes section
+  - Sale records section (from detail API)
+  - Action Buttons: 编辑, 销售出库, 标签打印, 退货 (only for sold status)
+  - Fetches full detail via itemsApi.getItem() for images and sale records
+- Modified `src/components/inventory/inventory-tab.tsx`:
+  - Added import for ItemDetailDrawer
+  - Replaced selectedItemId state with detailItem (any) + detailOpen (boolean) states
+  - Updated escape-press handler to close drawer
+  - Updated table row onClick and mobile card onClick to open drawer (setDetailItem + setDetailOpen)
+  - Replaced entire inline slide-in panel (~260 lines) with ItemDetailDrawer component
+  - Connected action callbacks: onEdit→setEditItemId, onSell→saleDialog, onReturn→returnConfirmItem, onPrintLabel→printLabelItem
+- Ran bun run lint → 0 errors, 0 warnings
+- Dev server running normally on port 3000
+
+Stage Summary:
+- New component: item-detail-drawer.tsx (Sheet-based, 480px width, right slide)
+- Replaced inline slide-in panel (~260 lines) with clean component integration
+- Drawer fetches full item detail (including images and sale records) from API
+- All existing functionality preserved (edit, sell, return, print label)
+- Lint passes cleanly

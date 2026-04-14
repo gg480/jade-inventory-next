@@ -23,39 +23,51 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   ShoppingCart, TrendingUp, DollarSign, BarChart3, Search, Link2, FileDown, RotateCcw, Store, MessageCircle,
   CalendarDays, ArrowUp, ArrowDown, CreditCard, ChevronDown, ChevronUp, Printer, Gem, User, Phone, Tag, AlertTriangle, X, Package, XIcon, Eye,
+  CheckCircle, Clock, AlertCircle,
 } from 'lucide-react';
 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 
-// Payment method config
-const PAYMENT_METHODS = [
-  { value: '现款', label: '现款', icon: '💰', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' },
-  { value: '转账', label: '转账', icon: '🏦', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-300 dark:border-sky-700' },
-  { value: '微信', label: '微信', icon: '💬', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' },
-  { value: '支付宝', label: '支付宝', icon: '📱', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-300 dark:border-sky-700' },
-  { value: '分期', label: '分期', icon: '📋', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300 dark:border-amber-700' },
-];
+// Payment status config
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle; color: string }> = {
+  paid: { label: '已付', icon: CheckCircle, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' },
+  pending: { label: '待付', icon: Clock, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700' },
+  partial: { label: '部分', icon: AlertCircle, color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-orange-300 dark:border-orange-700' },
+  overdue: { label: '逾期', icon: AlertTriangle, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-red-300 dark:border-red-700' },
+};
 
-function getPaymentMethod(note: string | null | undefined): string | null {
-  if (!note) return null;
-  const match = note.match(/^\[支付:([^\]]+)\]\s*/);
-  return match ? match[1] : null;
+// Payment method config
+const PAYMENT_METHOD_CONFIG: Record<string, { label: string; color: string }> = {
+  cash: { label: '现金', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' },
+  transfer: { label: '转账', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-300 dark:border-sky-700' },
+  wechat: { label: '微信', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' },
+  alipay: { label: '支付宝', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border-sky-300 dark:border-sky-700' },
+  installment: { label: '分期', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300 dark:border-amber-700' },
+};
+
+function formatPaymentStatusBadge(sale: any, onClick?: () => void) {
+  const status = sale.paymentStatus || 'paid';
+  const config = PAYMENT_STATUS_CONFIG[status] || PAYMENT_STATUS_CONFIG.paid;
+  const method = sale.paymentMethod;
+  const methodConfig = method ? PAYMENT_METHOD_CONFIG[method] : null;
+  const Icon = config.icon;
+  return (
+    <div className={`inline-flex flex-col items-start gap-0.5 ${onClick ? 'cursor-pointer' : ''}`} onClick={onClick}>
+      <Badge variant="outline" className={`text-[11px] h-5 px-1.5 ${config.color} transition-all duration-150 hover:shadow-sm`}>
+        <Icon className="h-2.5 w-2.5 mr-0.5" />
+        {config.label}
+      </Badge>
+      {methodConfig && <span className="text-[10px] text-muted-foreground leading-tight">{methodConfig.label}</span>}
+    </div>
+  );
 }
 
 function getPaymentNote(note: string | null | undefined): string {
   if (!note) return '';
   const cleaned = note.replace(/^\[支付:[^\]]+\]\s*/, '');
   return cleaned.trim();
-}
-
-function formatPaymentBadge(note: string | null | undefined) {
-  const method = getPaymentMethod(note);
-  if (!method) return null;
-  const config = PAYMENT_METHODS.find(m => m.value === method);
-  if (!config) return null;
-  return <Badge variant="outline" className={`text-xs ${config.color}`}>{config.icon} {config.label}</Badge>;
 }
 
 // ========== Sales Tab ==========
@@ -89,6 +101,11 @@ function SalesTab() {
 
   // Sale detail panel
   const [detailSale, setDetailSale] = useState<any>(null);
+
+  // Payment edit dialog
+  const [paymentEdit, setPaymentEdit] = useState<{ open: boolean; sale: any }>({ open: false, sale: null });
+  const [paymentForm, setPaymentForm] = useState({ paymentStatus: 'paid', paymentMethod: 'cash' });
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   // Today stats
   const [todayStats, setTodayStats] = useState<{ count: number; revenue: number; profit: number } | null>(null);
@@ -290,6 +307,34 @@ function SalesTab() {
     return <Badge variant="outline">{channel}</Badge>;
   }
 
+  function openPaymentEdit(sale: any, e?: React.MouseEvent) {
+    if (e) e.stopPropagation();
+    setPaymentForm({
+      paymentStatus: sale.paymentStatus || 'paid',
+      paymentMethod: sale.paymentMethod || 'cash',
+    });
+    setPaymentEdit({ open: true, sale });
+  }
+
+  async function handlePaymentSave() {
+    if (!paymentEdit.sale) return;
+    setPaymentSubmitting(true);
+    try {
+      await salesApi.updatePayment({
+        saleId: paymentEdit.sale.id,
+        paymentStatus: paymentForm.paymentStatus,
+        paymentMethod: paymentForm.paymentMethod,
+      });
+      toast.success('付款状态已更新');
+      setPaymentEdit({ open: false, sale: null });
+      fetchSales();
+    } catch (e: any) {
+      toast.error(e.message || '更新失败');
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  }
+
   function handleDatePreset(preset: string) {
     setDatePreset(preset);
     const today = new Date();
@@ -481,7 +526,7 @@ function SalesTab() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-10"><Checkbox checked={sales.length > 0 && selectedSaleIds.size === sales.length} onCheckedChange={toggleSelectAll} /></TableHead>
-                      <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>渠道</TableHead><TableHead>支付方式</TableHead><TableHead>货品</TableHead>
+                      <TableHead>销售单号</TableHead><TableHead>SKU</TableHead><TableHead>渠道</TableHead><TableHead>付款</TableHead><TableHead>货品</TableHead>
                       <TableHead className="text-right">成交价</TableHead>
                       <TableHead>日期</TableHead><TableHead>客户</TableHead><TableHead className="text-right">毛利</TableHead>
                       <TableHead className="text-center">操作</TableHead>
@@ -502,7 +547,7 @@ function SalesTab() {
                         <TableCell className="font-mono text-xs"><div className="flex items-center gap-1.5">{isExpanded ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}{sale.saleNo}</div></TableCell>
                         <TableCell className="font-mono text-xs">{sale.itemSku}</TableCell>
                         <TableCell>{formatChannelBadge(sale.channel) || '-'}</TableCell>
-                        <TableCell>{formatPaymentBadge(sale.note) || '-'}</TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>{formatPaymentStatusBadge(sale, () => openPaymentEdit(sale))}</TableCell>
                         <TableCell>{sale.itemName || sale.itemSku}</TableCell>
                         <TableCell className="text-right font-medium">{formatPrice(sale.actualPrice)}</TableCell>
                         <TableCell>{sale.saleDate}</TableCell>
@@ -554,7 +599,7 @@ function SalesTab() {
                                 <div><span className="text-muted-foreground">客户电话:</span> {sale.customerPhone || '-'}</div>
                                 <div><span className="text-muted-foreground">VIP等级:</span> {sale.customerVipLevel || '-'}</div>
                                 <div><span className="text-muted-foreground">柜台号:</span> {sale.counter || '-'}</div>
-                                <div><span className="text-muted-foreground">支付方式:</span> {formatPaymentBadge(sale.note) || <span className="text-muted-foreground">未指定</span>}</div>
+                                <div><span className="text-muted-foreground">付款状态:</span> {formatPaymentStatusBadge(sale, () => openPaymentEdit(sale))}</div>
                                 <div><span className="text-muted-foreground">渠道:</span> {formatChannelBadge(sale.channel) || '-'}</div>
                               </div>
                               {sale.note && <p className="text-sm text-muted-foreground mt-2"><span className="font-medium">备注:</span> {getPaymentNote(sale.note)}</p>}
@@ -599,7 +644,7 @@ function SalesTab() {
                     </div>
                     <div className="flex items-center gap-1">
                       {formatChannelBadge(sale.channel)}
-                      {formatPaymentBadge(sale.note)}
+                      {formatPaymentStatusBadge(sale, (e) => openPaymentEdit(sale, e as React.MouseEvent))}
                     </div>
                   </div>
                   {/* Item info */}
@@ -628,6 +673,7 @@ function SalesTab() {
                         <div><span className="text-muted-foreground">毛利率:</span> <span className={profit >= 0 ? 'text-emerald-600' : 'text-red-600'}>{marginPct}%</span></div>
                         {sale.customerName && <div><span className="text-muted-foreground">客户:</span> {sale.customerName}</div>}
                         {sale.customerPhone && <div><span className="text-muted-foreground">电话:</span> {sale.customerPhone}</div>}
+                        <div><span className="text-muted-foreground">付款:</span> {formatPaymentStatusBadge(sale, (e) => openPaymentEdit(sale, e as React.MouseEvent))}</div>
                       </div>
                       {sale.note && <p className="text-muted-foreground">备注: {getPaymentNote(sale.note)}</p>}
                     </div>
@@ -773,6 +819,66 @@ function SalesTab() {
 
       {/* Bundle Sale Dialog */}
       <BundleSaleDialog open={showBundle} onOpenChange={setShowBundle} onSuccess={fetchSales} />
+
+      {/* Payment Edit Dialog */}
+      <Dialog open={paymentEdit.open} onOpenChange={open => setPaymentEdit({ open, sale: open ? paymentEdit.sale : null })}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5 text-emerald-600" />修改付款状态</DialogTitle>
+            <DialogDescription>
+              单号: <span className="font-mono">{paymentEdit.sale?.saleNo}</span>
+              {paymentEdit.sale?.itemName && <span className="ml-2">· {paymentEdit.sale.itemName}</span>}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Current sale info */}
+            <div className="p-3 bg-muted/50 rounded-lg text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">成交价</span>
+                <span className="font-bold text-emerald-600">{formatPrice(paymentEdit.sale?.actualPrice || 0)}</span>
+              </div>
+            </div>
+            {/* Payment Status */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">付款状态</Label>
+              <Select value={paymentForm.paymentStatus} onValueChange={v => setPaymentForm(f => ({ ...f, paymentStatus: v }))}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PAYMENT_STATUS_CONFIG).map(([value, config]) => {
+                    const Icon = config.icon;
+                    return (
+                      <SelectItem key={value} value={value}>
+                        <span className="flex items-center gap-1.5">
+                          <Icon className={`h-3.5 w-3.5 ${config.color.split(' ').find(c => c.startsWith('text-')) || ''}`} />
+                          {config.label}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Payment Method */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">付款方式</Label>
+              <Select value={paymentForm.paymentMethod} onValueChange={v => setPaymentForm(f => ({ ...f, paymentMethod: v }))}>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PAYMENT_METHOD_CONFIG).map(([value, config]) => (
+                    <SelectItem key={value} value={value}>{config.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPaymentEdit({ open: false, sale: null })}>取消</Button>
+            <Button onClick={handlePaymentSave} className="bg-emerald-600 hover:bg-emerald-700" disabled={paymentSubmitting}>
+              {paymentSubmitting ? '保存中...' : '保存'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Enhanced Return Dialog */}
       <Dialog open={returnDialog.open} onOpenChange={open => setReturnDialog({ open, sale: open ? returnDialog.sale : null })}>
@@ -930,7 +1036,7 @@ function SalesTab() {
                 </div>
               )}
               <div className="border-t border-dashed pt-2 text-xs">
-                <div className="flex justify-between"><span>支付:</span><span>{getPaymentMethod(printSale.note) || '未指定'}</span></div>
+                <div className="flex justify-between"><span>付款:</span><span>{(PAYMENT_STATUS_CONFIG[printSale.paymentStatus || 'paid'])?.label || '已付'}{(PAYMENT_METHOD_CONFIG[printSale.paymentMethod]) ? ` · ${PAYMENT_METHOD_CONFIG[printSale.paymentMethod].label}` : ''}</span></div>
                 <div className="flex justify-between"><span>渠道:</span><span>{printSale.channel === 'store' ? '门店' : printSale.channel === 'wechat' ? '微信' : printSale.channel || '-'}</span></div>
               </div>
               <div className="border-t border-dashed pt-2 text-center text-xs text-muted-foreground">
@@ -1038,8 +1144,8 @@ function SalesTab() {
                   <p className="font-medium">{detailSale.counter || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">支付方式</p>
-                  <div className="mt-0.5">{formatPaymentBadge(detailSale.note) || <span className="text-muted-foreground">未指定</span>}</div>
+                  <p className="text-xs text-muted-foreground mb-0.5">付款状态</p>
+                  <div className="mt-0.5">{formatPaymentStatusBadge(detailSale, () => openPaymentEdit(detailSale))}</div>
                 </div>
               </div>
 

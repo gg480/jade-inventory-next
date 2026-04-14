@@ -26,12 +26,14 @@ export async function GET(req: Request) {
   const startDate = searchParams.get('start_date');
   const endDate = searchParams.get('end_date');
   const customerId = searchParams.get('customer_id');
+  const paymentStatus = searchParams.get('payment_status');
 
   const where: any = {};
   if (channel) where.channel = channel;
   if (startDate) where.saleDate = { ...where.saleDate, gte: startDate };
   if (endDate) where.saleDate = { ...where.saleDate, lte: endDate };
   if (customerId) where.customerId = parseInt(customerId);
+  if (paymentStatus) where.paymentStatus = paymentStatus;
 
   const total = await db.saleRecord.count({ where });
   const records = await db.saleRecord.findMany({
@@ -61,7 +63,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { itemId, actualPrice, channel, saleDate, customerId, note } = body;
+    const { itemId, actualPrice, channel, saleDate, customerId, note, paymentMethod, paymentStatus } = body;
 
     // Validate item
     const item = await db.item.findUnique({ where: { id: itemId } });
@@ -77,7 +79,11 @@ export async function POST(req: Request) {
     // Use transaction for atomicity: create sale + update item status
     const record = await db.$transaction(async (tx) => {
       const sale = await tx.saleRecord.create({
-        data: { saleNo, itemId, actualPrice, channel, saleDate, customerId, note },
+        data: {
+          saleNo, itemId, actualPrice, channel, saleDate, customerId, note,
+          paymentMethod: paymentMethod || null,
+          paymentStatus: paymentStatus || 'paid',
+        },
       });
 
       await tx.item.update({ where: { id: itemId }, data: { status: 'sold' } });

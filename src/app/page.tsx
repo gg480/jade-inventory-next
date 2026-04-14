@@ -3,18 +3,18 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useAppStore, TabId } from '@/lib/store';
 import { fadeInStyle, cardSlideUpStyle, ErrorBoundary, LoadingSkeleton } from '@/components/inventory/shared';
-import SalesTab from '@/components/inventory/sales-tab';
-import BatchesTab from '@/components/inventory/batches-tab';
-import CustomersTab from '@/components/inventory/customers-tab';
-import LogsTab from '@/components/inventory/logs-tab';
-
+// ALL tab components lazy-loaded to prevent Turbopack OOM on initial compile
 const DashboardTab = lazy(() => import('@/components/inventory/dashboard-tab'));
 const InventoryTab = lazy(() => import('@/components/inventory/inventory-tab'));
+const SalesTab = lazy(() => import('@/components/inventory/sales-tab'));
+const BatchesTab = lazy(() => import('@/components/inventory/batches-tab'));
+const CustomersTab = lazy(() => import('@/components/inventory/customers-tab'));
+const LogsTab = lazy(() => import('@/components/inventory/logs-tab'));
 const SettingsTab = lazy(() => import('@/components/inventory/settings-tab'));
 import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
 import { Gem, Package, ShoppingCart, Zap, Clock, ArrowUp, HelpCircle, WifiOff } from 'lucide-react';
 import { Toaster } from 'sonner';
-import { itemsApi, salesApi, batchesApi } from '@/lib/api';
+// No heavy API imports needed - QuickStatsBar uses lightweight /api/stats/quick
 import {
   Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
 } from '@/components/ui/tooltip';
@@ -33,24 +33,14 @@ function QuickStatsBar() {
 
   const loadStats = async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const [itemsData, salesData, batchesData] = await Promise.allSettled([
-        itemsApi.getItems({ page: 1, size: 1, status: 'in_stock' }),
-        salesApi.getSales({ page: 1, size: 1000, start_date: today, end_date: today }),
-        batchesApi.getBatches({ page: 1, size: 100 }),
-      ]);
-      if (itemsData.status === 'fulfilled') {
-        setInventoryValue(itemsData.value.pagination?.total || 0);
-      }
-      if (salesData.status === 'fulfilled') {
-        const sales = salesData.value.items || [];
-        setTodaySales(sales.length);
-        setTodayRevenue(sales.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0));
-      }
-      if (batchesData.status === 'fulfilled') {
-        const batches = batchesData.value.items || [];
-        setPendingBatches(batches.filter((b: any) => (b.itemsCount || 0) < (b.quantity || 0)).length);
-      }
+      // Use lightweight quick-stats API (single request, no heavy data)
+      const res = await fetch('/api/stats/quick');
+      if (!res.ok) return;
+      const data = await res.json();
+      setInventoryValue(data.inStockCount ?? 0);
+      setTodaySales(data.todaySalesCount ?? 0);
+      setTodayRevenue(data.todayRevenue ?? 0);
+      setPendingBatches(data.incompleteBatches ?? 0);
     } catch {
       // Silently fail
     }
@@ -100,19 +90,13 @@ function MobileQuickStats({ className }: { className?: string }) {
 
   const loadStats = async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const [itemsData, salesData] = await Promise.allSettled([
-        itemsApi.getItems({ page: 1, size: 1, status: 'in_stock' }),
-        salesApi.getSales({ page: 1, size: 1000, start_date: today, end_date: today }),
-      ]);
-      if (itemsData.status === 'fulfilled') {
-        setInventoryValue(itemsData.value.pagination?.total || 0);
-      }
-      if (salesData.status === 'fulfilled') {
-        const sales = salesData.value.items || [];
-        setTodaySales(sales.length);
-        setTodayRevenue(sales.reduce((sum: number, s: any) => sum + (s.actualPrice || 0), 0));
-      }
+      // Use lightweight quick-stats API (single request, no heavy data)
+      const res = await fetch('/api/stats/quick');
+      if (!res.ok) return;
+      const data = await res.json();
+      setInventoryValue(data.inStockCount ?? 0);
+      setTodaySales(data.todaySalesCount ?? 0);
+      setTodayRevenue(data.todayRevenue ?? 0);
     } catch {
       // Silently fail
     }

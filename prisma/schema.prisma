@@ -229,16 +229,18 @@ model ItemImage {
 // 12. sale_records — 销售记录
 // ──────────────────────────────────────────────
 model SaleRecord {
-  id          Int      @id @default(autoincrement())
-  saleNo      String   @unique @map("sale_no")
-  itemId      Int      @map("item_id")
-  actualPrice Float    @map("actual_price")
-  channel     String   // store / wechat
-  saleDate    String   @map("sale_date") // YYYY-MM-DD format string
-  customerId  Int?     @map("customer_id")
-  bundleId    Int?     @map("bundle_id")
-  note        String?
-  createdAt   DateTime @default(now()) @map("created_at")
+  id            Int      @id @default(autoincrement())
+  saleNo        String   @unique @map("sale_no")
+  itemId        Int      @map("item_id")
+  actualPrice   Float    @map("actual_price")
+  channel       String   // store / wechat
+  saleDate      String   @map("sale_date") // YYYY-MM-DD format string
+  customerId    Int?     @map("customer_id")
+  bundleId      Int?     @map("bundle_id")
+  note          String?
+  paymentMethod String?  @map("payment_method") // cash / transfer / wechat / alipay / installment
+  paymentStatus String   @default("paid") @map("payment_status") // paid / pending / partial / overdue
+  createdAt     DateTime @default(now()) @map("created_at")
 
   item        Item        @relation(fields: [itemId], references: [id])
   customer    Customer?   @relation(fields: [customerId], references: [id])
@@ -247,6 +249,7 @@ model SaleRecord {
 
   @@index([saleDate])
   @@index([channel])
+  @@index([paymentStatus])
   @@map("sale_records")
 }
 
