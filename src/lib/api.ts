@@ -262,6 +262,14 @@ export const importApi = {
     if (json.code !== 0 && json.code !== 200) throw new Error(json.message || '导入失败');
     return json.data;
   },
+  importCsvItems: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${BASE}/import/items-csv`, { method: 'POST', body: formData });
+    const json = await res.json();
+    if (json.code !== 0 && json.code !== 200) throw new Error(json.message || '导入失败');
+    return json.data;
+  },
   importSales: async (file: File, options?: { autoCreate?: boolean }) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -272,6 +280,20 @@ export const importApi = {
     return json.data;
   },
   downloadTemplate: (type: 'items' | 'sales') => `${BASE}/import/template?type=${type}`,
+};
+
+// ========== Batch Price ==========
+export const itemsApiEnhanced = {
+  batchPriceAdjust: async (data: { ids: string[]; adjustmentType: 'percentage' | 'fixed'; value: number; direction: 'increase' | 'decrease' }) => {
+    const res = await fetch(`${BASE}/items/batch-price`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (json.code !== 0 && json.code !== 200) throw new Error(json.message || '批量调价失败');
+    return json.data;
+  },
 };
 
 // ========== Export ==========

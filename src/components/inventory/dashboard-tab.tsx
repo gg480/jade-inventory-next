@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
   PieChart as RPieChart, Pie, Cell, Line, Area, AreaChart, ComposedChart
 } from 'recharts';
 
@@ -1070,14 +1070,25 @@ function DashboardTab() {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={trend}>
+                <defs>
+                  <linearGradient id="profitGradTrend" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="revenueGradTrend" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#059669" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="yearMonth" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                 <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 10 }} />
+                <ReferenceLine yAxisId="left" y={0} stroke="#94a3b8" strokeDasharray="4 4" strokeWidth={1} />
                 <Tooltip formatter={(v: number, name: string) => [name === '销量' ? `${v}笔` : formatPrice(v), name]} />
                 <Legend formatter={(v: string) => v} />
-                <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#059669" fill="#05966920" strokeWidth={2} name="销售额" />
-                <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#0ea5e9" fill="#0ea5e920" strokeWidth={2} name="毛利" />
+                <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#059669" fill="url(#revenueGradTrend)" strokeWidth={2} name="销售额" dot={{ r: 3, fill: '#059669', strokeWidth: 0 }} activeDot={{ r: 5, fill: '#059669', stroke: '#fff', strokeWidth: 2 }} />
+                <Area yAxisId="left" type="monotone" dataKey="profit" stroke="#0ea5e9" fill="url(#profitGradTrend)" strokeWidth={2} name="毛利" dot={{ r: 3, fill: '#0ea5e9', strokeWidth: 0 }} activeDot={{ r: 5, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 2 }} />
                 <Line yAxisId="right" type="monotone" dataKey="salesCount" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} name="销量" />
               </AreaChart>
             </ResponsiveContainer>

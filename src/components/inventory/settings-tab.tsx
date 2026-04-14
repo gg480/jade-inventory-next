@@ -153,6 +153,12 @@ function SettingsTab() {
   const [importType, setImportType] = useState<'items' | 'sales'>('items');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
+
+  // CSV quick import states
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvResult, setCsvResult] = useState<{ success: number; skipped: number; errors: string[] } | null>(null);
+  const [csvDragOver, setCsvDragOver] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
   const [autoCreate, setAutoCreate] = useState(true);
   const [skipExisting, setSkipExisting] = useState(true);
@@ -395,6 +401,40 @@ function SettingsTab() {
       toast.error(e.message || '导入失败');
     } finally {
       setImporting(false);
+    }
+  }
+
+  // CSV quick import handler
+  function handleDownloadCsvTemplate() {
+    const header = 'SKU,名称,器型,材质,状态,成本,售价,柜台号,采购日期';
+    const example1 = 'JD-001,翡翠手镯,手镯,和田玉,在库,5000,12000,3,2026-01-15';
+    const example2 = 'JD-002,翡翠吊坠,吊坠,缅甸翡翠,在库,3000,8000,5,2026-02-01';
+    const csv = '\uFEFF' + header + '\n' + example1 + '\n' + example2 + '\n';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = '货品导入模板.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleCsvImport() {
+    if (!csvFile) return;
+    setCsvImporting(true);
+    setCsvResult(null);
+    try {
+      const result = await importApi.importCsvItems(csvFile);
+      setCsvResult(result);
+      if (result.errors.length === 0) {
+        toast.success(`CSV导入完成: 成功${result.success}条${result.skipped > 0 ? `，跳过${result.skipped}条` : ''}`);
+      } else {
+        toast.warning(`CSV导入完成: 成功${result.success}条，跳过${result.skipped}条，${result.errors.length}条错误`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'CSV导入失败');
+    } finally {
+      setCsvImporting(false);
     }
   }
 
@@ -963,6 +1003,119 @@ function SettingsTab() {
           </Card>
         </TabsContent>
         <TabsContent value="import" className="mt-4 space-y-4">
+          {/* CSV Quick Import (P0 production requirement) */}
+          <Card className="border-l-4 border-l-emerald-400 hover:shadow-sm transition-shadow duration-200">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Upload className="h-4 w-4 text-emerald-500" />
+                CSV批量导入货品
+                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 text-xs">推荐</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">快速导入约2000件存量货品。必填列: SKU、名称。选填列: 器型、材质、状态、成本、售价、柜台号、采购日期。SKU重复时自动跳过。</p>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" className="h-9 text-xs" onClick={handleDownloadCsvTemplate}>
+                  <FileDown className="h-3.5 w-3.5 mr-1" />模板下载
+                </Button>
+              </div>
+              {/* Drag & Drop Upload Zone */}
+              <div
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+                  csvDragOver
+                    ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 scale-[1.01]'
+                    : 'border-muted-foreground/25 hover:border-emerald-300 hover:bg-muted/30'
+                }`}
+                onClick={() => document.getElementById('csv-import-input')?.click()}
+                onDragOver={e => { e.preventDefault(); e.stopPropagation(); setCsvDragOver(true); }}
+                onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setCsvDragOver(false); }}
+                onDrop={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setCsvDragOver(false);
+                  const f = e.dataTransfer.files[0];
+                  if (f && f.name.endsWith('.csv')) {
+                    setCsvFile(f);
+                    setCsvResult(null);
+                  } else {
+                    toast.error('请上传CSV文件');
+                  }
+                }}
+              >
+                <Upload className={`h-10 w-10 mx-auto mb-3 transition-colors ${csvDragOver ? 'text-emerald-500' : 'text-muted-foreground/50'}`} />
+                <p className="text-sm font-medium mb-1">拖拽CSV文件到此处或点击上传</p>
+                <p className="text-xs text-muted-foreground">仅支持 .csv 格式（UTF-8编码，含BOM）</p>
+                <input
+                  id="csv-import-input"
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={e => {
+                    const f = e.target.files?.[0];
+                    if (f) { setCsvFile(f); setCsvResult(null); }
+                  }}
+                />
+              </div>
+              {/* Selected file info */}
+              {csvFile && (
+                <div className="flex items-center justify-between p-2.5 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm font-medium">{csvFile.name}</span>
+                    <span className="text-xs text-muted-foreground">({(csvFile.size / 1024).toFixed(1)} KB)</span>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500" onClick={() => { setCsvFile(null); setCsvResult(null); }}>×</Button>
+                </div>
+              )}
+              {/* Import button */}
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700"
+                disabled={!csvFile || csvImporting}
+                onClick={handleCsvImport}
+              >
+                {csvImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                {csvImporting ? '正在导入...' : '开始导入'}
+              </Button>
+              {/* Import results */}
+              {csvResult && (
+                <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+                  <p className="text-sm font-medium">导入结果</p>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5 p-2 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg">
+                      <CheckCircle className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">成功: {csvResult.success}条</span>
+                    </div>
+                    {csvResult.skipped > 0 && (
+                      <div className="flex items-center gap-1.5 p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
+                        <Clock className="h-4 w-4 text-amber-500" />
+                        <span className="text-sm font-medium text-amber-700 dark:text-amber-300">跳过: {csvResult.skipped}条</span>
+                        <span className="text-xs text-muted-foreground">(SKU重复)</span>
+                      </div>
+                    )}
+                    {csvResult.errors.length > 0 && (
+                      <div className="flex items-center gap-1.5 p-2 bg-red-50 dark:bg-red-950/30 rounded-lg">
+                        <XCircle className="h-4 w-4 text-red-500" />
+                        <span className="text-sm font-medium text-red-700 dark:text-red-300">错误: {csvResult.errors.length}条</span>
+                      </div>
+                    )}
+                  </div>
+                  {csvResult.errors.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto custom-scrollbar">
+                      <div className="space-y-1">
+                        {csvResult.errors.slice(0, 20).map((err, i) => (
+                          <p key={i} className="text-xs text-red-600 bg-red-50 dark:bg-red-950/20 rounded px-2 py-1">{err}</p>
+                        ))}
+                        {csvResult.errors.length > 20 && (
+                          <p className="text-xs text-muted-foreground text-center">...还有 {csvResult.errors.length - 20} 条错误</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Import type selector */}
           <Card className="border-l-4 border-l-red-400 hover:shadow-sm transition-shadow duration-200">
             <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-red-500" />数据批量导入</CardTitle></CardHeader>

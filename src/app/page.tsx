@@ -336,7 +336,11 @@ export default function JadeInventoryPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background" id="app-root">
+      {/* Top Loading Bar */}
+      <div className="fixed top-0 left-0 right-0 z-[100] h-[2px] pointer-events-none">
+        <div className="loading-bar h-full w-full" />
+      </div>
       <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout} />
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 dark:bg-amber-600 text-white text-center text-sm py-1.5 px-4 animate-in slide-in-from-top-1 duration-200">

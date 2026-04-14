@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { itemsApi, salesApi, dictsApi, batchesApi, exportApi, customersApi } from '@/lib/api';
+import { itemsApiEnhanced } from '@/lib/api';
 import { toast } from 'sonner';
 import { useAppStore } from '@/lib/store';
 import { formatPrice, StatusBadge, EmptyState, LoadingSkeleton, ConfirmDialog } from './shared';
@@ -30,7 +31,7 @@ import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
   ShoppingCart, Tag, MapPin, X, Gem, CheckSquare, ChevronDown, ChevronUp, SlidersHorizontal,
-  Info, FileText, FileCheck, CalendarDays, Target, MoreHorizontal, Copy,
+  Info, FileText, FileCheck, CalendarDays, Target, MoreHorizontal, Copy, FileSpreadsheet, Loader2,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -159,7 +160,7 @@ function InventoryTab() {
   const [batchDeleteHard, setBatchDeleteHard] = useState(false);
 
   // Batch price adjust form
-  const [batchPriceForm, setBatchPriceForm] = useState({ mode: 'percent', target: 'sellingPrice', value: '' });
+  const [batchPriceForm, setBatchPriceForm] = useState({ mode: 'percent', target: 'sellingPrice', value: '', direction: 'increase' as 'increase' | 'decrease' });
 
   // Batch counter form
   const [batchCounterForm, setBatchCounterForm] = useState({ counter: '' });
@@ -460,6 +461,43 @@ function InventoryTab() {
     toast.success(`已导出 ${sortedItems.length} 条库存数据`);
   }
 
+  // ========== Excel Export (HTML table approach) ==========
+  function handleExportExcel() {
+    if (sortedItems.length === 0) {
+      toast.error('没有可导出的数据');
+      return;
+    }
+    const statusMap: Record<string, string> = { in_stock: '在库', sold: '已售', returned: '已退' };
+    let html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">';
+    html += '<head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>库存数据</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>';
+    html += '<body><table border="1" cellspacing="0" cellpadding="4">';
+    html += '<tr style="background-color:#059669;color:#fff;font-weight:bold">';
+    ['SKU', '名称', '器型', '材质', '状态', '成本', '售价', '采购日期', '柜台号'].forEach(h => { html += `<td>${h}</td>`; });
+    html += '</tr>';
+    sortedItems.forEach(item => {
+      html += '<tr>';
+      html += `<td>${item.skuCode || ''}</td>`;
+      html += `<td>${item.name || ''}</td>`;
+      html += `<td>${item.typeName || ''}</td>`;
+      html += `<td>${item.materialName || ''}</td>`;
+      html += `<td>${statusMap[item.status] || item.status || ''}</td>`;
+      html += `<td>${item.allocatedCost || item.estimatedCost || item.costPrice || 0}</td>`;
+      html += `<td>${item.sellingPrice || 0}</td>`;
+      html += `<td>${item.purchaseDate || ''}</td>`;
+      html += `<td>${item.counter || ''}</td>`;
+      html += '</tr>';
+    });
+    html += '</table></body></html>';
+    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `库存数据_${new Date().toISOString().slice(0, 10)}.xls`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`已导出Excel ${sortedItems.length} 条库存数据`);
+  }
+
   // ========== Batch Operations ==========
 
   async function handleBatchSell() {
@@ -537,50 +575,32 @@ function InventoryTab() {
 
   async function handleBatchPriceAdjust() {
     const adjustValue = parseFloat(batchPriceForm.value);
-    if (isNaN(adjustValue)) {
-      toast.error('请输入有效的调整值');
+    if (isNaN(adjustValue) || adjustValue < 0) {
+      toast.error('请输入有效的调整值（正数）');
       return;
     }
     setBatchLoading(true);
-    setBatchProgress({ current: 0, total: selectedItems.length });
-    let successCount = 0;
-    let failCount = 0;
-    for (let i = 0; i < selectedItems.length; i++) {
-      const item = selectedItems[i];
-      setBatchProgress({ current: i + 1, total: selectedItems.length });
-      try {
-        const updateData: any = {};
-        if (batchPriceForm.target === 'sellingPrice') {
-          const oldPrice = item.sellingPrice || 0;
-          const newPrice = batchPriceForm.mode === 'percent'
-            ? Math.round(oldPrice * (1 + adjustValue / 100))
-            : Math.round(oldPrice + adjustValue);
-          if (newPrice < 0) { failCount++; continue; }
-          updateData.sellingPrice = newPrice;
-        } else {
-          const oldPrice = item.minimumPrice || 0;
-          const newPrice = batchPriceForm.mode === 'percent'
-            ? Math.round(oldPrice * (1 + adjustValue / 100))
-            : Math.round(oldPrice + adjustValue);
-          if (newPrice < 0) { failCount++; continue; }
-          updateData.minimumPrice = newPrice;
-        }
-        await itemsApi.updateItem(item.id, updateData);
-        successCount++;
-      } catch {
-        failCount++;
+    try {
+      const result = await itemsApiEnhanced.batchPriceAdjust({
+        ids: Array.from(selectedIds).map(String),
+        adjustmentType: batchPriceForm.mode as 'percentage' | 'fixed',
+        value: adjustValue,
+        direction: batchPriceForm.direction,
+      });
+      setBatchLoading(false);
+      setBatchProgress(null);
+      setBatchPriceOpen(false);
+      setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '', direction: 'increase' });
+      clearSelection();
+      fetchItems();
+      if (result.errors && result.errors.length > 0) {
+        toast.warning(`批量调价完成：成功 ${result.success} 件，${result.errors.length} 件失败`);
+      } else {
+        toast.success(`批量调价成功！共 ${result.success} 件`);
       }
-    }
-    setBatchLoading(false);
-    setBatchProgress(null);
-    setBatchPriceOpen(false);
-    setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '' });
-    clearSelection();
-    fetchItems();
-    if (failCount === 0) {
-      toast.success(`批量调价成功！共 ${successCount} 件`);
-    } else {
-      toast.warning(`批量调价完成：成功 ${successCount} 件，失败 ${failCount} 件`);
+    } catch (e: any) {
+      setBatchLoading(false);
+      toast.error(e.message || '批量调价失败');
     }
   }
 
@@ -624,9 +644,17 @@ function InventoryTab() {
     return selectedItems.slice(0, 10).map(item => {
       const field = batchPriceForm.target === 'sellingPrice' ? 'sellingPrice' : 'minimumPrice';
       const oldPrice = item[field] || 0;
-      const newPrice = batchPriceForm.mode === 'percent'
-        ? Math.round(oldPrice * (1 + adjustValue / 100))
-        : Math.round(oldPrice + adjustValue);
+      let newPrice: number;
+      if (batchPriceForm.mode === 'percent') {
+        newPrice = batchPriceForm.direction === 'increase'
+          ? Math.round(oldPrice * (1 + adjustValue / 100))
+          : Math.round(oldPrice * (1 - adjustValue / 100));
+      } else {
+        newPrice = batchPriceForm.direction === 'increase'
+          ? Math.round(oldPrice + adjustValue)
+          : Math.round(oldPrice - adjustValue);
+      }
+      newPrice = Math.max(0, newPrice);
       return { id: item.id, name: item.name || item.skuCode, sku: item.skuCode, oldPrice, newPrice };
     });
   }, [selectedItems, batchPriceForm]);
@@ -859,6 +887,7 @@ function InventoryTab() {
             <div className="flex items-center gap-2 flex-wrap">
               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新增入库</Button>
               <Button size="sm" variant="outline" className="h-9" onClick={handleExportCSV} disabled={sortedItems.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
+              <Button size="sm" variant="outline" className="h-9" onClick={handleExportExcel} disabled={sortedItems.length === 0}><FileSpreadsheet className="h-3 w-3 mr-1" />导出Excel</Button>
               <a href={exportApi.inventory()} target="_blank" rel="noopener noreferrer">
                 <Button size="sm" variant="outline" className="h-9">完整导出</Button>
               </a>
@@ -1461,11 +1490,34 @@ function InventoryTab() {
                 <Select value={batchPriceForm.mode} onValueChange={v => setBatchPriceForm(f => ({ ...f, mode: v }))} disabled={batchLoading}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="percent">百分比 (%)</SelectItem>
-                    <SelectItem value="fixed">固定金额 (元)</SelectItem>
+                    <SelectItem value="percent">按比例调整 (%)</SelectItem>
+                    <SelectItem value="fixed">按固定金额 (元)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs">调整方向</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`flex-1 h-9 rounded-md border text-xs font-medium transition-colors ${batchPriceForm.direction === 'increase' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 text-emerald-700 dark:text-emerald-300' : 'bg-background border-border text-muted-foreground hover:bg-muted/50'}`}
+                    onClick={() => setBatchPriceForm(f => ({ ...f, direction: 'increase' }))}
+                    disabled={batchLoading}
+                  >
+                    <ArrowUp className="h-3 w-3 mr-1 inline" />加价
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 h-9 rounded-md border text-xs font-medium transition-colors ${batchPriceForm.direction === 'decrease' ? 'bg-red-50 dark:bg-red-950/30 border-red-300 text-red-700 dark:text-red-300' : 'bg-background border-border text-muted-foreground hover:bg-muted/50'}`}
+                    onClick={() => setBatchPriceForm(f => ({ ...f, direction: 'decrease' }))}
+                    disabled={batchLoading}
+                  >
+                    <ArrowDown className="h-3 w-3 mr-1 inline" />减价
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs">调整对象</Label>
                 <Select value={batchPriceForm.target} onValueChange={v => setBatchPriceForm(f => ({ ...f, target: v }))} disabled={batchLoading}>
@@ -1476,18 +1528,27 @@ function InventoryTab() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs">
+                  调整值
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder={batchPriceForm.mode === 'percent' ? '如 10 表示10%' : '如 500 表示500元'}
+                  value={batchPriceForm.value}
+                  onChange={e => setBatchPriceForm(f => ({ ...f, value: e.target.value }))}
+                  disabled={batchLoading}
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label>
-                调整值 {batchPriceForm.mode === 'percent' ? '(正数涨, 负数降, 如 +10 或 -5)' : '(正数加, 负数减, 如 500 或 -200)'}
-              </Label>
-              <Input
-                type="number"
-                placeholder={batchPriceForm.mode === 'percent' ? '如 +10 表示涨10%' : '如 500 表示加500元'}
-                value={batchPriceForm.value}
-                onChange={e => setBatchPriceForm(f => ({ ...f, value: e.target.value }))}
-                disabled={batchLoading}
-              />
+            {/* Preview summary */}
+            <div className="p-3 bg-muted/30 rounded-lg text-sm">
+              <p className="text-muted-foreground">选中 <span className="font-medium text-foreground">{selectedIds.size}</span> 件货品，预计调整...</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {batchPriceForm.direction === 'increase' ? '加价' : '减价'}
+                {batchPriceForm.mode === 'percent' ? `${batchPriceForm.value || 0}%` : `¥${batchPriceForm.value || 0}`}
+              </p>
             </div>
             {/* Preview */}
             {pricePreview.length > 0 && (
@@ -1512,9 +1573,9 @@ function InventoryTab() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setBatchPriceOpen(false); setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '' }); }} disabled={batchLoading}>取消</Button>
+            <Button variant="outline" onClick={() => { setBatchPriceOpen(false); setBatchPriceForm({ mode: 'percent', target: 'sellingPrice', value: '', direction: 'increase' }); }} disabled={batchLoading}>取消</Button>
             <Button onClick={handleBatchPriceAdjust} disabled={batchLoading || !batchPriceForm.value} className="bg-amber-600 hover:bg-amber-700 text-white">
-              {batchLoading ? `调价中 ${batchProgress ? `${batchProgress.current}/${batchProgress.total}` : '...'}` : '确认调价'}
+              {batchLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : '确认调价'}
             </Button>
           </DialogFooter>
         </DialogContent>
