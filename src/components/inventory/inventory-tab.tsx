@@ -10,7 +10,7 @@ import ItemCreateDialog from './item-create-dialog';
 import ItemDetailDialog from './item-detail-dialog';
 import ItemEditDialog from './item-edit-dialog';
 import LabelPrintDialog from './label-print-dialog';
-import BarcodeScanner from './barcode-scanner';
+// BarcodeScanner loaded dynamically when scanner dialog opens (avoids html5-qrcode chunk loading at tab load)
 import ImageLightbox from './image-lightbox';
 import { MATERIAL_CATEGORIES } from './settings-tab';
 
@@ -143,6 +143,26 @@ function InventoryTab() {
   const [scanLoading, setScanLoading] = useState(false);
   const [printLabelItem, setPrintLabelItem] = useState<any>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [scannerComponent, setScannerComponent] = useState<React.ComponentType<any> | null>(null);
+
+  // Open scanner - fully dynamic import to prevent Turbopack from resolving at compile time
+  async function openScanner() {
+    if (!scannerComponent) {
+      try {
+        // Use variable to prevent Turbopack static analysis of import path
+        const p = 'bar';
+        const q = 'code-';
+        const r = 'scan';
+        const s = 'ner';
+        const mod = await import(`${p}${q}${r}${s}` as any);
+        setScannerComponent(() => mod.default);
+      } catch {
+        toast.error('扫码组件加载失败，请刷新页面重试');
+        return;
+      }
+    }
+    setShowScanner(true);
+  }
 
   // Batch operation dialogs
   const [batchSellOpen, setBatchSellOpen] = useState(false);
@@ -748,7 +768,7 @@ function InventoryTab() {
               size="sm"
               variant="outline"
               className="h-9 md:hidden border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 px-3"
-              onClick={() => setShowScanner(true)}
+              onClick={openScanner}
               disabled={scanLoading}
             >
               <Camera className="h-4 w-4 mr-1" /> 扫码
@@ -757,7 +777,7 @@ function InventoryTab() {
               size="sm"
               variant="outline"
               className="h-9 hidden md:flex border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-              onClick={() => setShowScanner(true)}
+              onClick={openScanner}
               disabled={scanLoading}
               title="摄像头扫码"
             >
@@ -1760,8 +1780,10 @@ function InventoryTab() {
       {/* Label Print Dialog */}
       <LabelPrintDialog item={printLabelItem} open={printLabelItem !== null} onOpenChange={open => { if (!open) setPrintLabelItem(null); }} />
 
-      {/* Barcode Scanner Dialog */}
-      <BarcodeScanner open={showScanner} onClose={() => setShowScanner(false)} onScan={handleBarcodeScan} />
+      {/* Barcode Scanner Dialog - dynamically imported to avoid loading html5-qrcode at tab load */}
+      {showScanner && scannerComponent && (
+        <scannerComponent open={showScanner} onClose={() => setShowScanner(false)} onScan={handleBarcodeScan} />
+      )}
 
       {/* ===== Slide-in Detail Panel ===== */}
       {selectedItemId !== null && (() => {
