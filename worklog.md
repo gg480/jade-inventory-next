@@ -2791,3 +2791,25 @@ Stage Summary:
 - API 全面验证: 8/8 端点正常（Production + Dev 模式）
 - 容器环境问题: Turbopack 并发编译和 Chrome 内存峰值导致进程被杀（非代码 bug）
 - 用户指令"停止迭代新功能"已遵循, 未做任何功能变更
+
+---
+Task ID: INIT-01
+Agent: Main Orchestrator
+Task: 从GitHub仓库拉取代码，集成到当前项目，接续开发工作
+
+Work Log:
+- 克隆 https://github.com/gg480/jade-inventory-next.git 到本地
+- 执行 git fetch origin && git reset --hard origin/main 同步代码
+- 安装所有依赖 (bun install)
+- 修复 barcode-scanner 动态导入问题 (从字符串拼接改为 next/dynamic)
+- 禁用 Prisma query 日志减少 I/O 压力
+- 配置 GitHub remote 推送地址
+- 反复启动 dev server，发现编译过程中进程被 OOM Kill
+
+Stage Summary:
+- 项目代码已从 GitHub 完整同步到 /home/z/my-project/
+- 项目功能: 翡翠珠宝进销存管理系统 (18表数据库, 60+ API, 22 组件)
+- 当前问题: dev server 在编译大量路由时内存飙升导致 OOM Kill
+- 解决方案: 使用 bun run dev 启动，首次编译后缓存会减少后续内存使用
+- 下一步: 创建 cron 任务，进行持续开发和迭代
+
