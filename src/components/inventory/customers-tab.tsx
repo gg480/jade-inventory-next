@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Users, Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, Crown, Sparkles, TrendingUp, Shield, ShieldCheck,
   Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock, FileDown, ArrowUpDown, FileText,
-  DollarSign as DollarSignIcon, ShoppingCart as ShoppingCartIcon, ArrowDownAZ,
+  DollarSign as DollarSignIcon, ShoppingCart as ShoppingCartIcon, ArrowDownAZ, Diamond, Star,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip as RTooltip, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -730,6 +730,20 @@ function CustomersTab() {
                     const levelColor = spend >= 50000 ? 'text-violet-500' : spend >= 20000 ? 'text-amber-500' : spend >= 5000 ? 'text-slate-400' : 'text-gray-500';
                     const nextLevelName = isMaxLevel ? '' : spend >= 20000 ? '钻石' : spend >= 5000 ? '金卡' : '银卡';
                     const nextMin = currentVip.max === Infinity ? spend : currentVip.max;
+
+                    // Spending reward thresholds
+                    const rewardTiers = [
+                      { threshold: 1000, label: '银卡', icon: Shield, color: 'text-gray-500', iconBg: 'bg-gray-100 dark:bg-gray-800' },
+                      { threshold: 5000, label: '金卡', icon: Crown, color: 'text-amber-500', iconBg: 'bg-amber-100 dark:bg-amber-900/30' },
+                      { threshold: 20000, label: '钻石卡', icon: Diamond, color: 'text-sky-500', iconBg: 'bg-sky-100 dark:bg-sky-900/30' },
+                      { threshold: 100000, label: '黑钻卡', icon: Star, color: 'text-purple-500', iconBg: 'bg-purple-100 dark:bg-purple-900/30' },
+                    ];
+                    const nextReward = rewardTiers.find(t => spend < t.threshold);
+                    const currentRewardTier = rewardTiers.filter(t => spend >= t.threshold).pop();
+                    const nextRewardMin = nextReward ? nextReward.threshold : 0;
+                    const prevRewardMin = currentRewardTier ? currentRewardTier.threshold : 0;
+                    const rewardProgress = nextReward ? ((spend - prevRewardMin) / (nextRewardMin - prevRewardMin)) * 100 : 100;
+
                     return (
                       <div className="mt-2 pt-1">
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ height: '3px' }}>
@@ -741,6 +755,37 @@ function CustomersTab() {
                             <span className="text-[10px] text-muted-foreground">距{nextLevelName} ¥{nextMin - spend}</span>
                           )}
                         </div>
+
+                        {/* 消费奖励 Section */}
+                        {spend > 0 && (() => {
+                          const RewardIcon = nextReward ? nextReward.icon : (currentRewardTier ? currentRewardTier.icon : Shield);
+                          const rewardColor = nextReward ? nextReward.color : (currentRewardTier ? currentRewardTier.color : 'text-gray-500');
+                          const rewardBg = nextReward ? nextReward.iconBg : (currentRewardTier ? currentRewardTier.iconBg : 'bg-gray-100 dark:bg-gray-800');
+                          return (
+                            <div className="mt-1.5 pt-1 border-t border-dashed border-border/50">
+                              {nextReward ? (
+                                <>
+                                  <div className="flex items-center justify-between text-[10px]">
+                                    <span className="flex items-center gap-1 text-muted-foreground">
+                                      距离
+                                      <span className={`font-medium ${rewardColor} flex items-center gap-0.5`}>
+                                        <RewardIcon className="h-3 w-3" />{nextReward.label}
+                                      </span>
+                                    </span>
+                                    <span className="text-muted-foreground">还差 <span className="font-medium text-foreground">¥{nextRewardMin - spend}</span></span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mt-1" style={{ height: '2px' }}>
+                                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(rewardProgress, 100)}%`, backgroundColor: rewardColor === 'text-gray-500' ? '#9ca3af' : rewardColor === 'text-amber-500' ? '#f59e0b' : rewardColor === 'text-sky-500' ? '#0ea5e9' : '#8b5cf6' }} />
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="text-[10px] flex items-center gap-1 text-purple-500 font-medium">
+                                  <Star className="h-3 w-3" />黑钻卡 — 最高等级
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })()}

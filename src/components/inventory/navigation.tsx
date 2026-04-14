@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 // ========== Mobile Bottom Navigation ==========
-function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (t: TabId) => void }) {
+function MobileNav({ activeTab, onTabChange, className }: { activeTab: TabId; onTabChange: (t: TabId) => void; className?: string }) {
   const [pendingBatches, setPendingBatches] = useState(0);
   const [hasSalesToday, setHasSalesToday] = useState(false);
   const [tapAnim, setTapAnim] = useState<string | null>(null);
@@ -67,7 +67,7 @@ function MobileNav({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: 
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 md:hidden bg-background/95 backdrop-blur-sm border-t border-border shadow-lg pb-safe z-50">
+    <div className={`fixed bottom-0 left-0 right-0 md:hidden bg-background/95 backdrop-blur-sm border-t border-border shadow-lg pb-safe z-50 ${className || ''}`}>
       <div className="flex items-center h-14">
         {tabs.map(tab => {
           const Icon = tab.icon;
@@ -168,7 +168,7 @@ function ShortcutsHelpDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 }
 
 // ========== Desktop Top Navigation ==========
-function DesktopNav({ activeTab, onTabChange, onLogout }: { activeTab: TabId; onTabChange: (t: TabId) => void; onLogout?: () => void }) {
+function DesktopNav({ activeTab, onTabChange, onLogout, className }: { activeTab: TabId; onTabChange: (t: TabId) => void; onLogout?: () => void; className?: string }) {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const tabs: { id: TabId; label: string; icon: React.ElementType; title: string; shortcut?: string }[] = [
     { id: 'dashboard', label: '利润看板', icon: LayoutDashboard, title: '利润看板 - 销售统计和数据分析', shortcut: 'Alt+1' },
@@ -182,7 +182,7 @@ function DesktopNav({ activeTab, onTabChange, onLogout }: { activeTab: TabId; on
 
   return (
     <>
-      <nav className="hidden md:flex bg-card border-b border-border">
+      <nav className={`hidden md:flex bg-card border-b border-border ${className || ''}`}>
         <div className="container mx-auto px-4">
           <div className="flex items-center h-14">
             <div className="flex items-center mr-8">

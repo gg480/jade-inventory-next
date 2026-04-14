@@ -1034,13 +1034,14 @@ function InventoryTab() {
                               className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-md"
                               onClick={(e) => { e.stopPropagation(); openLightbox(item.id); }}
                             >
-                              <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all" loading="lazy" />
+                              <Gem className="absolute h-3.5 w-3.5 text-muted-foreground/30 pointer-events-none" style={{ left: '9px', top: '9px' }} />
+                              <img src={item.coverImage} alt="" className="w-10 h-10 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all duration-300 opacity-0" loading="lazy" onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.classList.replace('opacity-0', 'opacity-100'); }} onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
                                 <Camera className="h-3.5 w-3.5 text-white drop-shadow-md" />
                               </div>
                             </button>
                             <div className="absolute left-14 top-0 z-10 hidden group-hover/img:block pointer-events-none">
-                              <img src={item.coverImage} alt="" className="w-[200px] h-[200px] rounded-lg object-cover shadow-lg border border-border bg-background" />
+                              <img src={item.coverImage} alt="" className="w-[200px] h-[200px] rounded-lg object-cover shadow-lg border border-border bg-background" loading="lazy" />
                             </div>
                           </div>
                         ) : (
@@ -1144,7 +1145,8 @@ function InventoryTab() {
                       className="cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-md shrink-0 relative"
                       onClick={(e) => { e.stopPropagation(); openLightbox(item.id); }}
                     >
-                      <img src={item.coverImage} alt="" className="w-12 h-12 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all" loading="lazy" />
+                      <Gem className="absolute h-4 w-4 text-muted-foreground/30 pointer-events-none" style={{ left: '10px', top: '10px' }} />
+                      <img src={item.coverImage} alt="" className="w-12 h-12 rounded-md object-cover aspect-square bg-muted hover:ring-2 hover:ring-emerald-400 transition-all opacity-0" loading="lazy" onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.classList.replace('opacity-0', 'opacity-100'); }} onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
                       <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                         <Camera className="h-4 w-4 text-white drop-shadow-md" />
                       </div>
@@ -1791,7 +1793,8 @@ function InventoryTab() {
               {/* Cover Image */}
               {item.coverImage && (
                 <div className="px-4 pt-4">
-                  <img src={item.coverImage} alt="" className="w-full aspect-square object-cover rounded-lg bg-muted" />
+                  <Gem className="h-8 w-8 text-muted-foreground/20" />
+                  <img src={item.coverImage} alt="" className="w-full aspect-square object-cover rounded-lg bg-muted opacity-0 -mt-10 relative z-10" loading="lazy" onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.classList.replace('opacity-0', 'opacity-100'); }} onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
                 </div>
               )}
               {/* Actions */}
@@ -1917,7 +1920,8 @@ function InventoryTab() {
               {/* Cover Image */}
               {item.coverImage && (
                 <div className="px-4">
-                  <img src={item.coverImage} alt="" className="w-40 h-40 object-cover rounded-lg bg-muted" />
+                  <Gem className="h-10 w-10 text-muted-foreground/20" />
+                  <img src={item.coverImage} alt="" className="w-40 h-40 object-cover rounded-lg bg-muted opacity-0 -mt-12 relative z-10" loading="lazy" onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.classList.replace('opacity-0', 'opacity-100'); }} onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
                 </div>
               )}
               {/* Actions */}

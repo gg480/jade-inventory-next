@@ -267,3 +267,22 @@ button, a, [role="button"], [role="tab"], [role="option"], label[for] {
 .scroll-touch {
   -webkit-overflow-scrolling: touch;
 }
+
+/* ========== Print Styles ========== */
+@media print {
+  /* Hide navigation, stats bar, buttons, floating elements */
+  .no-print { display: none !important; }
+
+  /* Ensure table borders print properly */
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #ddd; }
+
+  /* Force white background */
+  body { background: white !important; color: black !important; }
+
+  /* Page break hints */
+  .page-break-before { page-break-before: always; }
+
+  /* Hide overlays and modals backdrop */
+  [data-radix-popper-content-wrapper] { position: static !important; }
+}

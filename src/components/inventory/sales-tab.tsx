@@ -478,15 +478,16 @@ function SalesTab() {
                             {isProfit ? <ArrowUp className="h-3 w-3" /> : isLoss ? <ArrowDown className="h-3 w-3" /> : null}
                             {formatPrice(profit)}
                           </span>
-                          <div className="mt-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ height: '4px' }}>
+                          <div className="mt-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ height: '6px' }} title={`利润率: ${marginPct}%`}>
                             <div
-                              className="h-full rounded-full transition-all duration-300"
+                              className="h-full rounded-full transition-all duration-500"
                               style={{
                                 width: `${Math.min(Math.max(parseFloat(marginPct), 0), 100)}%`,
                                 backgroundColor: parseFloat(marginPct) < 20 ? '#ef4444' : parseFloat(marginPct) < 40 ? '#f59e0b' : '#059669',
                               }}
                             />
                           </div>
+                          <span className="text-[10px] text-muted-foreground tabular-nums">{marginPct}%</span>
                         </TableCell>
                         <TableCell className="text-center" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">

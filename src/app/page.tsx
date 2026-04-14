@@ -94,7 +94,7 @@ function QuickStatsBar() {
 }
 
 // ========== Mobile Quick Stats (fixed bottom bar) ==========
-function MobileQuickStats() {
+function MobileQuickStats({ className }: { className?: string }) {
   const [inventoryValue, setInventoryValue] = useState<number | null>(null);
   const [todaySales, setTodaySales] = useState(0);
   const [todayRevenue, setTodayRevenue] = useState(0);
@@ -126,7 +126,7 @@ function MobileQuickStats() {
   }, []);
 
   return (
-    <div className="md:hidden fixed bottom-14 left-0 right-0 z-40 bg-card border-t border-border py-2 px-4">
+    <div className={`md:hidden fixed bottom-14 left-0 right-0 z-40 bg-card border-t border-border py-2 px-4 ${className || ''}`}>
       <div className="flex items-center justify-around text-xs">
         <div className="flex items-center gap-1">
           <Package className="h-3 w-3 text-emerald-600" />
@@ -355,7 +355,7 @@ export default function JadeInventoryPage() {
       <div className="fixed top-0 left-0 right-0 z-[100] h-[2px] pointer-events-none">
         <div className="loading-bar h-full w-full" />
       </div>
-      <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout} />
+      <DesktopNav activeTab={activeTab} onTabChange={handleTabChange} onLogout={handleLogout} className="no-print" />
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 dark:bg-amber-600 text-white text-center text-sm py-1.5 px-4 animate-in slide-in-from-top-1 duration-200">
           <div className="flex items-center justify-center gap-2">
@@ -373,9 +373,9 @@ export default function JadeInventoryPage() {
           </ErrorBoundary>
         </div>
       </main>
-      <MobileNav activeTab={activeTab} onTabChange={handleTabChange} />
-      <MobileQuickStats />
-      <footer className="mt-auto hidden md:block border-t border-border bg-card py-3">
+      <MobileNav activeTab={activeTab} onTabChange={handleTabChange} className="no-print" />
+      <MobileQuickStats className="no-print" />
+      <footer className="no-print mt-auto hidden md:block border-t border-border bg-card py-3">
         <div className="container mx-auto px-4 flex items-center justify-between text-sm">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5"><Gem className="h-4 w-4 text-emerald-600" />玉器进销存管理系统</span>
@@ -400,7 +400,7 @@ export default function JadeInventoryPage() {
       {/* Floating Keyboard Shortcuts Help Button (desktop only) */}
       <button
         onClick={() => setShowShortcuts(true)}
-        className="hidden md:flex fixed bottom-6 left-6 z-20 h-8 w-8 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground shadow-sm hover:shadow-md items-center justify-center transition-all"
+        className="no-print hidden md:flex fixed bottom-6 left-6 z-20 h-8 w-8 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground shadow-sm hover:shadow-md items-center justify-center transition-all"
         title="快捷键帮助 (? )"
       >
         <HelpCircle className="h-4 w-4" />
@@ -408,7 +408,7 @@ export default function JadeInventoryPage() {
       {/* Scroll-to-Top Button */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className={`fixed bottom-20 md:bottom-6 right-4 z-20 h-9 w-9 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 flex items-center justify-center transition-opacity duration-200 ${showScrollTop ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className="no-print fixed bottom-20 md:bottom-6 right-4 z-20 h-9 w-9 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 flex items-center justify-center transition-opacity duration-200 ${showScrollTop ? 'opacity-100' : 'opacity-0 pointer-events-none'}"
         aria-label="回到顶部"
       >
         <ArrowUp className="h-4 w-4" />

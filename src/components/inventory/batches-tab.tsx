@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import {
-  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock, TrendingDown, ArrowUpRight, ArrowDownRight, Search, X,
+  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock, TrendingDown, ArrowUpRight, ArrowDownRight, Search, X, Trophy,
 } from 'lucide-react';
 
 // ========== Batches Tab ==========
@@ -145,6 +145,21 @@ function BatchesTab() {
     return batches.filter((b: any) => (b.batchCode || '').toLowerCase().includes(q));
   }, [batches, debouncedSearch]);
 
+  // ROI Leaderboard: top 5 batches with sales, sorted by profit margin
+  const roiLeaderboard = useMemo(() => {
+    return batches
+      .filter((b: any) => (b.soldCount || 0) > 0)
+      .map((b: any) => {
+        const revenue = b.revenue || 0;
+        const cost = b.totalCost || 0;
+        const margin = cost > 0 ? ((revenue - cost) / cost) * 100 : 0;
+        const profit = revenue - cost;
+        return { ...b, margin, profit };
+      })
+      .sort((a: any, b: any) => b.margin - a.margin)
+      .slice(0, 5);
+  }, [batches]);
+
   if (loading && batches.length === 0) return <LoadingSkeleton />;
 
   const totalCost = batches.reduce((s, b) => s + (b.totalCost || 0), 0);
@@ -154,6 +169,43 @@ function BatchesTab() {
 
   return (
     <div className="space-y-6">
+      {/* 回本排行榜 */}
+      {roiLeaderboard.length > 0 && (
+        <Card className="shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-sm font-medium flex items-center gap-1.5 mb-3">
+              <Trophy className="h-4 w-4 text-amber-500" />回本排行榜
+              <Badge variant="secondary" className="text-[10px] ml-1">TOP {roiLeaderboard.length}</Badge>
+            </p>
+            <div className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 -mx-1 px-1">
+              {roiLeaderboard.map((b: any, idx: number) => {
+                const barColor = b.margin >= 100 ? 'bg-emerald-500' : b.margin >= 50 ? 'bg-sky-500' : 'bg-amber-500';
+                const textColor = b.margin >= 100 ? 'text-emerald-600 dark:text-emerald-400' : b.margin >= 50 ? 'text-sky-600 dark:text-sky-400' : 'text-amber-600 dark:text-amber-400';
+                return (
+                  <div key={b.id} className="snap-start shrink-0 w-48 h-28 rounded-lg border border-border bg-card hover:shadow-md transition-shadow cursor-pointer p-3 flex flex-col justify-between" onClick={() => setDetailBatchId(b.id)}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-medium truncate max-w-[100px]">{b.batchCode}</span>
+                      <span className="text-lg">{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</span>
+                    </div>
+                    <div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden" style={{ height: '4px' }}>
+                        <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${Math.min(Math.max(b.margin, 0), 100)}%` }} />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-bold tabular-nums ${textColor}`}>{b.margin.toFixed(1)}%</span>
+                      <span className={`text-[10px] font-medium tabular-nums ${b.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {b.profit >= 0 ? '+' : ''}{formatPrice(b.profit)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="relative overflow-hidden border-l-4 border-l-sky-500 hover:shadow-md transition-shadow">
           <CardContent className="p-4">
