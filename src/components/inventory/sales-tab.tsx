@@ -305,6 +305,7 @@ function SalesTab() {
         break;
       }
       case 'month': start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10); break;
+      case 'lastMonth': start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().slice(0, 10); end = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().slice(0, 10); break;
       case 'quarter': start = new Date(today.getFullYear(), today.getMonth() - 2, 1).toISOString().slice(0, 10); break;
       case 'year': start = new Date(today.getFullYear(), 0, 1).toISOString().slice(0, 10); break;
       case 'days30': start = new Date(today.getTime() - 30 * 86400000).toISOString().slice(0, 10); break;
@@ -415,6 +416,7 @@ function SalesTab() {
               { key: 'today', label: '今天' },
               { key: 'week', label: '本周' },
               { key: 'month', label: '本月' },
+              { key: 'lastMonth', label: '上月' },
               { key: 'quarter', label: '本季度' },
               { key: 'days30', label: '近30天' },
               { key: 'all', label: '全部' },

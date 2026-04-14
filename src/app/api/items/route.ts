@@ -12,6 +12,7 @@ export async function GET(req: Request) {
   const batchId = searchParams.get('batch_id');
   const counter = searchParams.get('counter');
   const keyword = searchParams.get('keyword');
+  const searchField = searchParams.get('search_field');
   const sortBy = searchParams.get('sort_by') || 'created_at';
   const sortOrder = searchParams.get('sort_order') || 'desc';
 
@@ -22,12 +23,22 @@ export async function GET(req: Request) {
   if (batchId) where.batchId = parseInt(batchId);
   if (counter) where.counter = parseInt(counter);
   if (keyword) {
-    where.OR = [
-      { skuCode: { contains: keyword } },
-      { name: { contains: keyword } },
-      { certNo: { contains: keyword } },
-      { notes: { contains: keyword } },
-    ];
+    if (searchField === 'sku') {
+      where.skuCode = { contains: keyword };
+    } else if (searchField === 'name') {
+      where.name = { contains: keyword };
+    } else if (searchField === 'material') {
+      where.material = { name: { contains: keyword } };
+    } else if (searchField === 'type') {
+      where.type = { name: { contains: keyword } };
+    } else {
+      where.OR = [
+        { skuCode: { contains: keyword } },
+        { name: { contains: keyword } },
+        { certNo: { contains: keyword } },
+        { notes: { contains: keyword } },
+      ];
+    }
   }
 
   // Build order by clause

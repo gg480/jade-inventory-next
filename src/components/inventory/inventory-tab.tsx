@@ -124,6 +124,7 @@ function InventoryTab() {
   const [pagination, setPagination] = useState({ total: 0, page: 1, size: 20, pages: 0 });
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: '', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' });
+  const [searchField, setSearchField] = useState('all');
   const [activeStatuses, setActiveStatuses] = useState<Set<string>>(new Set(['in_stock']));
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [sortBy, setSortBy] = useState('created_at');
@@ -328,7 +329,10 @@ function InventoryTab() {
       if (filters.materialId) params.material_id = filters.materialId;
       // Status: only send if exactly one active status; otherwise fetch all and filter client-side
       if (activeStatuses.size === 1) params.status = Array.from(activeStatuses)[0];
-      if (filters.keyword) params.keyword = filters.keyword;
+      if (filters.keyword) {
+        params.keyword = filters.keyword;
+        if (searchField !== 'all') params.search_field = searchField;
+      }
       if (filters.counter) params.counter = filters.counter;
       if (filters.batchId) params.batch_id = filters.batchId;
       params.sort_by = sortBy;
@@ -341,7 +345,7 @@ function InventoryTab() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.size, filters, activeStatuses, sortBy, sortOrder]);
+  }, [pagination.page, pagination.size, filters, activeStatuses, sortBy, sortOrder, searchField]);
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
@@ -850,8 +854,19 @@ function InventoryTab() {
           <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
             <div className="space-y-1 relative">
               <Label className="text-xs">关键词</Label>
-              <div className="relative">
-                <Input placeholder="SKU/名称/证书" value={filters.keyword} onChange={e => setFilters(f => ({ ...f, keyword: e.target.value }))} className="h-9 pr-8" />
+              <div className="relative flex gap-1.5">
+                <Select value={searchField} onValueChange={setSearchField}>
+                  <SelectTrigger className="w-20 h-9 text-xs shrink-0"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部</SelectItem>
+                    <SelectItem value="sku">SKU</SelectItem>
+                    <SelectItem value="name">名称</SelectItem>
+                    <SelectItem value="material">材质</SelectItem>
+                    <SelectItem value="type">器型</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="relative flex-1">
+                  <Input placeholder={searchField === 'all' ? 'SKU/名称/证书' : searchField === 'sku' ? '搜索SKU...' : searchField === 'name' ? '搜索名称...' : searchField === 'material' ? '搜索材质...' : '搜索器型...'} value={filters.keyword} onChange={e => setFilters(f => ({ ...f, keyword: e.target.value }))} className="h-9 pr-8" />
                 {filters.keyword && (
                   <button
                     type="button"
@@ -865,6 +880,7 @@ function InventoryTab() {
                     <X className="h-3.5 w-3.5" />
                   </button>
                 )}
+                </div>
               </div>
             </div>
             <div className="space-y-1"><Label className="text-xs">材质大类</Label>
@@ -1033,6 +1049,7 @@ function InventoryTab() {
                     <TableHead>标签</TableHead>
                     <SortableHead field="cost_price" align="right">成本</SortableHead>
                     <SortableHead field="selling_price" align="right">售价</SortableHead>
+                    <TableHead className="text-center">毛利</TableHead>
                     <SortableHead field="purchase_date">采购日期</SortableHead>
                     <TableHead>状态</TableHead><TableHead>库龄</TableHead><TableHead className="text-right">操作</TableHead>
                   </TableRow>
@@ -1099,6 +1116,16 @@ function InventoryTab() {
                       </TableCell>
                       <TableCell className="text-right">{item.allocatedCost ? formatPrice(item.allocatedCost) : item.estimatedCost ? <span className="text-muted-foreground" title="预估成本">{formatPrice(item.estimatedCost)}~</span> : formatPrice(item.costPrice)}</TableCell>
                       <TableCell className="text-right font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</TableCell>
+                      <TableCell className="text-center">
+                        {(() => {
+                          const cost = item.allocatedCost || item.estimatedCost || item.costPrice || 0;
+                          const sp = item.sellingPrice || 0;
+                          if (sp === 0 || cost === 0) return <span className="text-xs text-muted-foreground">—</span>;
+                          const margin = ((sp - cost) / sp) * 100;
+                          const colorClass = margin > 30 ? 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/40 border-emerald-200 dark:border-emerald-800' : margin > 10 ? 'text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/40 border-amber-200 dark:border-amber-800' : 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/40 border-red-200 dark:border-red-800';
+                          return <Badge variant="outline" className={`text-xs px-1.5 py-0 h-5 ${colorClass}`}>{margin.toFixed(0)}%</Badge>;
+                        })()}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{item.purchaseDate || '-'}</TableCell>
                       <TableCell><StatusBadge status={item.status} /></TableCell>
                       <TableCell className={item.ageDays > 90 ? 'text-red-600 font-medium' : ''}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</TableCell>

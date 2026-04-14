@@ -420,6 +420,9 @@ function DashboardTab() {
 
   if (loading) return <LoadingSkeleton />;
 
+  // Check if dashboard has no data (all key metrics are 0)
+  const isEmptyDashboard = summary && summary.totalItems === 0 && (summary.totalStockValue || 0) === 0 && (summary.monthRevenue || 0) === 0 && (summary.monthSoldCount || 0) === 0;
+
   const channelLabelMap: Record<string, string> = { store: '门店', wechat: '微信' };
   const batchStatusLabelMap: Record<string, string> = { new: '未开始', selling: '销售中', paid_back: '已回本', cleared: '清仓完毕' };
   const batchStatusColorMap: Record<string, string> = { new: '#94a3b8', selling: '#0ea5e9', paid_back: '#059669', cleared: '#059669' };
@@ -444,8 +447,17 @@ function DashboardTab() {
         <span className="text-sm font-medium text-muted-foreground tabular-nums">{clockTime}</span>
       </div>
 
+      {/* ====== Empty State ====== */}
+      {isEmptyDashboard && (
+        <EmptyState
+          icon={Gem}
+          title="欢迎使用翡翠进销存管理系统"
+          desc="开始添加货品、创建批次来查看数据概览"
+        />
+      )}
+
       {/* ====== 1. Overview Cards ====== */}
-      {summary && (
+      {summary && !isEmptyDashboard && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4">
@@ -630,7 +642,7 @@ function DashboardTab() {
       )}
 
       {/* ====== Inventory Health Score ====== */}
-      {summary && (
+      {summary && !isEmptyDashboard && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {(() => {
             // Calculate health score (0-100) based on 4 factors
@@ -733,7 +745,7 @@ function DashboardTab() {
       )}
 
       {/* ====== Month-over-Month Comparison (环比对比) ====== */}
-      {momData && (
+      {momData && !isEmptyDashboard && (
         <Card className="border-l-4 border-l-violet-500 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
