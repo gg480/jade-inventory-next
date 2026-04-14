@@ -584,7 +584,7 @@ function DashboardTab() {
               {recentSales.map((sale: any, idx: number) => (
                 <div
                   key={sale.id}
-                  className={`flex items-center justify-between text-sm py-2 px-3 rounded-lg transition-colors ${idx % 2 === 0 ? 'bg-muted/30' : 'bg-muted/10 hover:bg-muted/30'}`}
+                  className={`flex items-center justify-between text-sm py-2 px-3 rounded-lg transition-colors ${idx % 2 === 0 ? 'bg-muted/30' : 'bg-muted/10 hover:bg-muted/30'} ${sale.channel === 'store' ? 'border-l-2 border-l-sky-400' : sale.channel === 'wechat' ? 'border-l-2 border-l-emerald-400' : ''}`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
@@ -669,13 +669,11 @@ function DashboardTab() {
                   <p className="text-sm text-muted-foreground">库存健康度</p>
                   <div className="flex items-center gap-4 mt-2">
                     <div className="relative w-[64px] h-[64px] shrink-0">
-                      <div
-                        className="w-full h-full rounded-full transition-all duration-700 ease-out"
-                        style={{
-                          background: `conic-gradient(${scoreColor} ${clampedScore}%, hsl(var(--muted) / 0.3) 0%)`,
-                        }}
-                      />
-                      <div className="absolute inset-[4px] rounded-full bg-card flex items-center justify-center">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                        <circle cx="32" cy="32" r="28" fill="none" stroke="hsl(var(--muted))" strokeOpacity="0.3" strokeWidth="4" />
+                        <circle cx="32" cy="32" r="28" fill="none" stroke={scoreColor} strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(clampedScore / 100) * 175.93} 175.93`} className="transition-all duration-1000 ease-out" />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-lg font-extrabold tabular-nums" style={{ color: scoreColor }}>{clampedScore}</span>
                       </div>
                     </div>
@@ -1576,8 +1574,8 @@ function DashboardTab() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {batchProfit.map((bp) => (
-                        <TableRow key={bp.batchCode}>
+                      {batchProfit.map((bp, idx) => (
+                        <TableRow key={bp.batchCode} className={`${idx % 2 === 0 ? 'even:bg-muted/20' : ''} hover:bg-muted/50 transition-colors`}>
                           <TableCell className="font-mono text-sm">{bp.batchCode}</TableCell>
                           <TableCell>{bp.materialName}</TableCell>
                           <TableCell className="text-right">{formatPrice(bp.totalCost)}</TableCell>

@@ -341,35 +341,66 @@ function SalesTab() {
         </div>
       )}
 
+      {/* Profit Summary Bar */}
+      <Card className="border-emerald-200 dark:border-emerald-800">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <BarChart3 className="h-4 w-4 text-emerald-600" />
+            <span className="text-sm font-medium">利润汇总</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center p-3 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-lg">
+              <p className="text-xs text-muted-foreground">总销售额</p>
+              <p className="text-xl font-bold text-emerald-600 tabular-nums">{formatPrice(totalRevenue)}</p>
+            </div>
+            <div className="text-center p-3 bg-sky-50/50 dark:bg-sky-950/20 rounded-lg">
+              <p className="text-xs text-muted-foreground">总成本</p>
+              <p className="text-xl font-bold tabular-nums">{formatPrice(sales.reduce((s, sale) => s + (sale.costPrice || 0), 0))}</p>
+            </div>
+            <div className="text-center p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-lg">
+              <p className="text-xs text-muted-foreground">总毛利</p>
+              <p className={`text-xl font-bold tabular-nums ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(totalProfit)}</p>
+            </div>
+            <div className="text-center p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg">
+              <p className="text-xs text-muted-foreground">平均毛利率</p>
+              <p className="text-xl font-bold tabular-nums">{totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : '-'}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 hover:shadow-md hover:border-emerald-400 transition-all duration-200">
           <CardContent className="p-4">
             <div className="absolute -right-1 -bottom-1 opacity-10"><DollarSign className="h-16 w-16 text-emerald-500" /></div>
-            <p className="text-sm text-muted-foreground">总销售额</p>
-            <p className="text-2xl font-bold text-emerald-600">{formatPrice(totalRevenue)}</p>
-          </CardContent>
-        </Card>
-        <Card className="relative overflow-hidden border-l-4 border-l-sky-500 hover:shadow-md hover:border-sky-400 transition-all duration-200">
-          <CardContent className="p-4">
-            <div className="absolute -right-1 -bottom-1 opacity-10"><TrendingUp className="h-16 w-16 text-sky-500" /></div>
-            <p className="text-sm text-muted-foreground">总毛利</p>
-            <p className={`text-2xl font-bold ${totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatPrice(totalProfit)}</p>
-          </CardContent>
-        </Card>
-        <Card className="relative overflow-hidden border-l-4 border-l-amber-500 hover:shadow-md hover:border-amber-400 transition-all duration-200">
-          <CardContent className="p-4">
-            <div className="absolute -right-1 -bottom-1 opacity-10"><ShoppingCart className="h-16 w-16 text-amber-500" /></div>
             <p className="text-sm text-muted-foreground">销售件数</p>
             <p className="text-2xl font-bold">{pagination.total}</p>
             <p className="text-xs text-muted-foreground">门店 {storeCount} · 微信 {wechatCount}</p>
           </CardContent>
         </Card>
+        <Card className="relative overflow-hidden border-l-4 border-l-sky-500 hover:shadow-md hover:border-sky-400 transition-all duration-200">
+          <CardContent className="p-4">
+            <div className="absolute -right-1 -bottom-1 opacity-10"><TrendingUp className="h-16 w-16 text-sky-500" /></div>
+            <p className="text-sm text-muted-foreground">客单价</p>
+            <p className="text-2xl font-bold text-sky-600">{pagination.total > 0 ? formatPrice(totalRevenue / pagination.total) : '-'}</p>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border-l-4 border-l-amber-500 hover:shadow-md hover:border-amber-400 transition-all duration-200">
+          <CardContent className="p-4">
+            <div className="absolute -right-1 -bottom-1 opacity-10"><ShoppingCart className="h-16 w-16 text-amber-500" /></div>
+            <p className="text-sm text-muted-foreground">最高利润</p>
+            <p className="text-2xl font-bold text-emerald-600">{sales.length > 0 ? formatPrice(Math.max(...sales.map((s: any) => s.grossProfit || 0))) : '-'}</p>
+          </CardContent>
+        </Card>
         <Card className="relative overflow-hidden border-l-4 border-l-purple-500 hover:shadow-md hover:border-purple-400 transition-all duration-200">
           <CardContent className="p-4">
             <div className="absolute -right-1 -bottom-1 opacity-10"><BarChart3 className="h-16 w-16 text-purple-500" /></div>
-            <p className="text-sm text-muted-foreground">毛利率</p>
-            <p className="text-2xl font-bold">{totalRevenue > 0 ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%` : '-'}</p>
+            <p className="text-sm text-muted-foreground">利润率范围</p>
+            <p className="text-2xl font-bold tabular-nums">{(() => {
+              const margins = sales.filter((s: any) => s.actualPrice > 0).map((s: any) => ((s.grossProfit || 0) / s.actualPrice) * 100);
+              if (margins.length === 0) return '-';
+              return `${Math.min(...margins).toFixed(0)}%-${Math.max(...margins).toFixed(0)}%`;
+            })()}</p>
           </CardContent>
         </Card>
       </div>
@@ -381,9 +412,10 @@ function SalesTab() {
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
             {[
-              { key: 'today', label: '今日' },
+              { key: 'today', label: '今天' },
               { key: 'week', label: '本周' },
               { key: 'month', label: '本月' },
+              { key: 'quarter', label: '本季度' },
               { key: 'days30', label: '近30天' },
               { key: 'all', label: '全部' },
             ].map(p => (
@@ -414,7 +446,7 @@ function SalesTab() {
           </div>
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowBundle(true)}><Link2 className="h-3 w-3 mr-1" />套装销售</Button>
-            <Button size="sm" variant="outline" className="h-9" onClick={handleExportCSV} disabled={sales.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
+            <Button size="sm" variant="outline" className="h-9 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30" onClick={handleExportCSV} disabled={sales.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
             <a href={exportApi.sales()} target="_blank" rel="noopener noreferrer">
               <Button size="sm" variant="outline" className="h-9"><FileDown className="h-3 w-3 mr-1" />导出</Button>
             </a>

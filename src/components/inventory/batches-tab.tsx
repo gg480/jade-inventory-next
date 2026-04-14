@@ -3,10 +3,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { batchesApi, exportApi } from '@/lib/api';
 import { toast } from 'sonner';
+import { useAppStore } from '@/lib/store';
 import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, ConfirmDialog } from './shared';
 import BatchCreateDialog from './batch-create-dialog';
 import BatchDetailDialog from './batch-detail-dialog';
 import Pagination from './pagination';
+import ItemCreateDialog from './item-create-dialog';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import {
-  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock, TrendingDown, ArrowUpRight, ArrowDownRight, Search, X, Trophy,
+  Layers, CheckCircle, TrendingUp, DollarSign, Plus, Eye, FileDown, ClipboardList, Pencil, Trash2, Clock, TrendingDown, ArrowUpRight, ArrowDownRight, Search, X, Trophy, Package, PlayCircle, Ban,
 } from 'lucide-react';
 
 // ========== Batches Tab ==========
@@ -43,6 +45,9 @@ function BatchesTab() {
 
   // Delete dialog
   const [deleteBatch, setDeleteBatch] = useState<any>(null);
+
+  // Quick add item state
+  const [quickAddBatch, setQuickAddBatch] = useState<any>(null);
 
   const fetchBatches = useCallback(async () => {
     setLoading(true);
@@ -165,10 +170,84 @@ function BatchesTab() {
   const totalCost = batches.reduce((s, b) => s + (b.totalCost || 0), 0);
   const totalRevenue = batches.reduce((s, b) => s + (b.revenue || 0), 0);
 
+  // Batch statistics
+  const completedCount = batches.filter(b => (b.itemsCount || 0) >= (b.quantity || 0) && (b.quantity || 0) > 0).length;
+  const inProgressCount = batches.filter(b => (b.itemsCount || 0) > 0 && (b.itemsCount || 0) < (b.quantity || 0)).length;
+  const notStartedCount = batches.filter(b => (b.itemsCount || 0) === 0 && (b.quantity || 0) > 0).length;
+
   const allocMethodLabels: Record<string, string> = { equal: '均摊', by_weight: '按克重', by_price: '按售价' };
 
   return (
     <div className="space-y-6">
+      {/* Batch Statistics Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card className="relative overflow-hidden border-l-4 border-l-sky-500 hover:shadow-md transition-all duration-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center shrink-0">
+                <Layers className="h-4 w-4 text-sky-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">总批次</p>
+                <p className="text-lg font-bold tabular-nums">{pagination.total}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border-l-4 border-l-emerald-500 hover:shadow-md transition-all duration-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">已完成(100%)</p>
+                <p className="text-lg font-bold text-emerald-600 tabular-nums">{completedCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border-l-4 border-l-amber-500 hover:shadow-md transition-all duration-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                <PlayCircle className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">进行中</p>
+                <p className="text-lg font-bold text-amber-600 tabular-nums">{inProgressCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border-l-4 border-l-gray-400 hover:shadow-md transition-all duration-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+                <Ban className="h-4 w-4 text-gray-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">未开始</p>
+                <p className="text-lg font-bold text-gray-500 tabular-nums">{notStartedCount}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border-l-4 border-l-purple-500 hover:shadow-md transition-all duration-200">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                <DollarSign className="h-4 w-4 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">总成本</p>
+                <p className="text-lg font-bold text-purple-600 tabular-nums">{formatPrice(totalCost)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* 回本排行榜 */}
       {roiLeaderboard.length > 0 && (
         <Card className="shadow-sm">
@@ -242,6 +321,9 @@ function BatchesTab() {
       {/* Actions */}
       <div className="flex items-center gap-2 flex-wrap">
         <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新建批次</Button>
+        <Button size="sm" variant="outline" className="h-9 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300" onClick={() => { if (filteredBatches.length > 0) setQuickAddBatch(filteredBatches[0]); else toast.error('没有可用的批次'); }}>
+          <Package className="h-3 w-3 mr-1" />快速添加货品
+        </Button>
         <Button size="sm" variant="outline" className="h-9" onClick={handleExportBatchCSV} disabled={filteredBatches.length === 0}><FileDown className="h-3 w-3 mr-1" />导出CSV</Button>
         <a href={exportApi.batches()} target="_blank" rel="noopener noreferrer">
           <Button size="sm" variant="outline" className="h-9"><FileDown className="h-3 w-3 mr-1" />导出</Button>
@@ -487,6 +569,16 @@ function BatchesTab() {
       {/* Dialogs */}
       <BatchCreateDialog open={showCreate} onOpenChange={setShowCreate} onSuccess={fetchBatches} />
       <BatchDetailDialog batchId={detailBatchId} open={detailBatchId != null} onOpenChange={o => { if (!o) setDetailBatchId(null); }} />
+      {/* Quick Add Item Dialog */}
+      {quickAddBatch && (
+        <ItemCreateDialog
+          open={quickAddBatch !== null}
+          onOpenChange={open => { if (!open) setQuickAddBatch(null); }}
+          onSuccess={() => { setQuickAddBatch(null); fetchBatches(); }}
+          defaultBatchId={quickAddBatch.id}
+          defaultBatchInfo={{ materialId: quickAddBatch.materialId, supplierId: quickAddBatch.supplierId, typeId: quickAddBatch.typeId, purchaseDate: quickAddBatch.purchaseDate }}
+        />
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={editDialog.open} onOpenChange={open => setEditDialog({ open, batch: open ? editDialog.batch : null })}>

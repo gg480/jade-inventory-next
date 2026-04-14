@@ -186,7 +186,7 @@ function DesktopNav({ activeTab, onTabChange, className }: { activeTab: TabId; o
                 return (
                   <button key={tab.id} onClick={() => onTabChange(tab.id)}
                     title={tab.title}
-                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-out flex items-center gap-1.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${active ? 'text-emerald-700 bg-gradient-to-r from-emerald-50 to-teal-50 dark:text-emerald-300 dark:from-emerald-950/40 dark:to-teal-950/40 border-b-2 border-emerald-500 shadow-sm scale-[1.02]' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ease-out flex items-center gap-1.5 active:scale-95 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${active ? 'nav-tab-active text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                     aria-current={active ? 'page' : undefined}
                   >
                     <Icon className="h-4 w-4" />{tab.label}

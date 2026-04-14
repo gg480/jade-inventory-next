@@ -155,6 +155,8 @@ export default function JadeInventoryPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [isOnline, setIsOnline] = useState(() => typeof window !== 'undefined' ? navigator.onLine : true);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState('');
+  const [apiLoading, setApiLoading] = useState(false);
 
   // Dynamic page title based on active tab
   useEffect(() => {
@@ -183,7 +185,15 @@ export default function JadeInventoryPage() {
     };
   }, []);
 
-  // Scroll-to-top detection
+  // Update footer time every 30 seconds
+  useEffect(() => {
+    function updateTime() {
+      setLastUpdateTime(new Date().toLocaleTimeString('zh-CN', { hour12: false }));
+    }
+    updateTime();
+    const interval = setInterval(updateTime, 30000);
+    return () => clearInterval(interval);
+  }, []);
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 300);
@@ -353,8 +363,15 @@ export default function JadeInventoryPage() {
             <QuickStatsBar />
           </div>
           <div className="flex items-center gap-3">
-            {/* 登录验证已禁用，退出按钮隐藏 */}
+            {/* Data loading indicator */}
+            {apiLoading && (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="loading-dot w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>加载中</span>
+              </span>
+            )}
             <span className="text-muted-foreground text-xs">按 ? 查看快捷键</span>
+            <span className="text-muted-foreground text-xs">最后更新: {lastUpdateTime}</span>
             <span className="text-muted-foreground">技术支持: Z.ai</span>
           </div>
         </div>

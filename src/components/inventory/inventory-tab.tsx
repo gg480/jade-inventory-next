@@ -31,7 +31,7 @@ import {
   Package, CheckCircle, DollarSign, BarChart3, Plus, Search, Eye,
   Pencil, DollarSign as DollarSignIcon, RotateCcw, Trash2, FileDown, Barcode, Printer, ArrowUp, ArrowDown, ArrowUpDown, Camera, Layers,
   ShoppingCart, Tag, MapPin, X, Gem, CheckSquare, ChevronDown, ChevronUp, SlidersHorizontal,
-  Info, FileText, FileCheck, CalendarDays, Target, MoreHorizontal, Copy, FileSpreadsheet, Loader2,
+  Info, FileText, FileCheck, CalendarDays, Target, MoreHorizontal, Copy, FileSpreadsheet, Loader2, Clock,
   CircleDot,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -1824,6 +1824,12 @@ function InventoryTab() {
                 <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => { setSelectedItemId(null); setEditItemId(item.id); }}>
                   <Pencil className="h-3 w-3 mr-1" />编辑
                 </Button>
+                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => {
+                  navigator.clipboard.writeText(item.skuCode);
+                  toast.success('SKU已复制到剪贴板');
+                }}>
+                  <Copy className="h-3 w-3 mr-1" />复制SKU
+                </Button>
                 {item.status === 'in_stock' && (
                   <Button size="sm" className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
                     setSelectedItemId(null);
@@ -1836,15 +1842,41 @@ function InventoryTab() {
               </div>
               {/* Details */}
               <div className="px-4 py-4 space-y-4">
-                {/* Status */}
+                {/* Status + Inventory Days */}
                 <div className="flex items-center gap-2">
                   <StatusBadge status={item.status} />
                   {item.ageDays != null && (
-                    <span className={`text-xs ${item.ageDays > 90 ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>
+                    <Badge variant="outline" className={`text-xs ${item.ageDays < 30 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800' : item.ageDays <= 90 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800' : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800'}`}>
+                      <Clock className="h-3 w-3 mr-1" />
                       库龄 {item.ageDays}天
-                    </span>
+                    </Badge>
                   )}
                 </div>
+                {/* Profit/Loss for sold/returned items */}
+                {(item.status === 'sold' || item.status === 'returned') && item.sellingPrice > 0 && (
+                  <div className={`p-3 rounded-lg ${item.status === 'sold' ? 'bg-emerald-50/80 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800' : 'bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800'}`}>
+                    <p className="text-xs font-medium mb-1.5 flex items-center gap-1.5">
+                      {item.status === 'sold' ? <ArrowUp className="h-3 w-3 text-emerald-600" /> : <RotateCcw className="h-3 w-3 text-amber-600" />}
+                      {item.status === 'sold' ? '销售记录' : '已退货' }
+                    </p>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">售价</span>
+                        <span className="font-medium text-emerald-600">{formatPrice(item.sellingPrice)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">成本</span>
+                        <span className="font-medium">{formatPrice(cost)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-border/50">
+                        <span className="text-muted-foreground">利润</span>
+                        <span className={`font-bold ${(item.sellingPrice - cost) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {(item.sellingPrice - cost) >= 0 ? '+' : ''}{formatPrice(item.sellingPrice - cost)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {/* Price Info */}
                 <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -1946,10 +1978,16 @@ function InventoryTab() {
                   <img src={item.coverImage} alt={item.name || item.skuCode || '货品图片'} className="w-40 h-40 object-cover rounded-lg bg-muted opacity-0 -mt-12 relative z-10" loading="lazy" onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.classList.replace('opacity-0', 'opacity-100'); }} onError={(e: React.SyntheticEvent<HTMLImageElement>) => { e.currentTarget.style.display = 'none'; }} />
                 </div>
               )}
-              {/* Actions */}
+              {/* Actions - Mobile */}
               <div className="px-4 py-3 flex items-center gap-2">
                 <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => { setSelectedItemId(null); setEditItemId(item.id); }}>
                   <Pencil className="h-3 w-3 mr-1" />编辑
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => {
+                  navigator.clipboard.writeText(item.skuCode);
+                  toast.success('SKU已复制到剪贴板');
+                }}>
+                  <Copy className="h-3 w-3 mr-1" />复制SKU
                 </Button>
                 {item.status === 'in_stock' && (
                   <Button size="sm" className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={() => {
@@ -1959,6 +1997,16 @@ function InventoryTab() {
                   }}>
                     <DollarSignIcon className="h-3 w-3 mr-1" />快速出库
                   </Button>
+                )}
+              </div>
+              {/* Mobile: Status + Inventory Days */}
+              <div className="px-4 flex items-center gap-2">
+                <StatusBadge status={item.status} />
+                {item.ageDays != null && (
+                  <Badge variant="outline" className={`text-xs ${item.ageDays < 30 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800' : item.ageDays <= 90 ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800' : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800'}`}>
+                    <Clock className="h-3 w-3 mr-1" />
+                    库龄 {item.ageDays}天
+                  </Badge>
                 )}
               </div>
               {/* Details */}

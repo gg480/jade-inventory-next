@@ -23,6 +23,17 @@ const fadeInStyle = typeof document !== 'undefined' && !document.getElementById(
         .card-glow:hover { animation: glowPulse 1.5s ease-in-out; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .card-slide-up { animation: slideUp 0.4s ease-out both; }
+        @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .nav-tab-active {
+          background: linear-gradient(90deg, rgba(5,150,105,0.1), rgba(20,184,166,0.1), rgba(5,150,105,0.1));
+          background-size: 200% 100%;
+          animation: gradientShift 3s ease infinite;
+          border-bottom: 2px solid #059669;
+          box-shadow: 0 1px 3px 0 rgba(5,150,105,0.1);
+          transform: scale(1.02);
+        }
+        @keyframes dotPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+        .loading-dot { animation: dotPulse 1.5s ease-in-out infinite; }
       `;
       document.head.appendChild(style);
       return true;
