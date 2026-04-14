@@ -2371,3 +2371,87 @@ Stage Summary:
 - 生产构建验证通过
 - 4个本地commit待推送（GitHub Token过期）
 - 系统已具备上线条件，等待Token更新和生产部署
+
+---
+
+## Task 28: 积压代码整理 + Bug修复 + 多项增强 (2026-04-14)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（f781d99..3ab09bb main → main）
+- ✅ API 验证通过（Items: 200 OK, 34件货品）
+- ⚠️ agent-browser QA受限（容器OOM，已知问题）
+
+### Bug修复
+1. **dashboard-tab.tsx hooks条件调用** — useState/useEffect在early return之后，违反React hooks规则 → 移到early return之前
+2. **移除middleware.ts** — 上轮subagent添加的JWT中间件会阻断所有API请求（用户指示暂停认证，局域网部署）
+
+### 积压代码整理（13个文件，224增/158删）
+- Auth route: 登录IP限速（5次/15分钟）
+- Sales POST: 创建+更新包裹在事务中（防数据不一致）
+- Inventory: 多状态筛选按钮（支持同时选中多个状态）
+- Batches: 进度条标签优化，均售价显示
+- Customers: 卡片快捷操作（拨号/复制微信），emoji改为lucide图标
+- Login: JWT持久化提示，移除记住密码
+- Navigation: Dashboard→看板
+- Sales: 日期筛选精简，flex-wrap
+- Toaster: 从page.tsx移至layout.tsx
+- db.ts: 生产环境关闭query日志
+- api.ts: 请求自动携带JWT token
+- layout.tsx: 页面标题"翡翠进销存管理系统"
+
+### 新增6项功能（8 files, 742增/50删）
+1. **Excel导出** — .xlsx格式，含10列（含证书号）
+2. **批量标签打印** — 3列网格Dialog，支持打印
+3. **最新交易卡片** — Dashboard新增，30秒自动刷新
+4. **客户购买摘要** — 首次/最近购买/平均客单价/偏好材质
+5. **批次快速创建** — 简化表单+自动编号+估算单价
+6. **数据清理** — 清除已删除货品+30天前日志，3个新API端点
+
+### 关键文件变更
+- `src/components/inventory/dashboard-tab.tsx` — 实时时钟hooks修复 + 最新交易卡片
+- `src/components/inventory/inventory-tab.tsx` — 多状态筛选 + Excel导出 + 批量标签打印
+- `src/components/inventory/customers-tab.tsx` — 购买摘要
+- `src/components/inventory/batch-create-dialog.tsx` — 快速批量创建模式
+- `src/components/inventory/settings-tab.tsx` — 数据清理功能
+- `src/app/api/dashboard/recent-sales/route.ts` — 新建
+- `src/app/api/items/cleanup-deleted/route.ts` — 新建
+- `src/app/api/logs/cleanup-old/route.ts` — 新建
+
+### 未解决问题/风险
+- ⚠️ 容器内存限制（Chrome + Next.js dev server 无法同时运行，agent-browser QA受限）
+- ⏸️ 登录认证增强（用户指示暂停，局域网部署）
+
+### 下一阶段优先建议
+1. 🟡 数据导入功能完善（CSV导入向导 + 字段映射 + 验证预览）
+2. 🟡 扫码快速出库优化（已有html5-qrcode基础）
+3. 🟡 图片缩略图生成（上传时自动生成）
+4. 🟡 批量编辑功能
+5. 🟢 数据备份自动化
+6. 🟢 离线检测增强
+
+---
+
+Task ID: 28
+Agent: cron-agent
+Task: Bug修复 + 积压代码整理 + 6项新功能
+
+Work Log:
+- 读取 worklog.md 了解完整项目历史（Task 9-27）
+- bun run lint → 3 errors（dashboard hooks条件调用）
+- 修复 dashboard-tab.tsx hooks顺序 → lint通过
+- 发现13个未提交文件（积压代码），审查全部变更
+- 删除middleware.ts（会阻断API，用户暂停认证）
+- bun run lint → 0 errors
+- 提交积压代码 → git push成功
+- full-stack-developer 子代理完成6项新功能
+- 最终 lint → 0 errors, 0 warnings
+- 提交+推送 → git push成功
+- 更新 worklog.md
+
+Stage Summary:
+- Bug修复: dashboard hooks顺序 + 移除middleware
+- 13个积压文件提交（auth限速/销售事务/多状态筛选/UI优化等）
+- 6项新功能（Excel导出/批量标签/最新交易/客户摘要/批次快速创建/数据清理）
+- 3个新API端点
+- ESLint 0 errors, GitHub推送成功
