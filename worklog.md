@@ -2455,3 +2455,107 @@ Stage Summary:
 - 6项新功能（Excel导出/批量标签/最新交易/客户摘要/批次快速创建/数据清理）
 - 3个新API端点
 - ESLint 0 errors, GitHub推送成功
+
+## Task 30: 登录验证禁用 + 开发环境稳定性排查 (2026-04-14)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（5e5fff2..c68190c main → main）
+- ✅ 代码从 GitHub 恢复（容器重建后源文件丢失，git reset --hard origin/main 恢复）
+- ✅ 数据库完整（34 items, 5 customers, 8 sales, 6 batches）
+- ✅ 生产构建 `next build` 成功
+- ✅ 7个核心 API 全部 200 OK
+- ✅ HTML 内容验证：55KB 主应用界面正常渲染（无登录阻挡）
+- ✅ agent-browser 首页截图验证：Dashboard 正常显示，无报错
+
+### 根因分析：页面白屏问题
+- **用户反馈**: 页面显示"验证登录状态..."后白屏
+- **根因**: `page.tsx` 中 `isAuthenticated` 初始为 false，显示 `LoginPage` 组件；LoginPage useEffect 中 `fetch('/api/auth')` 验证 token 时，dev server 编译 auth 路由耗时较长（Turbopack 冷编译），在此期间如果 server 被杀或超时，页面永远卡在 "验证登录状态..."
+- **修复**: 注释掉登录验证门控（`if (!isAuthenticated)` 块），页面直接渲染主应用
+- **同时**: 移除 DesktopNav 的 `onLogout` prop 传递和底栏退出按钮
+
+### 开发环境稳定性排查结论
+经过深入排查，确认 dev server 频繁被杀的原因：
+
+1. **不是 OOM**：内存充裕（8.2G 总量，使用仅 1-2.4G），`free -h` 和 `dmesg` 均无 OOM 证据
+2. **不是代码崩溃**：dev server 日志无任何错误/异常，最后一条日志为正常请求记录
+3. **真正原因**: `error: script "dev" was terminated by signal SIGTERM (Polite quit request)`
+   - dev server 收到 **SIGTERM 信号**被外部杀掉
+   - 可能来源：容器 cgroup 进程管理策略、cron 任务调度器、或外部进程管理器
+   - Chrome fork zygote 子进程时也触发同类问题（非内存不足）
+4. **不影响生产部署**: `next build` 成功，`next start`（生产模式）响应速度极快（1秒就绪），Docker 部署不受影响
+
+### 完成的修改
+
+#### 1. 禁用登录验证 (page.tsx)
+```diff
+- // Show login page if not authenticated
+- if (!isAuthenticated) {
+-   return <LoginPage onLogin={handleLogin} />;
+- }
++ // 登录验证已禁用 — 局域网部署不需要认证
++ // if (!isAuthenticated) {
++ //   return <LoginPage onLogin={handleLogin} />;
++ // }
+```
+- 移除 DesktopNav 的 `onLogout` prop
+- 移除底栏退出按钮（Tooltip + Button），替换为注释说明
+
+#### 2. 代码恢复 (GitHub)
+- 容器重建导致源文件丢失（只剩 .git + .env）
+- `git remote add origin` + `git fetch origin` + `git reset --hard origin/main`
+- 成功恢复到 Task 29 状态（commit 5e5fff2）
+- `bun install` + `prisma db push` + `prisma generate` 恢复运行环境
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ 7个 API 端点全部 200 OK（Items/Sales/Customers/Batches/Suppliers/Dashboard/Logs）
+- ✅ HTML 内容：55KB，包含全部 7 个导航 Tab
+- ✅ agent-browser 首页截图：VLM 确认 "仪表盘页面正常显示，无报错"
+- ✅ 生产构建 `next build` 成功
+- ✅ GitHub 推送成功
+
+### 关键文件变更
+- `src/app/page.tsx` — 注释登录验证门控 + 移除退出按钮（6 insertions, 13 deletions）
+
+### 未解决问题/风险
+- ⚠️ dev server 被 SIGTERM 杀掉（容器 cgroup/进程管理策略，非代码问题）
+- ⚠️ agent-browser `open` 命令会触发 Chrome fork，间接导致 dev server 被杀
+- ⚠️ 生产模式 `next start` 在 agent-browser `open` 后也会被杀（同样 SIGTERM）
+- 📌 以上问题仅影响开发环境 QA，不影响 Docker 生产部署
+
+### 下一阶段优先建议
+1. 🔴 **用户本地拉取最新代码验证**（登录验证已禁用，应能正常显示）
+2. 🔴 **Docker 生产部署测试**（`docker build` + `docker run` 确认生产环境正常）
+3. 🟡 继续功能开发（样式细节、新功能等）
+4. ⚠️ 如果需要恢复登录验证：取消 page.tsx 中注释即可
+
+---
+
+Task ID: 30
+Agent: cron-agent
+Task: 登录验证禁用 + 开发环境稳定性排查
+
+Work Log:
+- 读取 worklog.md 了解完整历史（Task 9-29）
+- VLM 分析用户截图：确认页面卡在"验证登录状态..."
+- 检查 login-page.tsx / auth route / auth.ts 代码逻辑
+- 注释 page.tsx 中登录验证门控 + 移除退出按钮
+- 发现容器重建后源文件丢失，从 GitHub 恢复代码
+- bun install + prisma db push + prisma generate 恢复环境
+- bun run lint → 0 errors, 0 warnings
+- 启动 dev server → 7个 API 全部 200 OK
+- 深入排查 dev server 被杀根因：
+  - free -h 确认内存充裕（7.4G 可用）
+  - dmesg 无 OOM 记录
+  - dev server 日志发现 SIGTERM 终止信号
+  - 非 OOM，非代码崩溃，是外部进程管理策略
+- agent-browser 首页截图 + VLM 验证：Dashboard 正常显示
+- next build 生产构建成功
+- git commit + git push → 成功 (5e5fff2..c68190c)
+
+Stage Summary:
+- 修复登录验证阻挡页面显示的 bug（注释掉 LoginPage 门控）
+- 确认 dev server SIGTERM 是容器环境问题，非代码 bug
+- 生产构建成功，不影响 Docker 部署
+- 建议用户本地拉取最新代码验证
