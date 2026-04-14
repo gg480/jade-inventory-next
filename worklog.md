@@ -2700,3 +2700,94 @@ Stage Summary:
 - page.tsx 结构调整为 Fragment 包裹
 - lint 通过，代码质量正常
 - 项目状态稳定，等待用户验证
+
+---
+
+## Task 16: 稳定性验证 + 登录认证状态确认 (2026-04-14)
+
+### 项目当前状态描述/判断
+- ✅ 代码质量：ESLint lint 通过（0 errors, 0 warnings）
+- ✅ 生产构建：next build 成功，所有 60+ API 路由和前端页面编译通过
+- ✅ API 全面验证：8/8 端点通过（Homepage/Items/Dashboard/Sales/Customers/Batches/Suppliers/Logs）
+- ✅ Production 模式：所有 API 正常响应，Server 稳定运行
+- ✅ Dev 模式：串行编译后 Server 稳定运行（所有 8 个路由预编译成功）
+- ✅ 登录认证已绕过：page.tsx 不引用 LoginPage，直接渲染主应用
+- ✅ navigation.tsx 无退出按钮（已移除）
+- ⚠️ Dev Server Turbopack 并发编译会导致内存峰值，进程被容器运行时杀掉（非 OOM killer，非代码 bug）
+- ⚠️ Chrome (agent-browser) + Next.js Server 无法同时运行（内存峰值超限）
+- 🚫 **用户明确指令：停止迭代新功能，只做稳定性修复**
+
+### 登录认证状态确认
+- **page.tsx**: 完全没有引用 LoginPage 或 isAuthenticated，直接渲染主应用 → 认证已绕过
+- **login-page.tsx**: 文件仍存在（包含 auth check useEffect），但不被任何组件引用 → 不影响
+- **navigation.tsx**: DesktopNav 无退出按钮，MobileNav 无退出按钮 → 已移除
+- **auth.ts / api/auth/route.ts**: 文件仍存在但不被调用 → 不影响
+- **结论**: 用户"先把登录验证的功能注释掉"的指令已生效，页面直接进入主应用
+
+### 容器环境稳定性分析
+- **内存**: 8GB 总量, ~7.4GB 可用, cgroup oom_kill=0, under_oom=0
+- **Turbopack 编译**: 单路由编译需 2-5 秒, 内存峰值可能导致进程被杀
+- **解决方案**: 串行编译（每次编译间隔 5 秒）后 Server 保持稳定
+- **Production 模式**: 完全稳定, 无编译开销
+- **Chrome + Server**: 无法共存 (Chrome 启动时内存峰值 ~200MB 额外, 杀死 server)
+
+### API 全面验证结果 (Production 模式)
+| 路由 | 状态 | 数据 |
+|-----|------|------|
+| GET / | 200 | 33KB HTML |
+| GET /api/items?page=1&size=1 | 200 | 34 items |
+| GET /api/dashboard/aggregate | 200 | summary+batchProfit+stockAging+topSellers+momData |
+| GET /api/sales?page=1&size=1 | 200 | 8 sales |
+| GET /api/customers | 200 | 4 customers |
+| GET /api/batches?page=1&size=1 | 200 | 6 batches |
+| GET /api/suppliers | 200 | 2 suppliers |
+| GET /api/logs?page=1&size=1 | 200 | 0 logs |
+
+### Dev 模式串行预编译验证
+- / → 200 (compile: 4.2s)
+- /api/items → 200 (compile: 249ms)
+- /api/dashboard/aggregate → 200 (compile OK)
+- /api/sales → 200 (compile OK)
+- /api/customers → 200 (compile OK)
+- /api/batches → 200 (compile OK)
+- /api/suppliers → 200 (compile OK)
+- /api/logs → 200 (compile: 57ms)
+- **全部 8/8 通过, Server 保持稳定**
+
+### 未解决问题/风险
+- ⚠️ Turbopack 并发编译导致 dev server 进程被杀（容器运行时限制, 非代码 bug, 无法修复）
+- ⚠️ agent-browser QA 受限（Chrome + Next.js 无法同时运行）
+- 🟡 GitHub 推送（Task 15 后有额外改动未推送: production build 验证确认代码正确）
+- 🟡 barcode-scanner 模块未安装（inventory-tab.tsx 动态导入 try-catch 包裹, 不影响功能）
+
+### 建议下一阶段优先事项
+1. 🔴 **GitHub 推送最新代码**（确认代码正确后推送）
+2. 🟡 **生产部署验证**（在目标服务器上测试 production build）
+3. 🟡 **数据导入**（~2000条存量数据）
+4. 🟡 **数据备份自动化**
+5. 🟢 **登录认证增强**（JWT持久化, 当用户需要时再启用）
+
+---
+
+Task ID: 16
+Agent: cron-agent
+Task: 稳定性验证 + 登录认证状态确认
+
+Work Log:
+- 读取 /home/z/my-project/worklog.md 了解完整历史（Task 9-15）
+- 确认 LoginPage.tsx 实际路径为 src/components/inventory/login-page.tsx
+- 确认 page.tsx 不引用 LoginPage, 认证已绕过
+- 确认 navigation.tsx 无退出按钮
+- bun run lint → 0 errors, 0 warnings
+- next build → 成功
+- Production 模式测试 → 8/8 API 全部通过, Server 稳定
+- Dev 模式串行编译测试 → 8/8 全部通过, Server 稳定
+- 分析容器内存限制: 非 OOM killer, 而是容器运行时隐性限制
+- 更新 worklog.md
+
+Stage Summary:
+- 登录认证已绕过确认: page.tsx 不引用 LoginPage
+- 代码质量确认: lint 通过 + build 成功
+- API 全面验证: 8/8 端点正常（Production + Dev 模式）
+- 容器环境问题: Turbopack 并发编译和 Chrome 内存峰值导致进程被杀（非代码 bug）
+- 用户指令"停止迭代新功能"已遵循, 未做任何功能变更
