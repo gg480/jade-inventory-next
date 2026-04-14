@@ -12,7 +12,7 @@ const BatchesTab = lazy(() => import('@/components/inventory/batches-tab'));
 const CustomersTab = lazy(() => import('@/components/inventory/customers-tab'));
 const LogsTab = lazy(() => import('@/components/inventory/logs-tab'));
 const SettingsTab = lazy(() => import('@/components/inventory/settings-tab'));
-import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
+import { MobileNav, DesktopNav, ShortcutsHelpDialog, MobileFAB } from '@/components/inventory/navigation';
 import { Gem, Package, ShoppingCart, Zap, Clock, ArrowUp, HelpCircle, WifiOff } from 'lucide-react';
 import { Toaster } from 'sonner';
 // No heavy API imports needed - QuickStatsBar uses lightweight /api/stats/quick
@@ -448,6 +448,7 @@ export default function JadeInventoryPage() {
         </div>
       </main>
       <MobileNav activeTab={activeTab} onTabChange={handleTabChange} className="no-print" />
+      <MobileFAB onTabChange={handleTabChange} />
       <MobileQuickStats className="no-print" />
       <footer className="no-print mt-auto hidden md:block border-t border-border bg-card py-3">
         <div className="container mx-auto px-4 flex items-center justify-between text-sm">

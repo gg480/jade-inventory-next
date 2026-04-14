@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import {
   Package, ShoppingCart, TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight,
@@ -61,6 +62,37 @@ function useCountUp(target: number, duration: number = 800) {
   }, [target, duration]);
 
   return display;
+}
+
+// ========== useInView Hook ==========
+function useInView(ref: React.RefObject<HTMLElement | null>) {
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    if (!ref.current) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setInView(true); obs.disconnect(); }
+    }, { threshold: 0.1 });
+    obs.observe(ref.current);
+    return () => obs.disconnect();
+  }, [ref]);
+  return inView;
+}
+
+// ========== Lazy Chart Section ==========
+function LazyChartSection({ children, className }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref);
+  return (
+    <div ref={ref} className={className}>
+      {inView ? children : (
+        <Card className="hover:shadow-md transition-shadow duration-300">
+          <CardContent className="p-6">
+            <Skeleton className="h-[220px] w-full" />
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }
 
 // ========== Period Selector Types ==========
@@ -541,7 +573,7 @@ function DashboardTab() {
                     {inventoryTrendSparkline.length > 1 && (
                       <div className="mt-1.5">
                         <ResponsiveContainer width="100%" height={32}>
-                          <AreaChart data={inventoryTrendSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                          <AreaChart isAnimationActive={true} animationDuration={800} data={inventoryTrendSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
                             <defs>
                               <linearGradient id="invSparkGrad" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
@@ -598,7 +630,7 @@ function DashboardTab() {
                     {dailySalesSparkline.length > 1 && (
                       <div className="mt-1.5">
                         <ResponsiveContainer width="100%" height={32}>
-                          <AreaChart data={dailySalesSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                          <AreaChart isAnimationActive={true} animationDuration={800} data={dailySalesSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
                             <defs>
                               <linearGradient id="salesSparkGrad" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#059669" stopOpacity={0.25} />
@@ -644,7 +676,7 @@ function DashboardTab() {
                     {stockAgingTrend.length > 1 && (
                       <div className="mt-1.5">
                         <ResponsiveContainer width="100%" height={32}>
-                          <AreaChart data={stockAgingTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                          <AreaChart isAnimationActive={true} animationDuration={800} data={stockAgingTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
                             <defs>
                               <linearGradient id="agingSparkGrad" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
@@ -696,7 +728,7 @@ function DashboardTab() {
                     {paybackTrend.length > 1 && (
                       <div className="mt-1.5">
                         <ResponsiveContainer width="100%" height={32}>
-                          <AreaChart data={paybackTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                          <AreaChart isAnimationActive={true} animationDuration={800} data={paybackTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
                             <defs>
                               <linearGradient id="paybackSparkGrad" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
@@ -1155,6 +1187,7 @@ function DashboardTab() {
       </Card>
 
       {/* ====== 2. Product Distribution by Type (4 charts) ====== */}
+      <LazyChartSection>
       {distByType && (
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2">
@@ -1167,7 +1200,7 @@ function DashboardTab() {
                 <p className="text-xs font-medium text-muted-foreground mb-2">在库售价分布</p>
                 {distByType.priceDistribution?.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={distByType.priceDistribution.sort((a: any, b: any) => b.totalSellingPrice - a.totalSellingPrice)} layout="vertical" margin={{ left: 48 }}>
+                    <BarChart isAnimationActive={true} animationDuration={800} data={distByType.priceDistribution.sort((a: any, b: any) => b.totalSellingPrice - a.totalSellingPrice)} layout="vertical" margin={{ left: 48 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="typeName" width={48} tick={{ fontSize: 11 }} />
@@ -1182,7 +1215,7 @@ function DashboardTab() {
                 <p className="text-xs font-medium text-muted-foreground mb-2">成交利润分布</p>
                 {distByType.profitDistribution?.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={distByType.profitDistribution.sort((a: any, b: any) => b.totalProfit - a.totalProfit)} layout="vertical" margin={{ left: 48 }}>
+                    <BarChart isAnimationActive={true} animationDuration={800} data={distByType.profitDistribution.sort((a: any, b: any) => b.totalProfit - a.totalProfit)} layout="vertical" margin={{ left: 48 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="typeName" width={48} tick={{ fontSize: 11 }} />
@@ -1197,7 +1230,7 @@ function DashboardTab() {
                 <p className="text-xs font-medium text-muted-foreground mb-2">成交数量分布</p>
                 {distByType.countDistribution?.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={distByType.countDistribution.sort((a: any, b: any) => b.salesCount - a.salesCount)} layout="vertical" margin={{ left: 48 }}>
+                    <BarChart isAnimationActive={true} animationDuration={800} data={distByType.countDistribution.sort((a: any, b: any) => b.salesCount - a.salesCount)} layout="vertical" margin={{ left: 48 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="typeName" width={48} tick={{ fontSize: 11 }} />
@@ -1212,7 +1245,7 @@ function DashboardTab() {
                 <p className="text-xs font-medium text-muted-foreground mb-2">平均毛利率分布</p>
                 {distByType.marginDistribution?.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={distByType.marginDistribution.sort((a: any, b: any) => b.avgMargin - a.avgMargin)} layout="vertical" margin={{ left: 48 }}>
+                    <BarChart isAnimationActive={true} animationDuration={800} data={distByType.marginDistribution.sort((a: any, b: any) => b.avgMargin - a.avgMargin)} layout="vertical" margin={{ left: 48 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" tickFormatter={v => `${(v * 100).toFixed(0)}%`} tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="typeName" width={48} tick={{ fontSize: 11 }} />
@@ -1226,8 +1259,10 @@ function DashboardTab() {
           </CardContent>
         </Card>
       )}
+      </LazyChartSection>
 
       {/* ====== 3. Product Distribution by Material (4 charts) ====== */}
+      <LazyChartSection>
       {distByMaterial && (
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2">
@@ -1239,7 +1274,7 @@ function DashboardTab() {
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">在库售价分布</p>
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={distByMaterial.priceDistribution.sort((a: any, b: any) => b.totalSellingPrice - a.totalSellingPrice)} layout="vertical" margin={{ left: 56 }}>
+                    <BarChart isAnimationActive={true} animationDuration={800} data={distByMaterial.priceDistribution.sort((a: any, b: any) => b.totalSellingPrice - a.totalSellingPrice)} layout="vertical" margin={{ left: 56 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="materialName" width={56} tick={{ fontSize: 11 }} />
@@ -1253,7 +1288,7 @@ function DashboardTab() {
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">成交利润分布</p>
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={distByMaterial.profitDistribution.sort((a: any, b: any) => b.totalProfit - a.totalProfit)} layout="vertical" margin={{ left: 56 }}>
+                    <BarChart isAnimationActive={true} animationDuration={800} data={distByMaterial.profitDistribution.sort((a: any, b: any) => b.totalProfit - a.totalProfit)} layout="vertical" margin={{ left: 56 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="materialName" width={56} tick={{ fontSize: 11 }} />
@@ -1267,7 +1302,7 @@ function DashboardTab() {
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">成交数量分布</p>
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={distByMaterial.countDistribution.sort((a: any, b: any) => b.salesCount - a.salesCount)} layout="vertical" margin={{ left: 56 }}>
+                    <BarChart isAnimationActive={true} animationDuration={800} data={distByMaterial.countDistribution.sort((a: any, b: any) => b.salesCount - a.salesCount)} layout="vertical" margin={{ left: 56 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="materialName" width={56} tick={{ fontSize: 11 }} />
@@ -1281,7 +1316,7 @@ function DashboardTab() {
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-2">平均毛利率分布</p>
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={distByMaterial.marginDistribution.sort((a: any, b: any) => b.avgMargin - a.avgMargin)} layout="vertical" margin={{ left: 56 }}>
+                    <BarChart isAnimationActive={true} animationDuration={800} data={distByMaterial.marginDistribution.sort((a: any, b: any) => b.avgMargin - a.avgMargin)} layout="vertical" margin={{ left: 56 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" tickFormatter={v => `${(v * 100).toFixed(0)}%`} tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="materialName" width={56} tick={{ fontSize: 11 }} />
@@ -1295,8 +1330,10 @@ function DashboardTab() {
           </CardContent>
         </Card>
       )}
+      </LazyChartSection>
 
       {/* ====== 3.5 库存状态分布 (Donut Chart) ====== */}
+      <LazyChartSection>
       {summary?.statusCounts && (
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2">
@@ -1319,7 +1356,7 @@ function DashboardTab() {
                 <div className="flex items-center gap-4">
                   <div className="w-40 h-40 shrink-0">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RPieChart>
+                      <RPieChart isAnimationActive={true} animationDuration={800}>
                         <Pie
                           data={pieData}
                           dataKey="value"
@@ -1361,8 +1398,10 @@ function DashboardTab() {
           </CardContent>
         </Card>
       )}
+      </LazyChartSection>
 
       {/* ====== 4. Counter Profit + Channel Profit + Inventory Value By Category ====== */}
+      <LazyChartSection>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Tag className="h-4 w-4 text-amber-600" />柜台利润分析</CardTitle></CardHeader>
@@ -1371,7 +1410,7 @@ function DashboardTab() {
               <EmptyState icon={Tag} title="暂无数据" desc="还没有柜台销售数据" />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={profitByCounter} margin={{ left: 20 }}>
+                <BarChart isAnimationActive={true} animationDuration={800} data={profitByCounter} margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="counter" tickFormatter={v => `${v}号柜`} tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
@@ -1392,7 +1431,7 @@ function DashboardTab() {
               <EmptyState icon={PieChart} title="暂无数据" desc="还没有渠道数据" />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <RPieChart>
+                <RPieChart isAnimationActive={true} animationDuration={800}>
                   <Pie
                     data={profitByChannel.map(d => ({ ...d, channelLabel: channelLabelMap[d.channel] || d.channel }))}
                     dataKey="revenue" nameKey="channelLabel" cx="50%" cy="50%" outerRadius={90} innerRadius={50}
@@ -1416,7 +1455,7 @@ function DashboardTab() {
               <div className="flex items-center gap-4">
                 <div className="w-36 h-36 shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
-                    <RPieChart>
+                    <RPieChart isAnimationActive={true} animationDuration={800}>
                       <Pie
                         data={salesByChannel.map(d => ({ ...d, name: d.label, value: d.totalRevenue }))}
                         dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} innerRadius={35}
@@ -1467,7 +1506,7 @@ function DashboardTab() {
               <EmptyState icon={PieChart} title="暂无数据" desc="还没有在库货品" />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <RPieChart>
+                <RPieChart isAnimationActive={true} animationDuration={800}>
                   <Pie
                     data={inventoryValueByCategory}
                     dataKey="totalValue"
@@ -1496,7 +1535,7 @@ function DashboardTab() {
               <EmptyState icon={BarChart3} title="暂无数据" desc="还没有在库货品" />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={inventoryValueByCategory.sort((a: any, b: any) => (b.totalValue || 0) - (a.totalValue || 0))} layout="vertical" margin={{ left: 60 }}>
+                <BarChart isAnimationActive={true} animationDuration={800} data={inventoryValueByCategory.sort((a: any, b: any) => (b.totalValue || 0) - (a.totalValue || 0))} layout="vertical" margin={{ left: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="category" width={60} tick={{ fontSize: 11 }} />
@@ -1512,8 +1551,10 @@ function DashboardTab() {
           </CardContent>
         </Card>
       </div>
+      </LazyChartSection>
 
       {/* ====== 5. Monthly Sales Trend ====== */}
+      <LazyChartSection>
       <Card className="hover:shadow-md transition-shadow duration-300">
         <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-sky-600" />月度销量趋势</CardTitle></CardHeader>
         <CardContent>
@@ -1521,7 +1562,7 @@ function DashboardTab() {
             <EmptyState icon={TrendingUp} title="暂无数据" desc="还没有趋势数据" />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={trend}>
+              <AreaChart isAnimationActive={true} animationDuration={800} data={trend}>
                 <defs>
                   <linearGradient id="profitGradTrend" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
@@ -1547,8 +1588,10 @@ function DashboardTab() {
           )}
         </CardContent>
       </Card>
+      </LazyChartSection>
 
       {/* ====== 利润分析 (Profit Analysis) ====== */}
+      <LazyChartSection>
       {!isEmptyDashboard && (
         <Collapsible open={profitSectionOpen} onOpenChange={setProfitSectionOpen}>
           <Card className="border-l-4 border-l-emerald-600 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
@@ -1585,7 +1628,7 @@ function DashboardTab() {
                         月度利润趋势
                       </p>
                       <ResponsiveContainer width="100%" height={280}>
-                        <ComposedChart data={profitTrendData}>
+                        <ComposedChart isAnimationActive={true} animationDuration={800} data={profitTrendData}>
                           <defs>
                             <linearGradient id="profitTrendGrad" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#059669" stopOpacity={0.25} />
@@ -1617,7 +1660,7 @@ function DashboardTab() {
                           按材质利润分布
                         </p>
                         <ResponsiveContainer width="100%" height={Math.max(sortedByProfit.length * 40, 200)}>
-                          <BarChart data={sortedByProfit} layout="vertical" margin={{ left: 56 }}>
+                          <BarChart isAnimationActive={true} animationDuration={800} data={sortedByProfit} layout="vertical" margin={{ left: 56 }}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
                             <YAxis type="category" dataKey="materialName" width={56} tick={{ fontSize: 11 }} />
@@ -1660,7 +1703,7 @@ function DashboardTab() {
                         ) : (
                           <div className="space-y-3">
                             <ResponsiveContainer width="100%" height={180}>
-                              <BarChart data={profitAnalysis.marginDistribution}>
+                              <BarChart isAnimationActive={true} animationDuration={800} data={profitAnalysis.marginDistribution}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="range" tick={{ fontSize: 12 }} />
                                 <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
@@ -1760,8 +1803,10 @@ function DashboardTab() {
           </Card>
         </Collapsible>
       )}
+      </LazyChartSection>
 
       {/* ====== Inventory Turnover Chart (库存周转率) ====== */}
+      <LazyChartSection>
       {turnoverData.length > 0 && (
         <Card className="border-l-4 border-l-cyan-500 shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="pb-2">
@@ -1772,7 +1817,7 @@ function DashboardTab() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={turnoverData}>
+              <ComposedChart isAnimationActive={true} animationDuration={800} data={turnoverData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="yearMonth" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="left" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
@@ -1787,8 +1832,10 @@ function DashboardTab() {
           </CardContent>
         </Card>
       )}
+      </LazyChartSection>
 
       {/* ====== Monthly Sales Comparison (月度销售对比) ====== */}
+      <LazyChartSection>
       {trend.length > 0 && (() => {
         const last6 = trend.slice(-6);
         return (
@@ -1801,7 +1848,7 @@ function DashboardTab() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={last6}>
+                <BarChart isAnimationActive={true} animationDuration={800} data={last6}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="yearMonth" tick={{ fontSize: 11 }} />
                   <YAxis tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(0)}万` : v} tick={{ fontSize: 10 }} />
@@ -1815,8 +1862,10 @@ function DashboardTab() {
           </Card>
         );
       })()}
+      </LazyChartSection>
 
       {/* ====== Sales Heatmap (销售热力图) ====== */}
+      <LazyChartSection>
       <Card className="border-l-4 border-l-emerald-500 shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -1886,8 +1935,10 @@ function DashboardTab() {
           )}
         </CardContent>
       </Card>
+      </LazyChartSection>
 
       {/* ====== Top 5 Best Sellers + Customer Frequency ====== */}
+      <LazyChartSection>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top 5 Best Sellers */}
         <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-shadow">
@@ -1957,7 +2008,7 @@ function DashboardTab() {
             {customerFreq?.distribution?.length > 0 ? (
               <>
                 <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={customerFreq.distribution} margin={{ top: 10 }}>
+                  <BarChart isAnimationActive={true} animationDuration={800} data={customerFreq.distribution} margin={{ top: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                     <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
@@ -1981,9 +2032,11 @@ function DashboardTab() {
           </CardContent>
         </Card>
       </div>
+      </LazyChartSection>
 
       {/* ====== 6. Price Range Analysis (2 pie charts) ====== */}
       {/* ====== Top Customers (消费排行TOP10) ====== */}
+      <LazyChartSection>
       {topCustomers.length > 0 && (
         <Card className="hover:shadow-md transition-shadow duration-300 border-l-4 border-l-amber-500">
           <CardHeader className="pb-2">
@@ -1995,7 +2048,7 @@ function DashboardTab() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={Math.max(topCustomers.length * 38, 200)} margin={{ left: 10, right: 30 }}>
-              <BarChart data={topCustomers.slice(0, 10).map((c: any, idx: number) => ({ ...c, rank: idx + 1 }))} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 10 }}>
+              <BarChart isAnimationActive={true} animationDuration={800} data={topCustomers.slice(0, 10).map((c: any, idx: number) => ({ ...c, rank: idx + 1 }))} layout="vertical" margin={{ top: 4, right: 20, bottom: 4, left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" tickFormatter={v => v >= 10000 ? `${(v / 10000).toFixed(1)}万` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v} tick={{ fontSize: 10 }} />
                 <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 11 }} />
@@ -2028,8 +2081,10 @@ function DashboardTab() {
           </CardContent>
         </Card>
       )}
+      </LazyChartSection>
 
       {/* ====== Price Range Analysis (2 pie charts) ====== */}
+      <LazyChartSection>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base">成本价格带分布</CardTitle></CardHeader>
@@ -2038,7 +2093,7 @@ function DashboardTab() {
               <EmptyState icon={PieChart} title="暂无数据" desc="" />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <RPieChart>
+                <RPieChart isAnimationActive={true} animationDuration={800}>
                   <Pie data={priceRangeCost.filter(r => r.count > 0)} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={90} innerRadius={50} label={priceLabel}>
                     {priceRangeCost.filter(r => r.count > 0).map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />))}
                   </Pie>
@@ -2055,7 +2110,7 @@ function DashboardTab() {
               <EmptyState icon={PieChart} title="暂无数据" desc="" />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <RPieChart>
+                <RPieChart isAnimationActive={true} animationDuration={800}>
                   <Pie data={priceRangeSelling.filter(r => r.count > 0)} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={90} innerRadius={50} label={priceLabel}>
                     {priceRangeSelling.filter(r => r.count > 0).map((_, i) => (<Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />))}
                   </Pie>
@@ -2066,14 +2121,16 @@ function DashboardTab() {
           </CardContent>
         </Card>
       </div>
+      </LazyChartSection>
 
       {/* ====== 7. Weight Distribution (stacked bar) ====== */}
+      <LazyChartSection>
       {weightDist && weightDist.stacked?.length > 0 && (
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><DollarSign className="h-4 w-4 text-purple-600" />克重产品分布</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={weightDist.stacked}>
+              <BarChart isAnimationActive={true} animationDuration={800} data={weightDist.stacked}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
@@ -2087,8 +2144,10 @@ function DashboardTab() {
           </CardContent>
         </Card>
       )}
+      </LazyChartSection>
 
       {/* ====== 8. Batch Payback (table + pie) ====== */}
+      <LazyChartSection>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card className="hover:shadow-md transition-shadow duration-300">
@@ -2140,7 +2199,7 @@ function DashboardTab() {
                 <EmptyState icon={PieChart} title="暂无数据" desc="" />
               ) : (
                 <ResponsiveContainer width="100%" height={240}>
-                  <RPieChart>
+                  <RPieChart isAnimationActive={true} animationDuration={800}>
                     <Pie data={batchPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40}
                       label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                       {batchPieData.map((entry, i) => {
@@ -2156,8 +2215,10 @@ function DashboardTab() {
           </Card>
         </div>
       </div>
+      </LazyChartSection>
 
       {/* ====== 8.5 Batch Entry Progress ====== */}
+      <LazyChartSection>
       <Card className="hover:shadow-md transition-shadow duration-300">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2"><Layers className="h-4 w-4 text-emerald-600" />批次录入进度概览</CardTitle>
@@ -2189,8 +2250,10 @@ function DashboardTab() {
           )}
         </CardContent>
       </Card>
+      </LazyChartSection>
 
       {/* ====== 8.6 Batch Payback Progress Ranking ====== */}
+      <LazyChartSection>
       {batchProfit.filter((b: any) => (b.itemsCount || 0) > 0).length > 0 && (
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2">
@@ -2233,8 +2296,10 @@ function DashboardTab() {
           </CardContent>
         </Card>
       )}
+      </LazyChartSection>
 
       {/* ====== 9. Stock Aging + Age Distribution ====== */}
+      <LazyChartSection>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="hover:shadow-md transition-shadow duration-300">
           <CardHeader className="pb-2">
@@ -2287,7 +2352,7 @@ function DashboardTab() {
               <EmptyState icon={BarChart3} title="暂无数据" desc="" />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={ageDist}>
+                <BarChart isAnimationActive={true} animationDuration={800} data={ageDist}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 10 }} />
@@ -2302,6 +2367,7 @@ function DashboardTab() {
           </CardContent>
         </Card>
       </div>
+      </LazyChartSection>
       {/* Monthly Sales Target Dialog */}
       <Dialog open={showTargetDialog} onOpenChange={setShowTargetDialog}>
         <DialogContent className="max-w-sm">

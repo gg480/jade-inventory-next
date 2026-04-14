@@ -3344,3 +3344,116 @@ Stage Summary:
 - 空状态：5种上下文插图+操作按钮
 - Dashboard：4卡片Tooltip悬停详情
 - 所有代码验证通过（0 lint错误）
+
+---
+
+## Task 20: 客户标签管理 + 移动端FAB按钮 + Dashboard图表懒加载动画 (2026-06-18)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ dev server 正常运行
+
+### 本轮完成的3项改动
+
+#### 1. 客户标签管理增强 (customers-tab.tsx)
+**新增 `TagInput` 组件**：
+- 当前标签显示为彩色小徽章（基于hash的颜色分配 `getTagColor`），点击 X 移除
+- 文本输入框：输入标签名，按 Enter 添加
+- 自动完成建议：从所有客户已有标签中筛选匹配项，下拉显示最多8个建议
+- Backspace 键删除最后一个标签
+- 创建/编辑表单中的标签字段从简单文本输入改为 `TagInput` 组件
+- `createForm.tags` 和 `editForm.tags` 类型从 `string` 改为 `string[]`
+- 标签直接以数组传递给 API，无需手动逗号分割
+
+**标签筛选区域增强**：
+- 替换原有的 `<select>` 下拉菜单为可点击的标签芯片（chips）
+- 每个标签显示为彩色圆角按钮，点击筛选/取消筛选
+- 选中的标签带 `ring-2 ring-emerald-400` 高亮效果
+- 新增"清除筛选"链接按钮
+
+**客户卡片标签显示**（已有，无需改动）：
+- 客户卡片下方显示最多4个标签，超出显示 "+N"
+- 标签使用 `getTagColor` 基于hash的颜色
+
+#### 2. 移动端浮动操作按钮 (navigation.tsx + page.tsx)
+**新增 `MobileFAB` 组件**：
+- 位置：`fixed bottom-20 right-4 z-50`（仅移动端 `md:hidden`）
+- 主按钮：翡翠渐变背景（`from-emerald-500 to-teal-600`），Plus 图标，`shadow-lg`
+- 点击展开速度拨号菜单，3个快捷操作：
+  - "新增货品"（Package 图标）→ 切换到库存 tab + 触发 `shortcut-new-item` 事件
+  - "新增销售"（ShoppingCart 图标）→ 切换到销售 tab
+  - "新增批次"（Layers 图标）→ 切换到批次 tab + 触发 `shortcut-new-batch` 事件
+- 主按钮展开时旋转 45°（Plus → X 形状）
+- 展开时显示半透明遮罩（`bg-black/20`），点击遮罩关闭菜单
+- 每个菜单项带有标签文字 + 圆形图标按钮
+- 交错动画：每个菜单项延迟 60ms 依次出现
+- `onTabChange` 回调 prop 用于切换标签页
+- 在 page.tsx 中传入 `handleTabChange` 回调
+
+#### 3. Dashboard 图表懒加载动画 (dashboard-tab.tsx)
+**新增 `useInView` 自定义 Hook**：
+- 使用 `IntersectionObserver` 检测元素是否进入视口
+- `threshold: 0.1`（10% 可见时触发）
+- 触发一次后自动断开观察（`obs.disconnect()`）
+- 返回 `boolean` 表示是否在视口内
+
+**新增 `LazyChartSection` 组件**：
+- 包裹每个图表卡片区域
+- 元素未进入视口时显示骨架屏占位符（`Skeleton h-[220px]`）
+- 元素进入视口后才渲染实际图表内容
+- 防止 12+ 个图表同时渲染，节省内存和渲染性能
+
+**Recharts 动画属性**：
+- 所有 `BarChart`、`AreaChart`、`RPieChart`、`ComposedChart` 组件添加：
+  - `isAnimationActive={true}`
+  - `animationDuration={800}`
+- 图表首次渲染时带有 800ms 的入场动画效果
+
+**懒加载包裹的图表区域**（13个区域）：
+1. 按器型分布分析（4个柱状图）
+2. 按材质分布分析（4个柱状图）
+3. 库存状态分布（环形图）
+4. 柜台利润 + 渠道分布 + 库存货值分类（3个图表）
+5. 月度销量趋势（面积图）
+6. 利润分析（可折叠区域，含多个图表）
+7. 库存周转率（复合图表）
+8. 月度销售对比（柱状图）
+9. 销售热力图（日历图）
+10. 畅销品排行 + 客户复购率（2个区域）
+11. 消费排行TOP10 + 价格带分布
+12. 克重产品分布（堆叠柱状图）
+13. 批次回本看板 + 批次录入进度 + 批次排行 + 库龄分布
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ dev server 正常运行
+
+### 关键文件变更
+- `src/components/inventory/customers-tab.tsx` — TagInput 组件 + 标签筛选芯片 + tags 类型 string→string[]
+- `src/components/inventory/navigation.tsx` — MobileFAB 组件 + Plus 图标导入
+- `src/app/page.tsx` — MobileFAB 导入 + 渲染 + handleTabChange 回调
+- `src/components/inventory/dashboard-tab.tsx` — useInView Hook + LazyChartSection 组件 + Recharts 动画属性 + Skeleton 导入
+
+---
+
+Task ID: 20
+Agent: main-agent
+Task: 客户标签管理 + 移动端FAB按钮 + Dashboard图表懒加载动画
+
+Work Log:
+- 读取 worklog.md 了解完整项目历史
+- 读取 customers-tab.tsx / navigation.tsx / dashboard-tab.tsx / page.tsx 当前代码
+- 初始化 fullstack 开发环境
+- 修改 customers-tab.tsx: 新增 TagInput 组件（彩色徽章+Enter添加+自动完成+Backspace删除）；tags 类型 string→string[]；标签筛选从 select→可点击芯片
+- 修改 navigation.tsx: 新增 MobileFAB 组件（翡翠渐变FAB+速度拨号+3快捷操作+旋转动画+遮罩）；导出 MobileFAB
+- 修改 page.tsx: 导入 MobileFAB + 传入 handleTabChange 渲染
+- 修改 dashboard-tab.tsx: 新增 useInView Hook + LazyChartSection 组件；13个图表区域包裹懒加载；BarChart/AreaChart/RPieChart/ComposedChart 添加 isAnimationActive + animationDuration；导入 Skeleton
+- bun run lint → 0 errors, 0 warnings
+- 更新 worklog.md
+
+Stage Summary:
+- 3项功能全部完成
+- 客户标签管理：TagInput 组件+彩色徽章+自动完成+标签筛选芯片
+- 移动端FAB：速度拨号菜单+3快捷操作+旋转动画+遮罩
+- Dashboard懒加载：useInView Hook + 13个区域懒加载 + Recharts动画属性
+- 所有代码验证通过（0 lint错误）

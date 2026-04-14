@@ -10,8 +10,78 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard, Package, ShoppingCart, Layers, Users, Settings,
-  BarChart3, Gem, ScrollText, Keyboard,
+  BarChart3, Gem, ScrollText, Keyboard, Plus,
 } from 'lucide-react';
+
+// ========== Mobile FAB (Floating Action Button) ==========
+function MobileFAB({ onTabChange }: { onTabChange: (t: TabId) => void }) {
+  const [open, setOpen] = useState(false);
+
+  const actions = [
+    { label: '新增货品', icon: Package, tab: 'inventory' as TabId, event: 'shortcut-new-item' },
+    { label: '新增销售', icon: ShoppingCart, tab: 'sales' as TabId, event: null },
+    { label: '新增批次', icon: Layers, tab: 'batches' as TabId, event: 'shortcut-new-batch' },
+  ];
+
+  function handleAction(action: typeof actions[number]) {
+    setOpen(false);
+    onTabChange(action.tab);
+    if (action.event) {
+      setTimeout(() => window.dispatchEvent(new CustomEvent(action.event!)), 300);
+    }
+  }
+
+  return (
+    <div className="md:hidden fixed bottom-20 right-4 z-50">
+      {/* Semi-transparent backdrop */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/20 z-40 transition-opacity duration-200"
+          onClick={() => setOpen(false)}
+        />
+      )}
+      {/* Speed dial menu items */}
+      <div className="absolute bottom-16 right-0 flex flex-col-reverse items-end gap-3 z-50">
+        {actions.map((action, i) => {
+          const Icon = action.icon;
+          return (
+            <div
+              key={action.label}
+              className="flex items-center gap-2 transition-all duration-300 origin-right"
+              style={{
+                opacity: open ? 1 : 0,
+                transform: open ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.8)',
+                pointerEvents: open ? 'auto' : 'none',
+                transitionDelay: open ? `${i * 60}ms` : '0ms',
+              }}
+            >
+              <span className="bg-card text-foreground text-xs font-medium px-2.5 py-1 rounded-md shadow-md whitespace-nowrap border">
+                {action.label}
+              </span>
+              <button
+                onClick={() => handleAction(action)}
+                className="h-10 w-10 rounded-full bg-white dark:bg-gray-800 shadow-lg flex items-center justify-center text-emerald-600 hover:scale-110 active:scale-95 transition-transform border border-emerald-200 dark:border-emerald-700"
+                aria-label={action.label}
+              >
+                <Icon className="h-4.5 w-4.5" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {/* Main FAB button */}
+      <button
+        onClick={() => setOpen(!open)}
+        className={`h-14 w-14 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg flex items-center justify-center text-white hover:shadow-xl active:scale-95 transition-all duration-300 z-50 ${
+          open ? 'rotate-45' : 'rotate-0'
+        }`}
+        aria-label={open ? '关闭快捷菜单' : '打开快捷菜单'}
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+    </div>
+  );
+}
 
 // ========== Mobile Bottom Navigation ==========
 function MobileNav({ activeTab, onTabChange, className }: { activeTab: TabId; onTabChange: (t: TabId) => void; className?: string }) {
@@ -214,4 +284,4 @@ function DesktopNav({ activeTab, onTabChange, className }: { activeTab: TabId; o
   );
 }
 
-export { MobileNav, DesktopNav, ShortcutsHelpDialog };
+export { MobileNav, DesktopNav, ShortcutsHelpDialog, MobileFAB };

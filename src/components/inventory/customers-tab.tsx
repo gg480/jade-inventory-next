@@ -75,6 +75,89 @@ function MiniSpendingChart({ data }: { data: { month: string; amount: number }[]
   );
 }
 
+// ========== Tag Input Component ==========
+function TagInput({ tags, onTagsChange, allTags, placeholder }: {
+  tags: string[];
+  onTagsChange: (tags: string[]) => void;
+  allTags: string[];
+  placeholder?: string;
+}) {
+  const [input, setInput] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const suggestions = allTags.filter(
+    t => t.toLowerCase().includes(input.toLowerCase()) && !tags.includes(t)
+  );
+
+  function addTag(tag: string) {
+    const trimmed = tag.trim();
+    if (!trimmed || tags.includes(trimmed)) return;
+    onTagsChange([...tags, trimmed]);
+    setInput('');
+    setShowSuggestions(false);
+    inputRef.current?.focus();
+  }
+
+  function removeTag(tag: string) {
+    onTagsChange(tags.filter(t => t !== tag));
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-1.5 min-h-[28px]">
+        {tags.map(tag => (
+          <Badge key={tag} variant="outline" className={`text-xs pr-1 ${getTagColor(tag)}`}>
+            {tag}
+            <button
+              className="ml-1 hover:text-red-500 transition-colors"
+              onClick={() => removeTag(tag)}
+              aria-label={`移除标签 ${tag}`}
+              type="button"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          value={input}
+          onChange={e => { setInput(e.target.value); setShowSuggestions(true); }}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (input.trim()) addTag(input);
+            }
+            if (e.key === 'Backspace' && !input && tags.length > 0) {
+              removeTag(tags[tags.length - 1]);
+            }
+          }}
+          placeholder={placeholder || '输入标签，回车添加'}
+          className="h-8 text-sm"
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-32 overflow-y-auto">
+            {suggestions.slice(0, 8).map(tag => (
+              <button
+                key={tag}
+                type="button"
+                className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors flex items-center gap-2"
+                onMouseDown={e => { e.preventDefault(); addTag(tag); }}
+              >
+                <Badge variant="outline" className={`text-[10px] h-4 ${getTagColor(tag)}`}>{tag}</Badge>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ========== Customer Profile Dialog ==========
 function CustomerProfileDialog({ customer, open, onClose, onEdit, onTagsUpdated }: {
   customer: any;
@@ -450,12 +533,12 @@ function CustomersTab() {
   const [tagFilter, setTagFilter] = useState('');
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: '', phone: '', wechat: '', address: '', notes: '', tags: '' });
+  const [createForm, setCreateForm] = useState({ name: '', phone: '', wechat: '', address: '', notes: '', tags: [] as string[] });
   const [expandedCustomerId, setExpandedCustomerId] = useState<number | null>(null);
   const [customerDetail, setCustomerDetail] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [editCustomer, setEditCustomer] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ name: '', phone: '', wechat: '', address: '', notes: '', tags: '' });
+  const [editForm, setEditForm] = useState({ name: '', phone: '', wechat: '', address: '', notes: '', tags: [] as string[] });
   const [profileCustomer, setProfileCustomer] = useState<any>(null);
   const [deleteCustomerConfirm, setDeleteCustomerConfirm] = useState<any>(null);
   const [sortBy, setSortBy] = useState<string>('lastPurchaseDate');
@@ -508,11 +591,10 @@ function CustomersTab() {
 
   async function handleCreate() {
     try {
-      const tagsArr = createForm.tags ? createForm.tags.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
-      await customersApi.createCustomer({ ...createForm, tags: tagsArr });
+      await customersApi.createCustomer({ ...createForm, tags: createForm.tags });
       toast.success('客户创建成功');
       setShowCreate(false);
-      setCreateForm({ name: '', phone: '', wechat: '', address: '', notes: '', tags: '' });
+      setCreateForm({ name: '', phone: '', wechat: '', address: '', notes: '', tags: [] });
       fetchCustomers();
     } catch (e: any) { toast.error(e.message || '创建失败'); }
   }
@@ -520,8 +602,7 @@ function CustomersTab() {
   async function handleEditCustomer() {
     if (!editCustomer) return;
     try {
-      const tagsArr = editForm.tags ? editForm.tags.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
-      await customersApi.updateCustomer(editCustomer.id, { name: editForm.name, phone: editForm.phone, wechat: editForm.wechat, address: editForm.address, notes: editForm.notes, tags: tagsArr });
+      await customersApi.updateCustomer(editCustomer.id, { name: editForm.name, phone: editForm.phone, wechat: editForm.wechat, address: editForm.address, notes: editForm.notes, tags: editForm.tags });
       toast.success('客户更新成功');
       setEditCustomer(null);
       fetchCustomers();
@@ -536,7 +617,7 @@ function CustomersTab() {
       wechat: customer.wechat || '',
       address: customer.address || '',
       notes: customer.notes || '',
-      tags: Array.isArray(customer.tags) ? customer.tags.join(', ') : '',
+      tags: Array.isArray(customer.tags) ? [...customer.tags] : [],
     });
   }
 
@@ -650,14 +731,31 @@ function CustomersTab() {
             <span className="text-xs text-muted-foreground">找到 {pagination.total} 个客户</span>
           )}
           {allTags.length > 0 && (
-            <select
-              value={tagFilter}
-              onChange={e => { setTagFilter(e.target.value); setPagination(p => ({ ...p, page: 1 })); }}
-              className="h-9 text-sm border rounded-md px-2 bg-background"
-            >
-              <option value="">全部标签</option>
-              {allTags.map(tag => <option key={tag} value={tag}>{tag}</option>)}
-            </select>
+            <div className="flex flex-wrap items-center gap-1">
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => { setTagFilter(tagFilter === tag ? '' : tag); setPagination(p => ({ ...p, page: 1 })); }}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all duration-150 cursor-pointer ${
+                    tagFilter === tag
+                      ? 'ring-2 ring-emerald-400 shadow-sm scale-105 ' + getTagColor(tag)
+                      : getTagColor(tag) + ' opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+              {tagFilter && (
+                <button
+                  type="button"
+                  onClick={() => { setTagFilter(''); setPagination(p => ({ ...p, page: 1 })); }}
+                  className="text-xs text-muted-foreground hover:text-foreground underline"
+                >
+                  清除筛选
+                </button>
+              )}
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -997,7 +1095,7 @@ function CustomersTab() {
             <div className="space-y-1"><Label>电话</Label><Input value={createForm.phone} onChange={e => setCreateForm(f => ({ ...f, phone: e.target.value }))} /></div>
             <div className="space-y-1"><Label>微信号</Label><Input value={createForm.wechat} onChange={e => setCreateForm(f => ({ ...f, wechat: e.target.value }))} /></div>
             <div className="space-y-1"><Label>地址</Label><Input value={createForm.address} onChange={e => setCreateForm(f => ({ ...f, address: e.target.value }))} /></div>
-            <div className="space-y-1"><Label>标签</Label><Input value={createForm.tags} onChange={e => setCreateForm(f => ({ ...f, tags: e.target.value }))} placeholder="多个标签用逗号分隔" /></div>
+            <div className="space-y-1"><Label>标签</Label><TagInput tags={createForm.tags} onTagsChange={t => setCreateForm(f => ({ ...f, tags: t }))} allTags={allTags} placeholder="输入标签，回车添加" /></div>
             <div className="space-y-1"><Label>备注</Label><Textarea value={createForm.notes} onChange={e => setCreateForm(f => ({ ...f, notes: e.target.value }))} /></div>
           </div>
           <DialogFooter>
@@ -1016,7 +1114,7 @@ function CustomersTab() {
             <div className="space-y-1"><Label>电话</Label><Input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} /></div>
             <div className="space-y-1"><Label>微信号</Label><Input value={editForm.wechat} onChange={e => setEditForm(f => ({ ...f, wechat: e.target.value }))} /></div>
             <div className="space-y-1"><Label>地址</Label><Input value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))} /></div>
-            <div className="space-y-1"><Label>标签</Label><Input value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))} placeholder="多个标签用逗号分隔" /></div>
+            <div className="space-y-1"><Label>标签</Label><TagInput tags={editForm.tags} onTagsChange={t => setEditForm(f => ({ ...f, tags: t }))} allTags={allTags} placeholder="输入标签，回车添加" /></div>
             <div className="space-y-1"><Label>备注</Label><Textarea value={editForm.notes} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} /></div>
           </div>
           <DialogFooter>
