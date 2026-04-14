@@ -2559,3 +2559,65 @@ Stage Summary:
 - 确认 dev server SIGTERM 是容器环境问题，非代码 bug
 - 生产构建成功，不影响 Docker 部署
 - 建议用户本地拉取最新代码验证
+
+## Task 16: UI Polish — 5 Enhancements (2026-06-18)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ GitHub 推送成功（3c7beba..7dcb200 main → main）
+- 7 files changed, 228 insertions, 30 deletions
+
+### 完成的5项增强
+
+#### Enhancement 1: 库存详情面板增强 (inventory-tab.tsx)
+- **复制SKU按钮**: 桌面端和移动端详情面板均添加"复制SKU"按钮，点击后复制到剪贴板并显示toast提示
+- **利润/亏损指示器**: 对已售/已退货品显示独立的利润信息面板，包含售价、成本、利润行（带正负号和颜色编码）
+- **库存天数颜色编码**: 将简单的文本"库龄 N天"替换为彩色Badge：
+  - <30天: 绿色 (bg-emerald-50/text-emerald-700)
+  - 30-90天: 琥珀色 (bg-amber-50/text-amber-700)
+  - >90天: 红色 (bg-red-50/text-red-700)
+- 新增 Clock 图标导入
+
+#### Enhancement 2: 销售记录页增强 (sales-tab.tsx)
+- **利润汇总栏**: 新增独立的利润汇总Card，包含4个子面板：
+  - 总销售额（翡翠色）、总成本（天蓝色）、总毛利（琥珀色）、平均毛利率（紫色）
+- **日期快捷筛选更新**: 将"今日"改为"今天"，新增"本季度"选项
+- **导出CSV按钮增强**: 添加翡翠色边框（border-emerald-300/border-emerald-700）和翡翠色文字
+- **统计卡片重新设计**: 原有的4张统计卡片改为：销售件数、客单价、最高利润、利润率范围
+- "查看详情"按钮已存在（Eye/详情），保持不变
+
+#### Enhancement 3: 批次管理页增强 (batches-tab.tsx)
+- **批次统计汇总卡片**: 在页面顶部新增5张统计卡片：
+  - 总批次（天蓝色，Layers图标）、已完成100%（翡翠色，CheckCircle图标）
+  - 进行中（琥珀色，PlayCircle图标）、未开始（灰色，Ban图标）、总成本（紫色，DollarSign图标）
+- **快速添加货品按钮**: 新增"快速添加货品"按钮，点击后打开ItemCreateDialog并预选第一个批次
+- 导入 useAppStore 和 ItemCreateDialog，新增 quickAddBatch 状态
+
+#### Enhancement 4: Dashboard 微调 (dashboard-tab.tsx)
+- **回本看板交替行色**: TableBody 中的 batchProfit.map 添加 `idx % 2 === 0 ? 'even:bg-muted/20' : ''` 交替背景
+- **最新交易渠道指示器**: 每条交易记录根据 channel 字段添加左边框颜色：
+  - 门店 (store) → border-l-sky-400（蓝色）
+  - 微信 (wechat) → border-l-emerald-400（绿色）
+- **库存健康度SVG圆环**: 将 conic-gradient 方式的进度环替换为SVG circle 实现：
+  - 底层灰色圆环 + 顶层彩色弧线（strokeDasharray 动画）
+  - 过渡动画：transition-all duration-1000 ease-out
+
+#### Enhancement 5: 全局UI微调 (page.tsx + navigation.tsx + shared.tsx)
+- **导航标签动画渐变边框**: 桌面端激活标签使用 CSS keyframes gradientShift 实现渐变背景动画
+  - 3秒循环：翡翠→青色→翡翠渐变背景
+  - border-bottom: 2px solid #059669 + shadow
+- **页脚"最后更新"时间**: 新增 lastUpdateTime 状态，每30秒更新显示 HH:mm:ss 格式时间
+- **数据加载指示器**: 新增 apiLoading 状态和 loading-dot CSS动画（1.5s脉冲），在页脚右侧显示翡翠色圆点+文字
+
+### 验证结果
+- `bun run lint` — 0 errors, 0 warnings
+- GitHub push — 成功 (3c7beba..7dcb200 main → main)
+
+### 关键文件变更
+- `src/components/inventory/inventory-tab.tsx` — 复制SKU按钮 + 利润面板 + 库存天数颜色编码
+- `src/components/inventory/sales-tab.tsx` — 利润汇总栏 + 本季度筛选 + CSV按钮增强 + 统计卡片重设计
+- `src/components/inventory/batches-tab.tsx` — 批次统计卡片 + 快速添加货品按钮
+- `src/components/inventory/dashboard-tab.tsx` — 交替行色 + 渠道左边框 + SVG圆环进度
+- `src/components/inventory/navigation.tsx` — 导航标签 nav-tab-active 类
+- `src/components/inventory/shared.tsx` — gradientShift/dotPulse CSS动画
+- `src/app/page.tsx` — 最后更新时间 + 加载指示器
