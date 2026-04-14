@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
-import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw, ArrowUpRight, ArrowDownRight, TrendingUp, Search, Package, DollarSign, ShoppingCart } from 'lucide-react';
+import { Layers, Plus, Eye, Clock, CheckCircle, XCircle, RotateCcw, ArrowUpRight, ArrowDownRight, TrendingUp, Search, Package, DollarSign, ShoppingCart, Target, Zap, Calendar, Milestone, Flag } from 'lucide-react';
 
 // ========== Batch Detail Dialog ==========
 function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | null; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -313,6 +313,107 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
                   利润 {formatPrice(batch.profit)}
                 </span>
               </div>
+
+              {/* ====== Payback Timeline + ROI + Sales Velocity ====== */}
+              {(() => {
+                const revenue = batch.revenue || 0;
+                const cost = batch.totalCost || 0;
+                const profit = revenue - cost;
+                const roi = cost > 0 ? (profit / cost) * 100 : 0;
+                const paybackRate = batch.paybackRate || 0;
+                const soldCount = batch.soldCount || 0;
+                const quantity = batch.quantity || 1;
+                const batchAge = daysSince(batch.purchaseDate);
+                const salesPerWeek = batchAge > 0 ? (soldCount / (batchAge / 7)) : 0;
+                const remainingItems = quantity - soldCount;
+                const estimatedWeeksLeft = salesPerWeek > 0 ? Math.ceil(remainingItems / salesPerWeek) : Infinity;
+                const estimatedCompletion = estimatedWeeksLeft < 52 ? new Date(Date.now() + estimatedWeeksLeft * 7 * 86400000).toLocaleDateString('zh-CN') : '—';
+
+                // Milestones
+                const milestones = [
+                  { label: '采购入库', date: batch.purchaseDate || '-', done: true, icon: Package, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30' },
+                  { label: '首件售出', date: batch.firstSaleDate || '-', done: soldCount > 0, icon: ShoppingCart, color: 'text-sky-600 bg-sky-100 dark:bg-sky-900/30' },
+                  { label: '回本50%', date: paybackRate >= 50 ? (batch.fiftyPercentDate || '—') : '—', done: paybackRate >= 50, icon: Target, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/30' },
+                  { label: '完全回本', date: paybackRate >= 100 ? (batch.fullPaybackDate || '—') : '—', done: paybackRate >= 100, icon: CheckCircle, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30' },
+                  { label: '清仓完毕', date: soldCount >= quantity ? (batch.clearedDate || '—') : '—', done: soldCount >= quantity, icon: Flag, color: 'text-violet-600 bg-violet-100 dark:bg-violet-900/30' },
+                ];
+
+                return (
+                  <div className="space-y-3">
+                    {/* ROI + Sales Velocity Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <div className="p-3 bg-muted/30 rounded-lg border">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Target className="h-3.5 w-3.5 text-emerald-600" />
+                          <span className="text-xs text-muted-foreground font-medium">投资回报率(ROI)</span>
+                        </div>
+                        <p className={`text-xl font-extrabold tabular-nums ${roi >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {roi >= 0 ? '+' : ''}{roi.toFixed(1)}%
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          投资 {formatPrice(cost)} → 回报 {formatPrice(revenue)}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/30 rounded-lg border">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Zap className="h-3.5 w-3.5 text-amber-600" />
+                          <span className="text-xs text-muted-foreground font-medium">销售速度</span>
+                        </div>
+                        <p className="text-xl font-extrabold tabular-nums">
+                          {salesPerWeek.toFixed(1)}<span className="text-sm font-normal text-muted-foreground">件/周</span>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          剩余 {remainingItems} 件
+                        </p>
+                      </div>
+                      <div className="p-3 bg-muted/30 rounded-lg border">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Calendar className="h-3.5 w-3.5 text-sky-600" />
+                          <span className="text-xs text-muted-foreground font-medium">预计清仓</span>
+                        </div>
+                        <p className="text-xl font-extrabold tabular-nums">
+                          {estimatedCompletion}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {estimatedWeeksLeft < 52 ? `约 ${estimatedWeeksLeft} 周后` : '数据不足'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Payback Milestone Timeline */}
+                    <div className="p-3 bg-muted/30 rounded-lg border">
+                      <div className="flex items-center gap-1.5 mb-3 text-sm font-medium">
+                        <Milestone className="h-4 w-4 text-emerald-600" />
+                        回本里程碑
+                      </div>
+                      <div className="relative pl-6">
+                        {/* Vertical connecting line */}
+                        <div className="absolute left-[11px] top-1 bottom-1 w-0.5 bg-gradient-to-b from-emerald-400 via-amber-400 to-muted" />
+                        <div className="space-y-3">
+                          {milestones.map((m, i) => {
+                            const MIcon = m.icon;
+                            return (
+                              <div key={i} className="relative flex items-center gap-3">
+                                <div className={`absolute -left-6 w-[22px] h-[22px] rounded-full flex items-center justify-center border-2 transition-all duration-300 ${m.done ? `${m.color} border-current` : 'bg-muted border-muted-foreground/30 text-muted-foreground/50'}`}>
+                                  <MIcon className="h-3 w-3" />
+                                </div>
+                                <div className={`flex-1 flex items-center justify-between py-1.5 px-3 rounded-lg transition-all duration-200 ${m.done ? 'bg-background shadow-sm' : 'bg-muted/30 opacity-60'}`}>
+                                  <span className={`text-sm font-medium ${m.done ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                    {m.label}
+                                  </span>
+                                  <span className={`text-xs tabular-nums ${m.done ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}>
+                                    {m.done && m.date !== '-' ? m.date : (m.done ? '已完成' : '未达成')}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <Separator />
 

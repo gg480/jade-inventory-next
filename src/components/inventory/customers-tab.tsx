@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Users, Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, Crown, Sparkles, TrendingUp, Shield, ShieldCheck,
   Phone, MessageCircle, MapPin, Calendar, ShoppingBag, BarChart3, Tag, X, Clock, FileDown, ArrowUpDown, FileText,
-  DollarSign as DollarSignIcon, ShoppingCart as ShoppingCartIcon, ArrowDownAZ, Diamond, Star,
+  DollarSign as DollarSignIcon, ShoppingCart as ShoppingCartIcon, ArrowDownAZ, Diamond, Star, RotateCcw,
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, Tooltip as RTooltip, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -344,28 +344,66 @@ function CustomerProfileDialog({ customer, open, onClose, onEdit, onTagsUpdated 
 
             <Separator />
 
-            {/* Purchase Timeline */}
+            {/* Purchase Timeline - Visual Vertical Timeline */}
             {detail.saleRecords && detail.saleRecords.length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-medium flex items-center gap-1.5">
                   <Clock className="h-4 w-4 text-gray-600" />购买记录
+                  <Badge variant="secondary" className="text-[10px] h-4 ml-1">{detail.saleRecords.length}笔</Badge>
                 </h4>
-                <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar">
-                  {detail.saleRecords.map((sr: any) => (
-                    <div key={sr.id} className="flex items-center justify-between text-xs p-2 bg-muted/50 rounded hover:bg-muted/80 transition-colors">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-muted-foreground shrink-0">{sr.saleDate}</span>
-                        <span className="font-mono shrink-0">{sr.item?.skuCode || sr.saleNo}</span>
-                        <Badge variant="outline" className="text-[10px] h-4 shrink-0">{sr.channel === 'store' ? '门店' : '微信'}</Badge>
-                        {sr.item?.material?.name && (
-                          <Badge variant="outline" className="text-[10px] h-4 shrink-0 border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400">
-                            {sr.item.material.name}
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="font-medium text-emerald-600 shrink-0">{formatPrice(sr.actualPrice)}</span>
+                {/* Mini spending sparkline at top */}
+                {(() => {
+                  const records = detail.saleRecords || [];
+                  const totalSpent = records.reduce((s: number, r: any) => s + (r.actualPrice || 0), 0);
+                  const maxPrice = Math.max(...records.map((r: any) => r.actualPrice || 0), 1);
+                  return (
+                    <div className="flex items-end gap-0.5 h-6 px-1">
+                      {records.slice(-12).map((sr: any, idx: number) => {
+                        const heightPct = Math.max((sr.actualPrice / maxPrice) * 100, 8);
+                        return (
+                          <div
+                            key={idx}
+                            className="flex-1 rounded-t-sm bg-gradient-to-t from-emerald-500 to-emerald-300 dark:from-emerald-600 dark:to-emerald-400 min-w-[3px] transition-all duration-200 hover:opacity-80"
+                            style={{ height: `${heightPct}%` }}
+                            title={`${sr.saleDate}: ${formatPrice(sr.actualPrice)}`}
+                          />
+                        );
+                      })}
                     </div>
-                  ))}
+                  );
+                })()}
+                <div className="relative pl-5 max-h-56 overflow-y-auto custom-scrollbar">
+                  {/* Vertical connecting line */}
+                  <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-emerald-400 via-sky-300 to-muted" />
+                  <div className="space-y-2">
+                    {detail.saleRecords.map((sr: any, idx: number) => {
+                      const isReturn = sr.returnId != null;
+                      return (
+                        <div key={sr.id} className="relative flex items-start gap-2 animate-in fade-in-0 slide-in-from-left-1 duration-200" style={{ animationDelay: `${idx * 50}ms` }}>
+                          {/* Timeline dot */}
+                          <div className={`absolute -left-5 top-1.5 w-[18px] h-[18px] rounded-full flex items-center justify-center shrink-0 ${isReturn ? 'bg-orange-100 dark:bg-orange-900/30 border-2 border-orange-400' : 'bg-emerald-100 dark:bg-emerald-900/30 border-2 border-emerald-400'}`}>
+                            {isReturn ? <RotateCcw className="h-2.5 w-2.5 text-orange-600" /> : <ShoppingCartIcon className="h-2.5 w-2.5 text-emerald-600" />}
+                          </div>
+                          {/* Content */}
+                          <div className={`flex-1 flex items-center justify-between text-xs p-2 rounded-lg transition-colors ${isReturn ? 'bg-orange-50/50 dark:bg-orange-950/20 border-l-2 border-l-orange-400' : 'bg-muted/50 hover:bg-muted/80 border-l-2 border-l-emerald-400'}`}>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-muted-foreground shrink-0 tabular-nums">{sr.saleDate}</span>
+                              <span className="font-mono shrink-0">{sr.item?.skuCode || sr.saleNo}</span>
+                              <Badge variant="outline" className="text-[10px] h-4 shrink-0">{sr.channel === 'store' ? '门店' : '微信'}</Badge>
+                              {sr.item?.material?.name && (
+                                <Badge variant="outline" className="text-[10px] h-4 shrink-0 border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400">
+                                  {sr.item.material.name}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className={`font-medium shrink-0 tabular-nums ${isReturn ? 'text-orange-600' : 'text-emerald-600'}`}>
+                              {isReturn ? '-' : ''}{formatPrice(sr.actualPrice)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

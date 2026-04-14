@@ -62,6 +62,15 @@ function getTagColor(tagName: string): string {
   return TAG_COLOR_CACHE[tagName];
 }
 
+// ========== Aging Color Helper ==========
+function getAgingColor(ageDays: number | null | undefined): { bg: string; text: string; dot: string; label: string } {
+  if (ageDays == null) return { bg: '', text: 'text-muted-foreground', dot: 'bg-gray-300 dark:bg-gray-600', label: '-' };
+  if (ageDays < 30) return { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500', label: `${ageDays}天` };
+  if (ageDays < 60) return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', dot: 'bg-yellow-500', label: `${ageDays}天` };
+  if (ageDays < 90) return { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', dot: 'bg-orange-500', label: `${ageDays}天` };
+  return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', dot: 'bg-red-500', label: `${ageDays}天` };
+}
+
 // ========== Active Filter Tags Component ==========
 function ActiveFilterTags({ filters, materials, allBatches, allCounters, onClearAll, onClear }: {
   filters: { materialCategory: string; materialId: string; status: string; keyword: string; counter: string; batchId: string; minPrice: string; maxPrice: string; purchaseStartDate: string; purchaseEndDate: string };
@@ -91,6 +100,7 @@ function ActiveFilterTags({ filters, materials, allBatches, allCounters, onClear
   if (filters.maxPrice) tags.push({ key: 'maxPrice', label: `最高价: ¥${filters.maxPrice}` });
   if (filters.purchaseStartDate) tags.push({ key: 'purchaseStartDate', label: `采购起始: ${filters.purchaseStartDate}` });
   if (filters.purchaseEndDate) tags.push({ key: 'purchaseEndDate', label: `采购截止: ${filters.purchaseEndDate}` });
+  // Note: agingFilter is handled separately in the main component, not through ActiveFilterTags
 
   if (tags.length === 0) return null;
 
@@ -130,6 +140,7 @@ function InventoryTab() {
   const [filters, setFilters] = useState({ materialCategory: '', materialId: '', status: '', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' });
   const [searchField, setSearchField] = useState('all');
   const [activeStatuses, setActiveStatuses] = useState<Set<string>>(new Set(['in_stock']));
+  const [agingFilter, setAgingFilter] = useState<string>(''); // '' | '30' | '60' | '90+'
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -231,6 +242,16 @@ function InventoryTab() {
     returned: items.filter(i => i.status === 'returned').length,
   }), [items]);
 
+  // Aging counts for filter buttons (based on in_stock items only)
+  const agingCounts = useMemo(() => {
+    const inStock = items.filter(i => i.status === 'in_stock');
+    return {
+      '30': inStock.filter(i => i.ageDays != null && i.ageDays >= 30 && i.ageDays < 60).length,
+      '60': inStock.filter(i => i.ageDays != null && i.ageDays >= 60 && i.ageDays < 90).length,
+      '90+': inStock.filter(i => i.ageDays != null && i.ageDays >= 90).length,
+    };
+  }, [items]);
+
   // Toggle status filter
   function toggleStatusFilter(status: string) {
     setActiveStatuses(prev => {
@@ -262,8 +283,19 @@ function InventoryTab() {
     if (filters.purchaseEndDate) {
       result = result.filter(i => (i.purchaseDate || '') <= filters.purchaseEndDate);
     }
+    // Aging filter
+    if (agingFilter) {
+      result = result.filter(i => {
+        const age = i.ageDays;
+        if (age == null) return false;
+        if (agingFilter === '30') return age >= 30 && age < 60;
+        if (agingFilter === '60') return age >= 60 && age < 90;
+        if (agingFilter === '90+') return age >= 90;
+        return true;
+      });
+    }
     return result;
-  }, [items, activeStatuses, filters.minPrice, filters.maxPrice, filters.purchaseStartDate, filters.purchaseEndDate]);
+  }, [items, activeStatuses, filters.minPrice, filters.maxPrice, filters.purchaseStartDate, filters.purchaseEndDate, agingFilter]);
 
   // Client-side sort for table display
   const sortedItems = useMemo(() => {
@@ -838,6 +870,40 @@ function InventoryTab() {
               <span className="text-xs text-muted-foreground ml-1">显示全部状态</span>
             )}
           </div>
+          {/* Aging Filter Toggle Buttons */}
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground font-medium">库龄筛选</span>
+            {[
+              { key: '30', label: '滞销30天', activeClass: 'bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500', count: agingCounts['30'] },
+              { key: '60', label: '滞销60天', activeClass: 'bg-orange-500 hover:bg-orange-600 text-white border-orange-500', count: agingCounts['60'] },
+              { key: '90+', label: '滞销90天+', activeClass: 'bg-red-500 hover:bg-red-600 text-white border-red-500', count: agingCounts['90+'] },
+            ].map(s => {
+              const isActive = agingFilter === s.key;
+              return (
+                <Button
+                  key={s.key}
+                  size="sm"
+                  variant={isActive ? 'default' : 'outline'}
+                  className={`h-7 text-xs px-3 rounded-full transition-all duration-150 ${isActive ? s.activeClass : ''}`}
+                  onClick={() => setAgingFilter(prev => prev === s.key ? '' : s.key)}
+                >
+                  {s.label}
+                  <Badge variant="secondary" className={`ml-1.5 h-4 min-w-[18px] px-1 text-[10px] ${isActive ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}`}>
+                    {s.count}
+                  </Badge>
+                </Button>
+              );
+            })}
+            {agingFilter && (
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors ml-1"
+                onClick={() => setAgingFilter('')}
+              >
+                清除库龄筛选
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
             <div className="space-y-1 relative">
               <Label className="text-xs">关键词</Label>
@@ -939,7 +1005,21 @@ function InventoryTab() {
             </div>
           )}
           {/* Active filter tags */}
-          <ActiveFilterTags filters={filters} materials={materials} allBatches={allBatches} allCounters={allCounters} onClearAll={() => { setFilters({ materialCategory: '', materialId: '', status: '', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' }); setActiveStatuses(new Set(['in_stock'])); }} onClear={(key: string) => setFilters(f => ({ ...f, [key]: '' }))} />
+          <ActiveFilterTags filters={filters} materials={materials} allBatches={allBatches} allCounters={allCounters} onClearAll={() => { setFilters({ materialCategory: '', materialId: '', status: '', keyword: '', counter: '', batchId: '', minPrice: '', maxPrice: '', purchaseStartDate: '', purchaseEndDate: '' }); setActiveStatuses(new Set(['in_stock'])); setAgingFilter(''); }} onClear={(key: string) => setFilters(f => ({ ...f, [key]: '' }))} />
+          {agingFilter && (
+            <div className="flex items-center gap-2 mt-2 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 text-xs px-2 py-0.5">
+                库龄筛选
+              </Badge>
+              <button
+                onClick={() => setAgingFilter('')}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors group"
+              >
+                <span>{agingFilter === '90+' ? '滞销90天+' : `滞销${agingFilter}天`}</span>
+                <X className="h-3 w-3 group-hover:text-red-900 dark:group-hover:text-red-300 transition-colors" />
+              </button>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-2 flex-wrap">
               <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-9" onClick={() => setShowCreate(true)}><Plus className="h-3 w-3 mr-1" />新增入库</Button>
@@ -1115,7 +1195,14 @@ function InventoryTab() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{item.purchaseDate || '-'}</TableCell>
                       <TableCell><StatusBadge status={item.status} /></TableCell>
-                      <TableCell className={item.ageDays > 90 ? 'text-red-600 font-medium' : ''}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const ac = getAgingColor(item.ageDays);
+                          return item.ageDays != null ? (
+                            <Badge variant="outline" className={`text-xs px-1.5 py-0 h-5 ${ac.bg} ${ac.text} border-current/20`}>{ac.label}</Badge>
+                          ) : <span className="text-muted-foreground">-</span>;
+                        })()}
+                      </TableCell>
                       <TableCell className="text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">
                           <DropdownMenu>
@@ -1205,6 +1292,12 @@ function InventoryTab() {
                     <p className="font-medium text-sm truncate mt-0.5">{item.name || item.skuCode}</p>
                   </div>
                   <StatusBadge status={item.status} />
+                  {(() => {
+                    const ac = getAgingColor(item.ageDays);
+                    return item.ageDays != null ? (
+                      <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${ac.dot}`} title={`库龄: ${ac.label}`} />
+                    ) : null;
+                  })()}
                 </div>
                 {/* Material + Type + Batch */}
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
@@ -1245,7 +1338,7 @@ function InventoryTab() {
                           : formatPrice(item.costPrice)}
                     </span>
                   </div>
-                  <span className={`text-xs ${item.ageDays != null && item.ageDays > 90 ? 'text-red-600 font-medium' : 'text-muted-foreground'}`}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</span>
+                  <span className={`text-xs ${(() => { const ac = getAgingColor(item.ageDays); return ac.text; })()}`}>{item.ageDays != null ? `${item.ageDays}天` : '-'}</span>
                 </div>
                 {/* Action buttons with DropdownMenu */}
                 <div className="flex items-center gap-1 flex-wrap" onClick={e => e.stopPropagation()}>

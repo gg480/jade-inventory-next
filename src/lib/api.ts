@@ -246,6 +246,10 @@ export const dashboardApi = {
     const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
     return request<any[]>(`/dashboard/sales-by-channel${qs}`);
   },
+  getKpiSparkline: (params?: Record<string, any>) => {
+    const qs = params ? '?' + new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '').map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<any>(`/dashboard/kpi-sparkline${qs}`);
+  },
 };
 
 // ========== Metal Prices ==========

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { dashboardApi, configApi, batchesApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, CHART_COLORS } from './shared';
+import { formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, CHART_COLORS, PulseDot } from './shared';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,6 +94,8 @@ function DashboardTab() {
   const [dailySalesSparkline, setDailySalesSparkline] = useState<any[]>([]);
   const [inventoryTrendSparkline, setInventoryTrendSparkline] = useState<any[]>([]);
   const [stockAgingTrend, setStockAgingTrend] = useState<any[]>([]);
+  const [paybackTrend, setPaybackTrend] = useState<any[]>([]);
+  const [kpiChanges, setKpiChanges] = useState<{ inventory: number | null; sales: number | null; aging: number | null; payback: number | null } | null>(null);
   const [salesByChannel, setSalesByChannel] = useState<any[]>([]);
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [profitAnalysis, setProfitAnalysis] = useState<any>(null);
@@ -263,19 +265,40 @@ function DashboardTab() {
         }
       } catch { /* non-critical */ }
 
-      if (Array.isArray(monthlyTrend) && monthlyTrend.length > 0) {
-        // For daily sparkline, generate synthetic daily data from the monthly trend
+      // Load KPI sparkline data (7-day trend for overview cards)
+      try {
+        const sparkData = await dashboardApi.getKpiSparkline({ days: 7, aging_days: minDays });
+        if (sparkData) {
+          setInventoryTrendSparkline(sparkData.inventory?.trend || []);
+          setDailySalesSparkline(sparkData.sales?.trend || []);
+          setStockAgingTrend(sparkData.aging?.trend || []);
+          setPaybackTrend(sparkData.payback?.trend || []);
+          setKpiChanges({
+            inventory: sparkData.inventory?.change ?? null,
+            sales: sparkData.sales?.change ?? null,
+            aging: sparkData.aging?.change ?? null,
+            payback: sparkData.payback?.change ?? null,
+          });
+        }
+      } catch { /* non-critical, fallback to synthetic */ }
+
+      // Fallback: generate synthetic sparkline data from monthly trend if KPI API failed
+      if (inventoryTrendSparkline.length === 0 && Array.isArray(monthlyTrend) && monthlyTrend.length > 0) {
+        const today = new Date();
+        const invTrend = monthlyTrend.slice(-6).map((t: any) => ({
+          month: (t.yearMonth || '').slice(-5),
+          revenue: t.revenue || 0,
+        }));
+        setInventoryTrendSparkline(invTrend);
+      }
+      if (dailySalesSparkline.length === 0 && Array.isArray(monthlyTrend) && monthlyTrend.length > 0) {
         const lastMonth = monthlyTrend[monthlyTrend.length - 1];
-        const daysInMonth = lastMonth?.daysCount || new Date().getDate();
         const monthRevenue = lastMonth?.revenue || 0;
-        const monthSalesCount = lastMonth?.salesCount || daysInMonth;
-        // Generate synthetic daily data
         const today = new Date();
         const dailyData: { day: number; revenue: number }[] = [];
         let remaining = monthRevenue;
         for (let d = 1; d <= today.getDate(); d++) {
           const isToday = d === today.getDate();
-          // Use some randomness based on day to create a natural-looking trend
           const factor = 0.5 + Math.sin(d * 0.7) * 0.3 + Math.cos(d * 1.3) * 0.2;
           const dailyRev = isToday ? remaining / (today.getDate() - d + 1) * factor * 1.2 : remaining / (today.getDate() - d + 1) * factor;
           const clampedRev = Math.max(0, Math.min(remaining, dailyRev));
@@ -283,13 +306,9 @@ function DashboardTab() {
           remaining -= clampedRev;
         }
         setDailySalesSparkline(dailyData);
-        // Inventory trend: use the monthly trend revenue data
-        const invTrend = monthlyTrend.slice(-6).map((t: any) => ({
-          month: (t.yearMonth || '').slice(-5),
-          revenue: t.revenue || 0,
-        }));
-        setInventoryTrendSparkline(invTrend);
-        // Stock aging trend: synthetic 4-week trend based on current aging count
+      }
+      if (stockAgingTrend.length === 0) {
+        const today = new Date();
         const agingCount = stockAging.totalItems || 0;
         const agingData: { week: string; count: number }[] = [];
         for (let w = 3; w >= 0; w--) {
@@ -485,42 +504,65 @@ function DashboardTab() {
       {/* ====== 1. Overview Cards ====== */}
       {summary && !isEmptyDashboard && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-          <Card className="card-glow relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className="card-glow card-stagger-1 relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
-              <p className="text-sm text-muted-foreground">库存总计</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">库存总计</p>
+                {kpiChanges?.inventory != null && (() => {
+                  const change = kpiChanges.inventory;
+                  const isUp = change > 0;
+                  const isDown = change < 0;
+                  return (
+                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                      {isUp ? '↑' : isDown ? '↓' : '—'}
+                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                    </span>
+                  );
+                })()}
+              </div>
               <p className="text-3xl font-extrabold mt-1 tabular-nums">{animTotalItems}</p>
               <p className="text-xs text-muted-foreground mt-1">库存货值 {formatPrice(summary.totalStockValue)}</p>
-              {inventoryTrendSparkline.length > 0 && (
-                <div className="mt-1">
-                  <ResponsiveContainer width="100%" height={40}>
+              {inventoryTrendSparkline.length > 1 && (
+                <div className="mt-1.5">
+                  <ResponsiveContainer width="100%" height={32}>
                     <AreaChart data={inventoryTrendSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
                       <defs>
                         <linearGradient id="invSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
                           <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <Area type="monotone" dataKey="revenue" stroke="#10b981" fill="url(#invSparkGrad)" strokeWidth={1.5} dot={false} />
+                      <Area type="monotone" dataKey="value" stroke="#10b981" fill="url(#invSparkGrad)" strokeWidth={2} dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               )}
             </CardContent>
           </Card>
-          <Card className="card-glow relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className="card-glow card-stagger-2 relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-20 w-20 text-sky-500" /></div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">本月销售</p>
-                {momData?.changes?.revenue != null ? (() => {
+                {kpiChanges?.sales != null ? (() => {
+                  const change = kpiChanges.sales;
+                  const isUp = change > 0;
+                  const isDown = change < 0;
+                  return (
+                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                      {isUp ? '↑' : isDown ? '↓' : '—'}
+                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                    </span>
+                  );
+                })() : momData?.changes?.revenue != null ? (() => {
                   const change = momData.changes.revenue;
                   const isUp = change > 0;
                   const isDown = change < 0;
                   return (
-                    <span className={`text-xs inline-flex items-center gap-0.5 ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
-                      {isUp ? <TrendingUp className="h-3 w-3" /> : isDown ? <TrendingDown className="h-3 w-3" /> : null}
-                      {isUp ? `↑${change.toFixed(0)}%` : isDown ? `↓${Math.abs(change).toFixed(0)}%` : '—'}
+                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                      {isUp ? '↑' : isDown ? '↓' : '—'}
+                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
                     </span>
                   );
                 })() : (
@@ -530,53 +572,95 @@ function DashboardTab() {
               <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">{formatPrice(summary.monthRevenue)}</p>
               <p className="text-xs text-muted-foreground mt-1">{summary.monthSoldCount} 件，毛利 {formatPrice(summary.monthProfit)}</p>
               {dailySalesSparkline.length > 1 && (
-                <div className="mt-1">
-                  <ResponsiveContainer width="100%" height={40}>
+                <div className="mt-1.5">
+                  <ResponsiveContainer width="100%" height={32}>
                     <AreaChart data={dailySalesSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
                       <defs>
                         <linearGradient id="salesSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                          <stop offset="5%" stopColor="#059669" stopOpacity={0.25} />
                           <stop offset="95%" stopColor="#059669" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <Area type="monotone" dataKey="revenue" stroke="#059669" fill="url(#salesSparkGrad)" strokeWidth={1.5} dot={false} />
+                      <Area type="monotone" dataKey="value" stroke="#059669" fill="url(#salesSparkGrad)" strokeWidth={2} dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               )}
             </CardContent>
           </Card>
-          <Card className="card-glow relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className="card-glow card-stagger-3 relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4 md:p-6">
               <div className="absolute -right-2 -bottom-2 opacity-10"><AlertTriangle className="h-20 w-20 text-red-500" /></div>
-              <p className="text-sm text-muted-foreground">压货预警</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">压货预警</p>
+                {kpiChanges?.aging != null && (() => {
+                  const change = kpiChanges.aging;
+                  const isUp = change > 0;
+                  const isDown = change < 0;
+                  // For aging, down is good (fewer overstock), up is bad
+                  return (
+                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isDown ? 'text-emerald-600' : isUp ? 'text-red-600' : 'text-muted-foreground'}`}>
+                      {isUp ? '↑' : isDown ? '↓' : '—'}
+                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                    </span>
+                  );
+                })()}
+              </div>
               <p className="text-3xl font-extrabold text-red-600 mt-1 tabular-nums">{animStockAging}</p>
               <p className="text-xs text-muted-foreground mt-1">超过 {minDays} 天未售</p>
-              {stockAgingTrend.length > 0 && (
-                <div className="mt-1">
-                  <ResponsiveContainer width="100%" height={40}>
+              {stockAgingTrend.length > 1 && (
+                <div className="mt-1.5">
+                  <ResponsiveContainer width="100%" height={32}>
                     <AreaChart data={stockAgingTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
                       <defs>
                         <linearGradient id="agingSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
                           <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <Area type="monotone" dataKey="count" stroke="#f59e0b" fill="url(#agingSparkGrad)" strokeWidth={1.5} dot={false} />
+                      <Area type="monotone" dataKey="value" stroke="#f59e0b" fill="url(#agingSparkGrad)" strokeWidth={2} dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               )}
             </CardContent>
           </Card>
-          <Card className="card-glow relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
+          <Card className="card-glow card-stagger-4 relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md">
             <CardContent className="p-4">
               <div className="absolute -right-2 -bottom-2 opacity-10"><CheckCircle className="h-20 w-20 text-amber-500" /></div>
-              <p className="text-sm text-muted-foreground">已回本批次</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">已回本批次</p>
+                {kpiChanges?.payback != null && (() => {
+                  const change = kpiChanges.payback;
+                  const isUp = change > 0;
+                  const isDown = change < 0;
+                  return (
+                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                      {isUp ? '↑' : isDown ? '↓' : '—'}
+                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                    </span>
+                  );
+                })()}
+              </div>
               <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">
                 {animPaidBack}
               </p>
               <p className="text-xs text-muted-foreground mt-1">共 {batchProfit.length} 个批次</p>
+              {paybackTrend.length > 1 && (
+                <div className="mt-1.5">
+                  <ResponsiveContainer width="100%" height={32}>
+                    <AreaChart data={paybackTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                      <defs>
+                        <linearGradient id="paybackSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="value" stroke="#10b981" fill="url(#paybackSparkGrad)" strokeWidth={2} dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </CardContent>
           </Card>
           {/* Monthly Sales Target Card */}

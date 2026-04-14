@@ -23,6 +23,12 @@ const fadeInStyle = typeof document !== 'undefined' && !document.getElementById(
         .card-glow:hover { animation: glowPulse 1.5s ease-in-out; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .card-slide-up { animation: slideUp 0.4s ease-out both; }
+        @keyframes cardStagger { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .card-stagger-1 { animation: cardStagger 0.4s ease-out 0.05s both; }
+        .card-stagger-2 { animation: cardStagger 0.4s ease-out 0.12s both; }
+        .card-stagger-3 { animation: cardStagger 0.4s ease-out 0.19s both; }
+        .card-stagger-4 { animation: cardStagger 0.4s ease-out 0.26s both; }
+        .card-stagger-5 { animation: cardStagger 0.4s ease-out 0.33s both; }
         @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         .nav-tab-active {
           background: linear-gradient(90deg, rgba(5,150,105,0.1), rgba(20,184,166,0.1), rgba(5,150,105,0.1));
@@ -34,6 +40,23 @@ const fadeInStyle = typeof document !== 'undefined' && !document.getElementById(
         }
         @keyframes dotPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
         .loading-dot { animation: dotPulse 1.5s ease-in-out infinite; }
+        @keyframes borderSlideIn { from { border-left-width: 0px; padding-left: 0px; } to { border-left-width: 3px; padding-left: 0px; } }
+        .row-border-slide { border-left: 3px solid transparent; transition: border-color 0.2s ease, border-left-width 0.2s ease; }
+        .row-border-slide:hover { animation: borderSlideIn 0.2s ease-out; }
+        @keyframes dialogEnter { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes dialogExit { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.95); } }
+        .dialog-enter { animation: dialogEnter 0.2s ease-out; }
+        .dialog-exit { animation: dialogExit 0.15s ease-in; }
+        @keyframes pulseDot { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4); } 50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(5, 150, 105, 0); } }
+        .pulse-dot { animation: pulseDot 2s ease-in-out infinite; }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .shimmer-line { background: linear-gradient(90deg, transparent 25%, rgba(5,150,105,0.08) 50%, transparent 75%); background-size: 200% 100%; animation: shimmer 2s infinite; }
+        @keyframes countUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .count-up { animation: countUp 0.3s ease-out; }
+        .btn-press { transition: transform 0.1s ease, box-shadow 0.1s ease; }
+        .btn-press:active { transform: scale(0.97); box-shadow: none; }
+        .btn-hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .btn-hover-lift:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
       `;
       document.head.appendChild(style);
       return true;
@@ -143,6 +166,11 @@ function InfoTip({ text }: { text: string }) {
   );
 }
 
+// Live indicator dot (e.g., for real-time data, online status)
+function PulseDot({ color = 'bg-emerald-500', size = 'h-2 w-2' }: { color?: string; size?: string }) {
+  return <span className={`inline-block rounded-full ${size} ${color} pulse-dot`} />;
+}
+
 // ========== Error Boundary ==========
 interface ErrorFallbackProps {
   error: Error;
@@ -242,4 +270,4 @@ function ConfirmDialog({ open, onOpenChange, title, description, confirmText = '
   );
 }
 
-export { fadeInStyle, cardSlideUpStyle, CHART_COLORS, formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, InfoTip, ErrorBoundary, ErrorFallback, ConfirmDialog };
+export { fadeInStyle, cardSlideUpStyle, CHART_COLORS, formatPrice, StatusBadge, PaybackBar, EmptyState, LoadingSkeleton, InfoTip, PulseDot, ErrorBoundary, ErrorFallback, ConfirmDialog };
