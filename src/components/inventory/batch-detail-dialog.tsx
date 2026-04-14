@@ -27,15 +27,15 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
   const [detailItemId, setDetailItemId] = useState<number | null>(null);
   // Inline quick add form
   const [quickAdd, setQuickAdd] = useState(false);
-  const [quickForm, setQuickForm] = useState({ name: '', sellingPrice: 0, counter: '', certNo: '' });
+  const [quickForm, setQuickForm] = useState({ sellingPrice: '', counter: '' });
   const [quickSaving, setQuickSaving] = useState(false);
+  const [sessionAddedCount, setSessionAddedCount] = useState(0);
 
-  // Auto-generated SKU for quick add
+  // Auto-generated SKU for quick add: batchCode + sequential number (e.g. "B001-7")
   const autoSku = useMemo(() => {
     if (!batch) return '';
     const existingCount = batch.items?.length || 0;
-    const seq = String(existingCount + 1).padStart(3, '0');
-    return `${batch.batchCode}-${seq}`;
+    return `${batch.batchCode}-${existingCount + 1}`;
   }, [batch]);
   // Item search filter
   const [itemSearch, setItemSearch] = useState('');
@@ -99,15 +99,25 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
     }
     setQuickSaving(true);
     try {
+      // Auto-calculate cost price using allocated cost method
+      const costPrice = (batch?.totalCost && batch?.quantity && batch.quantity > 0)
+        ? Math.round((batch.totalCost / batch.quantity) * 100) / 100
+        : 0;
       await itemsApi.createItem({
+        skuCode: autoSku,
+        materialId: batch?.materialId,
+        typeId: batch?.typeId || undefined,
         batchId: batchId,
-        name: quickForm.name || autoSku,
-        sellingPrice: quickForm.sellingPrice,
+        batchCode: batch?.batchCode,
+        sellingPrice: parseFloat(quickForm.sellingPrice) || 0,
+        costPrice,
         counter: quickForm.counter ? Number(quickForm.counter) : undefined,
-        certNo: quickForm.certNo || undefined,
+        purchaseDate: batch?.purchaseDate,
+        supplierId: batch?.supplierId,
       });
       toast.success('快速添加成功！');
-      setQuickForm({ name: '', sellingPrice: 0, counter: '', certNo: '' });
+      setSessionAddedCount(c => c + 1);
+      setQuickForm({ sellingPrice: '', counter: '' });
       setQuickAdd(false);
       fetchBatchDetail(batchId);
     } catch (e: any) {
@@ -217,7 +227,12 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
                     variant="outline"
                     onClick={() => setQuickAdd(!quickAdd)}
                   >
-                    <Plus className="h-3.5 w-3.5 mr-1" />快速添加
+                    <Plus className="h-3.5 w-3.5 mr-1" />快速添加货品
+                    {sessionAddedCount > 0 && (
+                      <Badge variant="secondary" className="ml-1.5 h-4 px-1.5 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                        +{sessionAddedCount}
+                      </Badge>
+                    )}
                   </Button>
                 </div>
               )}
@@ -231,7 +246,7 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                     <div className="space-y-1"><Label className="text-xs">SKU</Label><Input value={autoSku} readOnly className="h-8 text-sm bg-muted/50" /></div>
-                    <div className="space-y-1"><Label className="text-xs">售价 <span className="text-red-500">*</span></Label><Input type="number" placeholder="售价" value={quickForm.sellingPrice || ''} onChange={e => setQuickForm(f => ({ ...f, sellingPrice: parseFloat(e.target.value) || 0 }))} className="h-8 text-sm" /></div>
+                    <div className="space-y-1"><Label className="text-xs">售价 <span className="text-red-500">*</span></Label><Input type="number" placeholder="输入售价" value={quickForm.sellingPrice} onChange={e => setQuickForm(f => ({ ...f, sellingPrice: e.target.value }))} className="h-8 text-sm" /></div>
                     <div className="space-y-1"><Label className="text-xs">材质</Label><Input value={batch?.materialName || '-'} readOnly className="h-8 text-sm bg-muted/50" /></div>
                     <div className="space-y-1"><Label className="text-xs">器型</Label><Input value={batch?.typeName || '-'} readOnly className="h-8 text-sm bg-muted/50" /></div>
                     <div className="space-y-1"><Label className="text-xs">柜台号</Label><Input placeholder="例: A-01" value={quickForm.counter} onChange={e => setQuickForm(f => ({ ...f, counter: e.target.value }))} className="h-8 text-sm" /></div>
@@ -240,7 +255,10 @@ function BatchDetailDialog({ batchId, open, onOpenChange }: { batchId: number | 
                     <Button size="sm" onClick={handleQuickAdd} className="bg-emerald-600 hover:bg-emerald-700" disabled={quickSaving}>
                       {quickSaving ? '添加中...' : '添加'}
                     </Button>
-                    <span className="text-xs text-muted-foreground">SKU和材质/器型自动从批次继承</span>
+                    <Button size="sm" variant="ghost" onClick={() => setQuickAdd(false)}>
+                      取消
+                    </Button>
+                    <span className="text-xs text-muted-foreground">SKU和材质/器型自动从批次继承，成本自动分摊</span>
                   </div>
                 </div>
               )}

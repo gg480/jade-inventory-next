@@ -9,7 +9,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogFooter, AlertDialogDescription, AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { Info, Gem } from 'lucide-react';
+import { Info, Gem, Package, ShoppingCart, Users, Layers, Search } from 'lucide-react';
 
 // ========== CSS Keyframes ==========
 const fadeInStyle = typeof document !== 'undefined' && !document.getElementById('fade-in-keyframes')
@@ -100,14 +100,34 @@ function PaybackBar({ rate }: { rate: number }) {
   );
 }
 
-function EmptyState({ icon: Icon, title, desc }: { icon: React.ElementType; title: string; desc: string }) {
+function EmptyState({ icon: Icon, title, desc, context, actionLabel, onAction }: { icon?: React.ElementType; title: string; desc: string; context?: 'inventory' | 'sales' | 'customers' | 'batches' | 'search' | 'default'; actionLabel?: string; onAction?: () => void }) {
+  // Context-specific illustrations
+  const contextConfig: Record<string, { icon: React.ElementType; gradient: string; iconColor: string; bgPattern: string }> = {
+    inventory: { icon: Package, gradient: 'from-emerald-400 to-teal-500', iconColor: 'text-white', bgPattern: 'radial-gradient(circle at 30% 40%, rgba(5,150,105,0.08) 0%, transparent 60%)' },
+    sales: { icon: ShoppingCart, gradient: 'from-sky-400 to-blue-500', iconColor: 'text-white', bgPattern: 'radial-gradient(circle at 70% 30%, rgba(14,165,233,0.08) 0%, transparent 60%)' },
+    customers: { icon: Users, gradient: 'from-purple-400 to-violet-500', iconColor: 'text-white', bgPattern: 'radial-gradient(circle at 50% 50%, rgba(139,92,246,0.08) 0%, transparent 60%)' },
+    batches: { icon: Layers, gradient: 'from-amber-400 to-orange-500', iconColor: 'text-white', bgPattern: 'radial-gradient(circle at 60% 60%, rgba(245,158,11,0.08) 0%, transparent 60%)' },
+    search: { icon: Search, gradient: 'from-gray-400 to-slate-500', iconColor: 'text-white', bgPattern: 'radial-gradient(circle at 40% 50%, rgba(100,116,139,0.08) 0%, transparent 60%)' },
+  };
+  const config = context ? contextConfig[context] : null;
+  const DisplayIcon = config?.icon || Icon || Gem;
+  const hasContext = !!config;
+
   return (
-    <div className="text-center py-16 px-4">
-      <div className="mx-auto w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 animate-bounce" style={{ animationDuration: '2s' }}>
-        <Icon className="h-8 w-8 text-muted-foreground/50" />
+    <div className="text-center py-16 px-4" style={hasContext ? { background: config!.bgPattern } : undefined}>
+      <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 ${hasContext ? `bg-gradient-to-br ${config!.gradient} shadow-lg` : 'bg-muted/50'}`} style={hasContext ? undefined : { animationDuration: '2s' }}>
+        <DisplayIcon className={`h-8 w-8 ${hasContext ? config!.iconColor : 'text-muted-foreground/50'}`} />
       </div>
       <h3 className="mt-1 text-lg font-medium text-foreground">{title}</h3>
       <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">{desc}</p>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

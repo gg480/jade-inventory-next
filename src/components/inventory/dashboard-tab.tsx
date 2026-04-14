@@ -516,165 +516,206 @@ function DashboardTab() {
       {/* ====== 1. Overview Cards ====== */}
       {summary && !isEmptyDashboard && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
-          <Card className={`card-glow card-stagger-1 relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
-            <CardContent className="p-4 md:p-6">
-              <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">库存总计</p>
-                {kpiChanges?.inventory != null && (() => {
-                  const change = kpiChanges.inventory;
-                  const isUp = change > 0;
-                  const isDown = change < 0;
-                  return (
-                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
-                      {isUp ? '↑' : isDown ? '↓' : '—'}
-                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
-                    </span>
-                  );
+          <TooltipProvider delayDuration={300}>
+            <UiTooltip>
+              <TooltipTrigger asChild>
+                <Card className={`card-glow card-stagger-1 relative overflow-hidden border-l-4 border-l-emerald-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
+                  <CardContent className="p-4 md:p-6">
+                    <div className="absolute -right-2 -bottom-2 opacity-10"><Package className="h-20 w-20 text-emerald-500" /></div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">库存总计</p>
+                      {kpiChanges?.inventory != null && (() => {
+                        const change = kpiChanges.inventory;
+                        const isUp = change > 0;
+                        const isDown = change < 0;
+                        return (
+                          <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                            {isUp ? '↑' : isDown ? '↓' : '—'}
+                            {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <p className="text-3xl font-extrabold mt-1 tabular-nums">{animTotalItems}</p>
+                    <p className="text-xs text-muted-foreground mt-1">库存货值 {formatPrice(summary.totalStockValue)}</p>
+                    {inventoryTrendSparkline.length > 1 && (
+                      <div className="mt-1.5">
+                        <ResponsiveContainer width="100%" height={32}>
+                          <AreaChart data={inventoryTrendSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                            <defs>
+                              <linearGradient id="invSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <Area type="monotone" dataKey="value" stroke="#10b981" fill="url(#invSparkGrad)" strokeWidth={2} dot={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-gray-900 text-white border-emerald-500/30 text-xs px-3 py-2">
+                <p>在库 {summary.inStockCount ?? summary.totalItems - (summary.soldCount || 0) - (summary.returnedCount || 0)} 件 / 已售 {summary.soldCount || 0} 件 / 已退 {summary.returnedCount || 0} 件</p>
+              </TooltipContent>
+            </UiTooltip>
+          </TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <UiTooltip>
+              <TooltipTrigger asChild>
+                <Card className={`card-glow card-stagger-2 relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
+                  <CardContent className="p-4 md:p-6">
+                    <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-20 w-20 text-sky-500" /></div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">本月销售</p>
+                      {kpiChanges?.sales != null ? (() => {
+                        const change = kpiChanges.sales;
+                        const isUp = change > 0;
+                        const isDown = change < 0;
+                        return (
+                          <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                            {isUp ? '↑' : isDown ? '↓' : '—'}
+                            {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                          </span>
+                        );
+                      })() : momData?.changes?.revenue != null ? (() => {
+                        const change = momData.changes.revenue;
+                        const isUp = change > 0;
+                        const isDown = change < 0;
+                        return (
+                          <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                            {isUp ? '↑' : isDown ? '↓' : '—'}
+                            {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                          </span>
+                        );
+                      })() : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </div>
+                    <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">{formatPrice(summary.monthRevenue)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{summary.monthSoldCount} 件，毛利 {formatPrice(summary.monthProfit)}</p>
+                    {dailySalesSparkline.length > 1 && (
+                      <div className="mt-1.5">
+                        <ResponsiveContainer width="100%" height={32}>
+                          <AreaChart data={dailySalesSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                            <defs>
+                              <linearGradient id="salesSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#059669" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <Area type="monotone" dataKey="value" stroke="#059669" fill="url(#salesSparkGrad)" strokeWidth={2} dot={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-gray-900 text-white border-emerald-500/30 text-xs px-3 py-2">
+                <p>门店 {salesByChannel.find((c: any) => c.channel === 'store')?.count ?? salesByChannel.find((c: any) => c.channel === 'store')?.soldCount ?? 0} 件 / 微信 {salesByChannel.find((c: any) => c.channel === 'wechat')?.count ?? salesByChannel.find((c: any) => c.channel === 'wechat')?.soldCount ?? 0} 件</p>
+              </TooltipContent>
+            </UiTooltip>
+          </TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <UiTooltip>
+              <TooltipTrigger asChild>
+                <Card className={`card-glow card-stagger-3 relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
+                  <CardContent className="p-4 md:p-6">
+                    <div className="absolute -right-2 -bottom-2 opacity-10"><AlertTriangle className="h-20 w-20 text-red-500" /></div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">压货预警</p>
+                      {kpiChanges?.aging != null && (() => {
+                        const change = kpiChanges.aging;
+                        const isUp = change > 0;
+                        const isDown = change < 0;
+                        // For aging, down is good (fewer overstock), up is bad
+                        return (
+                          <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isDown ? 'text-emerald-600' : isUp ? 'text-red-600' : 'text-muted-foreground'}`}>
+                            {isUp ? '↑' : isDown ? '↓' : '—'}
+                            {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <p className="text-3xl font-extrabold text-red-600 mt-1 tabular-nums">{animStockAging}</p>
+                    <p className="text-xs text-muted-foreground mt-1">超过 {minDays} 天未售</p>
+                    {stockAgingTrend.length > 1 && (
+                      <div className="mt-1.5">
+                        <ResponsiveContainer width="100%" height={32}>
+                          <AreaChart data={stockAgingTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                            <defs>
+                              <linearGradient id="agingSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <Area type="monotone" dataKey="value" stroke="#f59e0b" fill="url(#agingSparkGrad)" strokeWidth={2} dot={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-gray-900 text-white border-emerald-500/30 text-xs px-3 py-2">
+                {(() => {
+                  const agingItems = stockAging?.items || [];
+                  const over90 = agingItems.filter((i: any) => i.days > 90).reduce((s: number, i: any) => s + (i.count || 1), 0);
+                  const days60to90 = agingItems.filter((i: any) => i.days > 60 && i.days <= 90).reduce((s: number, i: any) => s + (i.count || 1), 0);
+                  return <p>90天以上 {over90} 件 / 60-90天 {days60to90} 件</p>;
                 })()}
-              </div>
-              <p className="text-3xl font-extrabold mt-1 tabular-nums">{animTotalItems}</p>
-              <p className="text-xs text-muted-foreground mt-1">库存货值 {formatPrice(summary.totalStockValue)}</p>
-              {inventoryTrendSparkline.length > 1 && (
-                <div className="mt-1.5">
-                  <ResponsiveContainer width="100%" height={32}>
-                    <AreaChart data={inventoryTrendSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
-                      <defs>
-                        <linearGradient id="invSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke="#10b981" fill="url(#invSparkGrad)" strokeWidth={2} dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className={`card-glow card-stagger-2 relative overflow-hidden border-l-4 border-l-sky-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
-            <CardContent className="p-4 md:p-6">
-              <div className="absolute -right-2 -bottom-2 opacity-10"><TrendingUp className="h-20 w-20 text-sky-500" /></div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">本月销售</p>
-                {kpiChanges?.sales != null ? (() => {
-                  const change = kpiChanges.sales;
-                  const isUp = change > 0;
-                  const isDown = change < 0;
-                  return (
-                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
-                      {isUp ? '↑' : isDown ? '↓' : '—'}
-                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
-                    </span>
-                  );
-                })() : momData?.changes?.revenue != null ? (() => {
-                  const change = momData.changes.revenue;
-                  const isUp = change > 0;
-                  const isDown = change < 0;
-                  return (
-                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
-                      {isUp ? '↑' : isDown ? '↓' : '—'}
-                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
-                    </span>
-                  );
-                })() : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-              <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">{formatPrice(summary.monthRevenue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{summary.monthSoldCount} 件，毛利 {formatPrice(summary.monthProfit)}</p>
-              {dailySalesSparkline.length > 1 && (
-                <div className="mt-1.5">
-                  <ResponsiveContainer width="100%" height={32}>
-                    <AreaChart data={dailySalesSparkline} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
-                      <defs>
-                        <linearGradient id="salesSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#059669" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#059669" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke="#059669" fill="url(#salesSparkGrad)" strokeWidth={2} dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className={`card-glow card-stagger-3 relative overflow-hidden border-l-4 border-l-red-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
-            <CardContent className="p-4 md:p-6">
-              <div className="absolute -right-2 -bottom-2 opacity-10"><AlertTriangle className="h-20 w-20 text-red-500" /></div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">压货预警</p>
-                {kpiChanges?.aging != null && (() => {
-                  const change = kpiChanges.aging;
-                  const isUp = change > 0;
-                  const isDown = change < 0;
-                  // For aging, down is good (fewer overstock), up is bad
-                  return (
-                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isDown ? 'text-emerald-600' : isUp ? 'text-red-600' : 'text-muted-foreground'}`}>
-                      {isUp ? '↑' : isDown ? '↓' : '—'}
-                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
-                    </span>
-                  );
-                })()}
-              </div>
-              <p className="text-3xl font-extrabold text-red-600 mt-1 tabular-nums">{animStockAging}</p>
-              <p className="text-xs text-muted-foreground mt-1">超过 {minDays} 天未售</p>
-              {stockAgingTrend.length > 1 && (
-                <div className="mt-1.5">
-                  <ResponsiveContainer width="100%" height={32}>
-                    <AreaChart data={stockAgingTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
-                      <defs>
-                        <linearGradient id="agingSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke="#f59e0b" fill="url(#agingSparkGrad)" strokeWidth={2} dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className={`card-glow card-stagger-4 relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
-            <CardContent className="p-4">
-              <div className="absolute -right-2 -bottom-2 opacity-10"><CheckCircle className="h-20 w-20 text-amber-500" /></div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">已回本批次</p>
-                {kpiChanges?.payback != null && (() => {
-                  const change = kpiChanges.payback;
-                  const isUp = change > 0;
-                  const isDown = change < 0;
-                  return (
-                    <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
-                      {isUp ? '↑' : isDown ? '↓' : '—'}
-                      {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
-                    </span>
-                  );
-                })()}
-              </div>
-              <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">
-                {animPaidBack}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">共 {batchProfit.length} 个批次</p>
-              {paybackTrend.length > 1 && (
-                <div className="mt-1.5">
-                  <ResponsiveContainer width="100%" height={32}>
-                    <AreaChart data={paybackTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
-                      <defs>
-                        <linearGradient id="paybackSparkGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke="#10b981" fill="url(#paybackSparkGrad)" strokeWidth={2} dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              </TooltipContent>
+            </UiTooltip>
+          </TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <UiTooltip>
+              <TooltipTrigger asChild>
+                <Card className={`card-glow card-stagger-4 relative overflow-hidden border-l-4 border-l-amber-500 hover:scale-[1.02] transition-transform duration-200 cursor-default shadow-sm hover:shadow-md ${refreshing ? 'card-refresh-shimmer' : ''}`}>
+                  <CardContent className="p-4">
+                    <div className="absolute -right-2 -bottom-2 opacity-10"><CheckCircle className="h-20 w-20 text-amber-500" /></div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">已回本批次</p>
+                      {kpiChanges?.payback != null && (() => {
+                        const change = kpiChanges.payback;
+                        const isUp = change > 0;
+                        const isDown = change < 0;
+                        return (
+                          <span className={`text-xs inline-flex items-center gap-0.5 font-medium ${isUp ? 'text-emerald-600' : isDown ? 'text-red-600' : 'text-muted-foreground'}`}>
+                            {isUp ? '↑' : isDown ? '↓' : '—'}
+                            {change !== 0 ? `${Math.abs(change).toFixed(0)}%` : ''}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <p className="text-3xl font-extrabold text-emerald-600 mt-1 tabular-nums">
+                      {animPaidBack}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">共 {batchProfit.length} 个批次</p>
+                    {paybackTrend.length > 1 && (
+                      <div className="mt-1.5">
+                        <ResponsiveContainer width="100%" height={32}>
+                          <AreaChart data={paybackTrend} margin={{ left: 0, right: 0, top: 2, bottom: 2 }}>
+                            <defs>
+                              <linearGradient id="paybackSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <Area type="monotone" dataKey="value" stroke="#10b981" fill="url(#paybackSparkGrad)" strokeWidth={2} dot={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-gray-900 text-white border-emerald-500/30 text-xs px-3 py-2">
+                <p>总批次 {batchProfit.length} / 回本率 {batchProfit.length > 0 ? ((paidBackCount / batchProfit.length) * 100).toFixed(1) : 0}%</p>
+              </TooltipContent>
+            </UiTooltip>
+          </TooltipProvider>
           {/* Monthly Sales Target Card */}
           <Card className="card-glow relative overflow-hidden border-l-4 border-l-violet-500 hover:scale-[1.02] transition-transform duration-200 cursor-pointer shadow-sm hover:shadow-md" onClick={() => { setTargetInput(String(monthlyTarget)); setShowTargetDialog(true); }}>
             <CardContent className="p-4">

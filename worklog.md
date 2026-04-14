@@ -3249,3 +3249,98 @@ Stage Summary:
 - 3次GitHub推送（15b672b, 45ba42b, f3f4123）
 - 所有lint和QA验证通过
 - Dev server OOM仍是环境限制问题
+
+## Task 19: 批次快速添加增强 + 数据导入预览 + 空状态插图 + Dashboard Tooltip (2026-06-18)
+
+### 项目状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ dev server 正常运行（200 OK）
+- 4项功能增强全部完成
+
+### 完成的修改
+
+#### 1. 批次详情快速添加货品增强 (batch-detail-dialog.tsx)
+- **SKU自动生成**: 改为 `batchCode-序号` 格式（如 "B001-7"），去掉三位补零
+- **完整API参数**: `itemsApi.createItem()` 调用现在传递全部必要字段:
+  - skuCode, materialId, typeId, batchId, batchCode
+  - sellingPrice, costPrice（自动计算: 总成本÷声明数量）
+  - counter, purchaseDate, supplierId
+- **会话计数器**: "快速添加货品"按钮上显示 `+N` 翡翠色徽章，记录本次会话添加数量
+- **取消按钮**: 新增"取消"按钮（ghost样式），与"添加"按钮并排
+- **表单简化**: 移除 name/certNo 字段，只保留售价（必填）和柜台号（可选）
+- **提示文字**: 改为"SKU和材质/器型自动从批次继承，成本自动分摊"
+
+#### 2. 数据导入预览增强 (settings-tab.tsx)
+- **PapaParse解析**: CSV文件选择后自动用papaparse解析，生成结构化数据
+- **列映射自动检测**: 根据CSV表头自动匹配系统字段（SKU/名称/材质/器型/成本/售价/状态/柜台号/采购日期）
+  - 支持中英文别名匹配（如"售价"→sellingPrice, "price"→sellingPrice）
+  - 映射结果显示：翡翠色→已映射，灰色→未映射
+- **预览表格**: 显示前5行数据，表头同时显示原始列名和映射字段名
+- **数据统计**: 文件信息行显示"共 N 行数据将被导入"徽章
+- **验证功能**: "验证数据"按钮检查:
+  - SKU空值/文件内重复
+  - 材质空值
+  - 无效数字值（成本/售价）
+  - 验证结果: "✅ N 条有效, ⚠️ M 条有问题"
+  - 问题行在预览表格中红色高亮 + AlertCircle图标
+  - 问题详情表格（行号/字段/问题描述）
+- **导入进度条**: 导入过程中显示翡翠色进度条 + 百分比
+  - 进度模拟：每500ms递增，完成时100%
+
+#### 3. 空状态插图增强 (shared.tsx)
+- **context prop**: 支持5种上下文类型 + 默认:
+  - `inventory`: Package图标 + 翡翠绿渐变圆 + 径向背景
+  - `sales`: ShoppingCart图标 + 天蓝渐变
+  - `customers`: Users图标 + 紫色渐变
+  - `batches`: Layers图标 + 琥珀渐变
+  - `search`: Search图标 + 灰色渐变
+  - 默认: Gem图标 + 原有muted背景 + 弹跳动画
+- **渐变图标圆**: 有context时图标圆使用 `bg-gradient-to-br` 渐变 + shadow-lg
+- **径向背景**: 每种context有独特的微妙radial-gradient背景装饰
+- **操作建议按钮**: 可选 `actionLabel` + `onAction` prop，渲染翡翠色操作按钮
+
+#### 4. Dashboard概览卡片悬停Tooltip (dashboard-tab.tsx)
+- **4个概览卡片**添加shadcn Tooltip悬停详情:
+  - **库存总计**: "在库 N 件 / 已售 M 件 / 已退 K 件"
+  - **本月销售**: "门店 X 件 / 微信 Y 件"（基于salesByChannel数据）
+  - **压货预警**: "90天以上 N 件 / 60-90天 M 件"（基于stockAging数据）
+  - **已回本批次**: "总批次 X / 回本率 Y%"
+- **Tooltip样式**: `bg-gray-900 text-white border-emerald-500/30` 暗色背景 + 翡翠色边框
+- **延迟**: `delayDuration={300}` 300ms延迟避免快速滑过触发
+- **布局**: `side="bottom"` 从卡片下方弹出
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ dev server 正常运行
+
+### 关键文件变更
+- `src/components/inventory/batch-detail-dialog.tsx` — SKU格式+完整API参数+会话计数+取消按钮
+- `src/components/inventory/settings-tab.tsx` — PapaParse解析+列映射+预览+验证+进度条
+- `src/components/inventory/shared.tsx` — EmptyState context插图+操作按钮
+- `src/components/inventory/dashboard-tab.tsx` — 4卡片Tooltip悬停详情
+
+---
+
+Task ID: 19
+Agent: main-agent
+Task: 批次快速添加增强 + 数据导入预览 + 空状态插图 + Dashboard Tooltip
+
+Work Log:
+- 读取 worklog.md 了解完整项目历史
+- 读取4个目标文件的当前代码
+- 初始化 fullstack 开发环境
+- 修改 batch-detail-dialog.tsx: SKU格式改为非补零、完整API参数传递、会话计数器、取消按钮
+- 修改 settings-tab.tsx: 引入papaparse、新增CSV解析/列映射/预览/验证/进度条功能
+- 修改 shared.tsx: EmptyState支持5种context插图+操作按钮
+- 修改 dashboard-tab.tsx: 4个概览卡片添加Tooltip悬停详情
+- 修复 settings-tab.tsx 未使用变量 existingSkus
+- bun run lint → 0 errors, 0 warnings
+- 更新 worklog.md
+
+Stage Summary:
+- 4项功能增强全部完成
+- 批次快速添加：完整API参数+会话计数+自动成本分摊
+- 数据导入：PapaParse解析+自动列映射+验证+进度条
+- 空状态：5种上下文插图+操作按钮
+- Dashboard：4卡片Tooltip悬停详情
+- 所有代码验证通过（0 lint错误）

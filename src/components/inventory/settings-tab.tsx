@@ -18,7 +18,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogDescription, AlertDialogCancel } from '@/components/ui/alert-dialog';
 
-import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X, Hash, Crown, Lock, Eye, EyeOff, LogOut } from 'lucide-react';
+import { Plus, Pencil, Trash2, Factory, Calculator, History, Download, Upload, Database, AlertTriangle, Loader2, FileSpreadsheet, FileDown, CheckCircle, XCircle, Clock, Phone, Gem, Box, Tag, DollarSign, Settings, ShieldCheck, Grid, Package, ShoppingCart, Users, Layers, Search, X, Hash, Crown, Lock, Eye, EyeOff, LogOut, AlertCircle } from 'lucide-react';
+import Papa from 'papaparse';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // ========== 材质大类选项 ==========
@@ -168,6 +169,12 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
   const [autoCreate, setAutoCreate] = useState(true);
   const [skipExisting, setSkipExisting] = useState(true);
   const [previewData, setPreviewData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  // Enhanced CSV import states
+  const [csvParsedData, setCsvParsedData] = useState<{ headers: string[]; rows: Record<string, string>[]; totalRows: number } | null>(null);
+  const [csvColumnMappings, setCsvColumnMappings] = useState<Record<string, string>>({});
+  const [csvValidationResult, setCsvValidationResult] = useState<{ validCount: number; invalidCount: number; issues: { row: number; field: string; message: string }[] } | null>(null);
+  const [csvImportProgress, setCsvImportProgress] = useState(0);
+  const [csvValidating, setCsvValidating] = useState(false);
 
   // Data statistics states
   const [dataStats, setDataStats] = useState({
@@ -486,6 +493,116 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
     }
   }
 
+  // Column mapping: CSV header → system field
+  const CSV_SYSTEM_FIELDS = [
+    { key: 'skuCode', label: 'SKU', aliases: ['sku', 'sku_code', 'sku编号', '编码', '货号'] },
+    { key: 'name', label: '名称', aliases: ['名称', '名字', '品名', '商品名', 'product_name', 'item_name'] },
+    { key: 'materialName', label: '材质', aliases: ['材质', '材料', 'material', 'material_name'] },
+    { key: 'typeName', label: '器型', aliases: ['器型', '类型', 'type', 'type_name', '类别'] },
+    { key: 'costPrice', label: '成本', aliases: ['成本', '进价', '采购价', 'cost', 'cost_price'] },
+    { key: 'sellingPrice', label: '售价', aliases: ['售价', '定价', '零售价', 'selling_price', 'price', '单价'] },
+    { key: 'status', label: '状态', aliases: ['状态', 'status', '库存状态'] },
+    { key: 'counter', label: '柜台号', aliases: ['柜台', '柜台号', 'counter', '柜号'] },
+    { key: 'purchaseDate', label: '采购日期', aliases: ['采购日期', '入库日期', 'purchase_date', 'date', '日期'] },
+  ];
+
+  function autoDetectColumnMappings(csvHeaders: string[]): Record<string, string> {
+    const mappings: Record<string, string> = {};
+    for (const header of csvHeaders) {
+      const h = header.trim().toLowerCase();
+      for (const field of CSV_SYSTEM_FIELDS) {
+        if (h === field.key.toLowerCase() || h === field.label.toLowerCase() || field.aliases.some(a => a.toLowerCase() === h)) {
+          mappings[header] = field.key;
+          break;
+        }
+      }
+      if (!mappings[header]) {
+        mappings[header] = '';
+      }
+    }
+    return mappings;
+  }
+
+  function parseCsvWithPapa(file: File) {
+    setCsvParsedData(null);
+    setCsvColumnMappings({});
+    setCsvValidationResult(null);
+    setCsvImportProgress(0);
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      encoding: 'UTF-8',
+      complete: (results) => {
+        const headers = results.meta.fields || [];
+        const rows = results.data as Record<string, string>[];
+        const mappings = autoDetectColumnMappings(headers);
+        setCsvParsedData({ headers, rows, totalRows: rows.length });
+        setCsvColumnMappings(mappings);
+      },
+      error: () => {
+        toast.error('CSV文件解析失败');
+      },
+    });
+  }
+
+  async function handleValidateCsvData() {
+    if (!csvParsedData) return;
+    setCsvValidating(true);
+    setCsvValidationResult(null);
+    try {
+      const issues: { row: number; field: string; message: string }[] = [];
+      const skuSet = new Set<string>();
+
+      for (let i = 0; i < csvParsedData.rows.length; i++) {
+        const row = csvParsedData.rows[i];
+        const rowNum = i + 2; // +2 for header row and 0-based index
+
+        // Find mapped fields
+        const skuField = Object.entries(csvColumnMappings).find(([, v]) => v === 'skuCode')?.[0];
+        const materialField = Object.entries(csvColumnMappings).find(([, v]) => v === 'materialName')?.[0];
+        const costField = Object.entries(csvColumnMappings).find(([, v]) => v === 'costPrice')?.[0];
+        const sellingField = Object.entries(csvColumnMappings).find(([, v]) => v === 'sellingPrice')?.[0];
+
+        // Check missing SKU
+        const skuValue = skuField ? (row[skuField] || '').trim() : '';
+        if (!skuValue) {
+          issues.push({ row: rowNum, field: 'SKU', message: 'SKU为空' });
+        } else if (skuSet.has(skuValue)) {
+          issues.push({ row: rowNum, field: 'SKU', message: `文件内SKU重复: ${skuValue}` });
+        } else {
+          skuSet.add(skuValue);
+        }
+
+        // Check missing material
+        if (materialField && !(row[materialField] || '').trim()) {
+          issues.push({ row: rowNum, field: '材质', message: '材质为空' });
+        }
+
+        // Check invalid numeric values
+        if (costField) {
+          const costVal = (row[costField] || '').trim();
+          if (costVal && isNaN(parseFloat(costVal))) {
+            issues.push({ row: rowNum, field: '成本', message: `无效的数字: "${costVal}"` });
+          }
+        }
+        if (sellingField) {
+          const sellVal = (row[sellingField] || '').trim();
+          if (sellVal && isNaN(parseFloat(sellVal))) {
+            issues.push({ row: rowNum, field: '售价', message: `无效的数字: "${sellVal}"` });
+          }
+        }
+      }
+
+      const validCount = csvParsedData.totalRows - new Set(issues.map(i => i.row)).size;
+      const invalidCount = new Set(issues.map(i => i.row)).size;
+      setCsvValidationResult({ validCount, invalidCount, issues });
+    } catch {
+      toast.error('验证过程出错');
+    } finally {
+      setCsvValidating(false);
+    }
+  }
+
   // CSV quick import handler
   function handleDownloadCsvTemplate() {
     const header = 'SKU,名称,器型,材质,状态,成本,售价,柜台号,采购日期';
@@ -505,8 +622,15 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
     if (!csvFile) return;
     setCsvImporting(true);
     setCsvResult(null);
+    setCsvImportProgress(10);
     try {
+      // Simulate progress during upload
+      const progressInterval = setInterval(() => {
+        setCsvImportProgress(prev => Math.min(prev + Math.random() * 15, 90));
+      }, 500);
       const result = await importApi.importCsvItems(csvFile);
+      clearInterval(progressInterval);
+      setCsvImportProgress(100);
       setCsvResult(result);
       if (result.errors.length === 0) {
         toast.success(`CSV导入完成: 成功${result.success}条${result.skipped > 0 ? `，跳过${result.skipped}条` : ''}`);
@@ -516,7 +640,10 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
     } catch (e: any) {
       toast.error(e.message || 'CSV导入失败');
     } finally {
-      setCsvImporting(false);
+      setTimeout(() => {
+        setCsvImporting(false);
+        setCsvImportProgress(0);
+      }, 800);
     }
   }
 
@@ -1354,6 +1481,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
                   if (f && f.name.endsWith('.csv')) {
                     setCsvFile(f);
                     setCsvResult(null);
+                    parseCsvWithPapa(f);
                   } else {
                     toast.error('请上传CSV文件');
                   }
@@ -1369,7 +1497,7 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
                   className="hidden"
                   onChange={e => {
                     const f = e.target.files?.[0];
-                    if (f) { setCsvFile(f); setCsvResult(null); }
+                    if (f) { setCsvFile(f); setCsvResult(null); parseCsvWithPapa(f); }
                   }}
                 />
               </div>
@@ -1380,10 +1508,156 @@ function SettingsTab({ onLogout }: SettingsTabProps) {
                     <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
                     <span className="text-sm font-medium">{csvFile.name}</span>
                     <span className="text-xs text-muted-foreground">({(csvFile.size / 1024).toFixed(1)} KB)</span>
+                    {csvParsedData && (
+                      <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                        共 {csvParsedData.totalRows} 行数据将被导入
+                      </Badge>
+                    )}
                   </div>
-                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500" onClick={() => { setCsvFile(null); setCsvResult(null); }}>×</Button>
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500" onClick={() => { setCsvFile(null); setCsvResult(null); setCsvParsedData(null); setCsvColumnMappings({}); setCsvValidationResult(null); }}>×</Button>
                 </div>
               )}
+
+              {/* PapaParse Preview: Column Mappings & First 5 Rows */}
+              {csvParsedData && (
+                <div className="space-y-3">
+                  {/* Column Mapping */}
+                  <div className="p-3 bg-sky-50 dark:bg-sky-950/20 rounded-lg border border-sky-200 dark:border-sky-800">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Grid className="h-3.5 w-3.5 text-sky-600" />
+                      <p className="text-xs font-medium text-sky-700 dark:text-sky-400">列映射（自动检测）</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5">
+                      {csvParsedData.headers.map(h => {
+                        const mapped = csvColumnMappings[h];
+                        const fieldLabel = CSV_SYSTEM_FIELDS.find(f => f.key === mapped)?.label;
+                        return (
+                          <div key={h} className={`px-2 py-1 rounded text-xs border ${mapped ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-700' : 'border-gray-200 bg-gray-50 dark:bg-gray-900/20 dark:border-gray-700'}`}>
+                            <span className="font-medium">{h}</span>
+                            {mapped ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 ml-1">→ {fieldLabel}</span>
+                            ) : (
+                              <span className="text-muted-foreground ml-1">（未映射）</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Preview Table (First 5 Rows) */}
+                  <div className="border rounded-lg overflow-x-auto max-h-48 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10 text-center text-xs">#</TableHead>
+                          {csvParsedData.headers.map((h, i) => {
+                            const mapped = csvColumnMappings[h];
+                            return (
+                              <TableHead key={i} className="text-xs whitespace-nowrap">
+                                {h}
+                                {mapped && <span className="ml-1 text-emerald-600">({CSV_SYSTEM_FIELDS.find(f => f.key === mapped)?.label})</span>}
+                              </TableHead>
+                            );
+                          })}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {csvParsedData.rows.slice(0, 5).map((row, ri) => {
+                          const isProblemRow = csvValidationResult?.issues.some(i => i.row === ri + 2);
+                          return (
+                            <TableRow key={ri} className={isProblemRow ? 'bg-red-50 dark:bg-red-950/20' : ''}>
+                              <TableCell className="text-xs text-center text-muted-foreground">{ri + 1}</TableCell>
+                              {csvParsedData.headers.map((h, ci) => {
+                                const mapped = csvColumnMappings[h];
+                                const issue = csvValidationResult?.issues.find(i => i.row === ri + 2 && (mapped === i.field || h === i.field));
+                                return (
+                                  <TableCell key={ci} className={`text-xs whitespace-nowrap max-w-32 truncate ${issue ? 'text-red-600 font-medium' : ''}`}>
+                                    {row[h] || '-'}
+                                    {issue && <AlertCircle className="h-3 w-3 inline ml-1 text-red-500" />}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                    {csvParsedData.totalRows > 5 && (
+                      <p className="text-xs text-muted-foreground text-center py-1.5 border-t">显示前5行，共 {csvParsedData.totalRows} 行</p>
+                    )}
+                  </div>
+
+                  {/* Validate Button & Results */}
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleValidateCsvData}
+                      disabled={csvValidating}
+                    >
+                      {csvValidating ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                      {csvValidating ? '验证中...' : '验证数据'}
+                    </Button>
+                    {csvValidationResult && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-emerald-600 font-medium">✅ {csvValidationResult.validCount} 条有效</span>
+                        {csvValidationResult.invalidCount > 0 && (
+                          <span className="text-amber-600 font-medium">⚠️ {csvValidationResult.invalidCount} 条有问题</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Validation Issues Detail */}
+                  {csvValidationResult && csvValidationResult.issues.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-14 text-xs">行号</TableHead>
+                            <TableHead className="w-20 text-xs">字段</TableHead>
+                            <TableHead className="text-xs">问题描述</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {csvValidationResult.issues.slice(0, 50).map((issue, i) => (
+                            <TableRow key={i} className="bg-red-50/50 dark:bg-red-950/10">
+                              <TableCell className="text-xs text-center">{issue.row}</TableCell>
+                              <TableCell className="text-xs font-medium">{issue.field}</TableCell>
+                              <TableCell className="text-xs text-red-600">{issue.message}</TableCell>
+                            </TableRow>
+                          ))}
+                          {csvValidationResult.issues.length > 50 && (
+                            <TableRow>
+                              <TableCell colSpan={3} className="text-xs text-muted-foreground text-center">
+                                ...还有 {csvValidationResult.issues.length - 50} 条问题
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Import Progress Bar */}
+              {csvImporting && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">导入进度</span>
+                    <span className="font-medium text-emerald-600">{Math.round(csvImportProgress)}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${csvImportProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Import button */}
               <Button
                 className="bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] transition-transform"
