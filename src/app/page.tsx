@@ -13,6 +13,7 @@ const InventoryTab = lazy(() => import('@/components/inventory/inventory-tab'));
 const SettingsTab = lazy(() => import('@/components/inventory/settings-tab'));
 import { MobileNav, DesktopNav, ShortcutsHelpDialog } from '@/components/inventory/navigation';
 import { Gem, Package, ShoppingCart, Zap, Clock, ArrowUp, HelpCircle, WifiOff } from 'lucide-react';
+import { Toaster } from 'sonner';
 import { itemsApi, salesApi, batchesApi } from '@/lib/api';
 import {
   Tooltip, TooltipTrigger, TooltipContent, TooltipProvider,
@@ -330,7 +331,9 @@ export default function JadeInventoryPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background" id="app-root">
+    <>
+      <Toaster richColors position="top-right" />
+      <div className="min-h-screen flex flex-col bg-background" id="app-root">
       {/* Top Loading Bar */}
       <div className="fixed top-0 left-0 right-0 z-[100] h-[2px] pointer-events-none">
         <div className="loading-bar h-full w-full" />
@@ -389,11 +392,12 @@ export default function JadeInventoryPage() {
       {/* Scroll-to-Top Button */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="no-print fixed bottom-20 md:bottom-6 right-4 z-20 h-9 w-9 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 flex items-center justify-center transition-opacity duration-200 ${showScrollTop ? 'opacity-100' : 'opacity-0 pointer-events-none'}"
+        className={`no-print fixed bottom-20 md:bottom-6 right-4 z-20 h-9 w-9 rounded-full bg-emerald-600 text-white shadow-lg hover:bg-emerald-700 flex items-center justify-center transition-opacity duration-200 ${showScrollTop ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         aria-label="回到顶部"
       >
         <ArrowUp className="h-4 w-4" />
       </button>
-    </div>
+      </div>
+    </>
   );
 }

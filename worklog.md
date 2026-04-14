@@ -2621,3 +2621,82 @@ Stage Summary:
 - `src/components/inventory/navigation.tsx` — 导航标签 nav-tab-active 类
 - `src/components/inventory/shared.tsx` — gradientShift/dotPulse CSS动画
 - `src/app/page.tsx` — 最后更新时间 + 加载指示器
+
+## Task 16: 稳定性修复 — Toaster组件恢复 + 回到顶部按钮CSS修复 (2026-04-14)
+
+### 项目当前状态判断
+- ✅ ESLint lint 通过（0 errors, 0 warnings）
+- ✅ 登录认证已绕过（page.tsx 不引用 LoginPage，直接渲染主应用）
+- ✅ 认证API后端保留但前端不调用（login-page.tsx 存在但未使用）
+- ⚠️ 上个会话上下文压缩时可能丢失了 Toaster 组件（Task 14 添加但本轮发现缺失）
+- ⚠️ 回到顶部按钮 className 使用字符串字面量而非模板字面量（CSS 类不生效）
+
+### 排查过程
+1. 读取 worklog.md（2623行）了解完整项目历史（Task 9-15）
+2. 检查 src/app/LoginPage.tsx → 文件不存在（确认：实际路径是 src/components/inventory/login-page.tsx）
+3. 检查 src/components/Sidebar.tsx → 文件不存在（确认：实际使用 navigation.tsx）
+4. 读取 page.tsx → 确认无任何认证逻辑（isAuthenticated/LoginPage 均未引用）
+5. 发现两个 bug：
+   - Toaster 组件缺失（之前 Task 14 添加但可能在上次会话编辑中丢失）
+   - 回到顶部按钮 className 用引号而非反引号，CSS 类无法动态切换
+
+### 完成的修改
+
+#### 1. 恢复 Toaster 组件 (page.tsx)
+- 添加 `import { Toaster } from 'sonner'`
+- 在 return JSX 中添加 `<Toaster richColors position="top-right" />`（位于根 div 外层，使用 Fragment 包裹）
+- 确保 CRUD 操作的 toast 通知能正常显示
+
+#### 2. 修复回到顶部按钮 CSS (page.tsx)
+- 将 `className="...${showScrollTop ? '...' : '...'}"` 改为 `className={\`...\${showScrollTop ? '...' : '...'}\`}`
+- 修复前：字符串字面量导致 ${} 不被解析，按钮始终 opacity-100
+- 修复后：模板字面量正确根据 showScrollTop 状态切换显示/隐藏
+
+#### 3. JSX 结构调整 (page.tsx)
+- 添加 React Fragment（<>...</>）包裹 Toaster 和根 div
+- 确保组件返回单一根元素
+
+### 验证结果
+- ✅ `bun run lint` — 0 errors, 0 warnings
+- ✅ page.tsx 结构正确（Fragment > Toaster + div#app-root）
+- ✅ 回到顶部按钮 className 使用模板字面量
+
+### 关键文件变更
+- `src/app/page.tsx` — Toaster导入+渲染 + 回到顶部按钮模板字面量修复 + Fragment包裹
+
+### 未解决问题/风险
+- ⚠️ 容器内存限制（Chrome + Next.js dev server 无法同时运行，agent-browser QA受限，已知环境问题）
+- 🟡 登录认证系统代码保留但前端未启用（局域网部署无需认证）
+- 🟡 GitHub 推送（多轮改动未推送）
+
+### 用户指令记录
+- "持续检查问题直到能稳定运行，停止迭代新功能" — 仅做稳定性修复
+- "先把登录验证的功能注释掉" — 认证已绕过（page.tsx 不引用 LoginPage）
+- "登录认证的问题先放一放，局域网部署的我是，不公开" — 认证暂停
+
+### 下一阶段优先建议
+1. 🔴 等待用户确认页面正常显示后继续
+2. 🟡 GitHub 推送（积累多轮改动后统一推送）
+3. 🟡 用户恢复后根据反馈继续修复
+
+---
+
+Task ID: 16
+Agent: cron-agent
+Task: 稳定性修复 — Toaster + 回到顶部按钮
+
+Work Log:
+- 读取 worklog.md（2623行）了解完整历史
+- 确认 LoginPage.tsx/Sidebar.tsx 文件路径（实际路径不同）
+- 确认 page.tsx 无认证逻辑（已绕过）
+- 发现 Toaster 组件缺失 → 添加导入和 JSX
+- 发现回到顶部按钮 className bug → 修复为模板字面量
+- 添加 Fragment 包裹确保 JSX 结构正确
+- bun run lint → 0 errors, 0 warnings
+- 更新 worklog.md
+
+Stage Summary:
+- 2项 bug 修复（Toaster 组件恢复 + 回到顶部按钮 CSS）
+- page.tsx 结构调整为 Fragment 包裹
+- lint 通过，代码质量正常
+- 项目状态稳定，等待用户验证
