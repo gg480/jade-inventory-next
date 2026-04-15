@@ -20,12 +20,8 @@ export async function GET() {
     },
   });
 
-  // Pending returns (sale records that have a returnId but not yet fully processed)
-  const pendingReturns = await db.saleRecord.count({
-    where: {
-      returnId: { not: null },
-    },
-  });
+  // Pending returns (sale records that have associated returns)
+  const pendingReturns = await db.saleReturn.count();
 
   // Gross profit margin calculation
   const monthSales = await db.saleRecord.findMany({
