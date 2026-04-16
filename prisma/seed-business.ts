@@ -22,7 +22,7 @@ async function main() {
   const s1 = suppliers[0], s2 = suppliers[1], s3 = suppliers[2];
 
   // Create 20 items
-  const items = [];
+  const items: any[] = [];
   for (let i = 1; i <= 20; i++) {
     const mat = [gold, silver, k18, jadeite, hetian][i % 5]!;
     const typ = [bracelet, pendant, necklace, ring, beads, ornament][i % 6]!;
