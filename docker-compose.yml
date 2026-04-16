@@ -1,30 +1,33 @@
-# 玉器店进销存管理系统 - Docker Compose 配置
-# 使用说明详见 DEPLOY.md
+version: "3.8"
 
 services:
   jade-inventory:
-    image: jade-inventory:latest
+    image: gg480/jade-inventory-next:latest
     build:
       context: .
       dockerfile: Dockerfile
     container_name: jade-inventory
     restart: unless-stopped
     ports:
-      - "8080:3000"
+      - "3000:3000"
     environment:
-      # 数据库路径（容器内绝对路径）
-      - DATABASE_URL=file:/app/db/custom.db
-      # 可选：时区设置
-      - TZ=Asia/Shanghai
+      - NODE_ENV=production
+      - DATABASE_URL=file:./db/custom.db
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
     volumes:
-      # ====== 数据持久化（必须挂载）======
-      # 数据库文件 - 包含所有业务数据（货品/销售/客户等）
-      - ./data/db:/app/db
-      # 货品图片 - 上传的货品照片
-      - ./data/images:/app/public/images
+      # Persist database across container restarts
+      - jade-db:/app/db
+      # Persist uploaded images
+      - jade-uploads:/app/upload
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/stats/quick"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
       start_period: 15s
+
+volumes:
+  jade-db:
+    driver: local
+  jade-uploads:
+    driver: local

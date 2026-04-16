@@ -1,15 +1,26 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { validateToken } from '@/lib/auth';
+import { validateToken, hashPassword, verifyPassword, parseStoredPassword, formatStoredPassword } from '@/lib/auth';
 
-const DEFAULT_PASSWORD = 'admin123';
-
-async function getAdminPassword(): Promise<string> {
+/**
+ * Verify current password — supports both hashed and legacy plaintext
+ */
+async function verifyCurrentPassword(inputPassword: string): Promise<boolean> {
   try {
     const config = await db.sysConfig.findUnique({ where: { key: 'admin_password' } });
-    return config?.value || DEFAULT_PASSWORD;
+    if (!config?.value) return false;
+
+    const stored = config.value;
+    const parsed = parseStoredPassword(stored);
+
+    if (parsed) {
+      return verifyPassword(inputPassword, parsed.hash, parsed.salt);
+    } else {
+      // Legacy plaintext
+      return inputPassword === stored;
+    }
   } catch {
-    return DEFAULT_PASSWORD;
+    return false;
   }
 }
 
@@ -33,8 +44,8 @@ export async function PUT(req: Request) {
       return NextResponse.json({ code: 400, data: null, message: '新密码长度不能少于6位' }, { status: 400 });
     }
 
-    const adminPassword = await getAdminPassword();
-    if (currentPassword !== adminPassword) {
+    const isValid = await verifyCurrentPassword(currentPassword);
+    if (!isValid) {
       return NextResponse.json({ code: 401, data: null, message: '当前密码错误' }, { status: 401 });
     }
 
@@ -42,11 +53,12 @@ export async function PUT(req: Request) {
       return NextResponse.json({ code: 400, data: null, message: '新密码不能与当前密码相同' }, { status: 400 });
     }
 
-    // Update password in SysConfig
+    // Hash and store new password
+    const { salt, hash } = hashPassword(newPassword);
     await db.sysConfig.upsert({
       where: { key: 'admin_password' },
-      update: { value: newPassword },
-      create: { key: 'admin_password', value: newPassword, description: '管理员密码' },
+      update: { value: formatStoredPassword(salt, hash) },
+      create: { key: 'admin_password', value: formatStoredPassword(salt, hash), description: '管理员密码(哈希)' },
     });
 
     return NextResponse.json({
@@ -54,7 +66,7 @@ export async function PUT(req: Request) {
       data: null,
       message: '密码修改成功',
     });
-  } catch (e: any) {
-    return NextResponse.json({ code: 500, data: null, message: e.message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ code: 500, data: null, message: '服务器内部错误' }, { status: 500 });
   }
 }

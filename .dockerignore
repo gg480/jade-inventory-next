@@ -1,12 +1,36 @@
 node_modules
 .next
 .git
-db/*.db
-public/images/item_*
-qa-screenshots
-download
-upload
-screenshot-*
-*.log
-agent-ctx
-mini-services
+.gitignore
+.env*
+*.md
+docker-compose*.yml
+Dockerfile
+.devcontainer
+
+# Development artifacts
+skills/
+examples/
+qa-screenshots/
+download/
+upload/
+agent-ctx/
+.zscripts/
+worklog.md
+worklog.md.tmp
+screenshot-*.png
+dev-keepalive.sh
+start-dev.sh
+dev.log
+server.log
+mini-services/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

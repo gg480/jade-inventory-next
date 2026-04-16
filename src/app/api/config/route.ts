@@ -1,9 +1,17 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
+// Keys that should never be exposed via API response
+const SENSITIVE_KEYS = new Set(['admin_password']);
+
 export async function GET() {
   const configs = await db.sysConfig.findMany();
-  return NextResponse.json({ code: 0, data: configs, message: 'ok' });
+  // Filter out sensitive keys from response
+  const safeConfigs = configs.filter(c => !SENSITIVE_KEYS.has(c.key)).map(c => ({
+    ...c,
+    value: c.key === 'admin_password' ? '******' : c.value,
+  }));
+  return NextResponse.json({ code: 0, data: safeConfigs, message: 'ok' });
 }
 
 export async function PUT(req: Request) {
@@ -13,8 +21,13 @@ export async function PUT(req: Request) {
   }
   try {
     const config = await db.sysConfig.update({ where: { key }, data: { value } });
-    return NextResponse.json({ code: 0, data: config, message: 'ok' });
-  } catch (e: any) {
+    // Mask sensitive values in response
+    const safeConfig = {
+      ...config,
+      value: SENSITIVE_KEYS.has(config.key) ? '******' : config.value,
+    };
+    return NextResponse.json({ code: 0, data: safeConfig, message: 'ok' });
+  } catch {
     return NextResponse.json({ code: 404, data: null, message: '配置项不存在' }, { status: 404 });
   }
 }

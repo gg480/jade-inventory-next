@@ -2,17 +2,14 @@
 // Sessions persist across server restarts via SQLite
 
 import { db } from '@/lib/db';
+import crypto from 'crypto';
 
 const SESSION_TTL_DAYS = 7; // 7-day session expiry
 
-/** Generate a random session token */
+/** Generate a cryptographically secure session token */
 export function generateToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let token = 'session-';
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
+  const bytes = crypto.randomBytes(32);
+  return 'session-' + bytes.toString('base64url');
 }
 
 /** Clean expired sessions from the database */
@@ -81,4 +78,32 @@ export async function deleteSession(token: string): Promise<void> {
   } catch {
     // Session may not exist, that's fine
   }
+}
+
+/** Hash a password using SHA-256 with salt */
+export function hashPassword(password: string, salt?: string): { hash: string; salt: string } {
+  const actualSalt = salt || crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, actualSalt, 100000, 64, 'sha512').toString('hex');
+  return { hash, salt: actualSalt };
+}
+
+/** Verify a password against a stored hash+salt */
+export function verifyPassword(password: string, storedHash: string, salt: string): boolean {
+  const { hash } = hashPassword(password, salt);
+  return crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(storedHash));
+}
+
+/** Parse stored password format "salt:hash" */
+export function parseStoredPassword(stored: string): { salt: string; hash: string } | null {
+  const parts = stored.split(':');
+  if (parts.length === 2 && parts[0].length === 32 && parts[1].length === 128) {
+    return { salt: parts[0], hash: parts[1] };
+  }
+  // Legacy plaintext format — return null to indicate plaintext comparison needed
+  return null;
+}
+
+/** Format password for storage "salt:hash" */
+export function formatStoredPassword(salt: string, hash: string): string {
+  return `${salt}:${hash}`;
 }

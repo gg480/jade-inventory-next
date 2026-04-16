@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { createSession, validateToken, deleteSession } from '@/lib/auth';
-
-const DEFAULT_PASSWORD = 'admin123';
+import { createSession, validateToken, deleteSession, hashPassword, verifyPassword, parseStoredPassword, formatStoredPassword } from '@/lib/auth';
 
 // In-memory rate limiting: max 5 failed attempts per 15 minutes per IP
 const loginAttempts = new Map<string, { count: number; firstAttemptTime: number }>();
@@ -40,16 +38,41 @@ function resetAttempts(ip: string): void {
   loginAttempts.delete(ip);
 }
 
-async function getAdminPassword(): Promise<string> {
+/**
+ * Get stored admin password and verify against input.
+ * Supports both hashed format (salt:hash) and legacy plaintext.
+ * On successful plaintext login, auto-upgrades to hashed format.
+ */
+async function verifyAdminPassword(inputPassword: string): Promise<boolean> {
   try {
     const config = await db.sysConfig.findUnique({ where: { key: 'admin_password' } });
-    return config?.value || DEFAULT_PASSWORD;
+    if (!config?.value) return false;
+
+    const stored = config.value;
+    const parsed = parseStoredPassword(stored);
+
+    if (parsed) {
+      // Modern hashed format
+      return verifyPassword(inputPassword, parsed.hash, parsed.salt);
+    } else {
+      // Legacy plaintext comparison
+      const match = inputPassword === stored;
+      if (match) {
+        // Auto-upgrade to hashed format
+        const { salt, hash } = hashPassword(inputPassword);
+        await db.sysConfig.update({
+          where: { key: 'admin_password' },
+          data: { value: formatStoredPassword(salt, hash) },
+        });
+      }
+      return match;
+    }
   } catch {
-    return DEFAULT_PASSWORD;
+    return false;
   }
 }
 
-// POST /api/auth/login — authenticate with password
+// POST /api/auth — authenticate with password
 export async function POST(req: Request) {
   try {
     // Rate limiting check
@@ -57,7 +80,7 @@ export async function POST(req: Request) {
     if (isRateLimited(clientIp)) {
       return NextResponse.json(
         { code: 429, data: null, message: '登录尝试过多，请15分钟后再试' },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -66,8 +89,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ code: 400, data: null, message: '请输入密码' }, { status: 400 });
     }
 
-    const adminPassword = await getAdminPassword();
-    if (password !== adminPassword) {
+    const isValid = await verifyAdminPassword(password);
+    if (!isValid) {
       recordFailedAttempt(clientIp);
       return NextResponse.json({ code: 401, data: null, message: '密码错误' }, { status: 401 });
     }
@@ -81,12 +104,12 @@ export async function POST(req: Request) {
       data: { token, expiresIn: 604800 }, // 7 days in seconds
       message: 'ok',
     });
-  } catch (e: any) {
-    return NextResponse.json({ code: 500, data: null, message: e.message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ code: 500, data: null, message: '服务器内部错误' }, { status: 500 });
   }
 }
 
-// GET /api/auth/check — validate session
+// GET /api/auth — validate session
 export async function GET(req: Request) {
   const authHeader = req.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '');
@@ -102,7 +125,7 @@ export async function GET(req: Request) {
   });
 }
 
-// DELETE /api/auth/logout — delete session
+// DELETE /api/auth — logout
 export async function DELETE(req: Request) {
   const authHeader = req.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '');

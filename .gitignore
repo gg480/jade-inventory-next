@@ -50,5 +50,20 @@ test
 prompt
 
 server.log
+
 # Skills directory
 /skills/
+
+# Production ignores
+/qa-screenshots/
+/download/
+/upload/
+/agent-ctx/
+/.zscripts/
+/worklog.md
+/worklog.md.tmp
+screenshot-*.png
+dev-keepalive.sh
+start-dev.sh
+mini-services/
+jade-inventory-next/

@@ -2,10 +2,18 @@ import { NextResponse } from 'next/server';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { existsSync } from 'fs';
+import { validateToken } from '@/lib/auth';
 
 // GET /api/backup — Download SQLite database backup
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    // Auth check
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    if (!token || !await validateToken(token)) {
+      return NextResponse.json({ code: 401, data: null, message: '未登录或会话已过期' }, { status: 401 });
+    }
+
     const dbPath = path.join(process.cwd(), 'db', 'custom.db');
 
     if (!existsSync(dbPath)) {
@@ -24,14 +32,21 @@ export async function GET() {
         'Content-Length': buffer.length.toString(),
       },
     });
-  } catch (e: any) {
-    return NextResponse.json({ code: 500, data: null, message: `备份失败: ${e.message}` }, { status: 500 });
+  } catch {
+    return NextResponse.json({ code: 500, data: null, message: '备份失败' }, { status: 500 });
   }
 }
 
 // POST /api/backup — Restore database from uploaded file
 export async function POST(req: Request) {
   try {
+    // Auth check
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    if (!token || !await validateToken(token)) {
+      return NextResponse.json({ code: 401, data: null, message: '未登录或会话已过期' }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get('backup') as File | null;
 
@@ -71,7 +86,7 @@ export async function POST(req: Request) {
       data: { filename: file.name, size: file.size },
       message: '数据库恢复成功，请刷新页面',
     });
-  } catch (e: any) {
-    return NextResponse.json({ code: 500, data: null, message: `恢复失败: ${e.message}` }, { status: 500 });
+  } catch {
+    return NextResponse.json({ code: 500, data: null, message: '恢复失败' }, { status: 500 });
   }
 }

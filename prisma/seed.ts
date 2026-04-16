@@ -1,9 +1,20 @@
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
+function hashPassword(password: string): { salt: string; hash: string } {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+  return { salt, hash };
+}
+
 async function main() {
   console.log('🌱 开始种子数据...');
+
+  const isDev = process.env.NODE_ENV !== 'production';
+  const adminPassword = process.env.ADMIN_PASSWORD || (isDev ? 'admin123' : '');
+  const isInitialSetup = !adminPassword;
 
   // 1. 系统配置
   const configs = [
@@ -12,8 +23,18 @@ async function main() {
     { key: 'aging_threshold_days', value: '90', description: '压货预警天数(旧)' },
     { key: 'warning_days', value: '90', description: '压货预警天数' },
     { key: 'default_alloc_method', value: 'equal', description: '默认分摊算法' },
-    { key: 'admin_password', value: 'admin123', description: '管理员登录密码' },
   ];
+
+  // Only set password if one is provided (not empty)
+  if (adminPassword) {
+    const { salt, hash } = hashPassword(adminPassword);
+    configs.push({
+      key: 'admin_password',
+      value: `${salt}:${hash}`,
+      description: '管理员密码(哈希)',
+    });
+  }
+
   for (const c of configs) {
     await prisma.sysConfig.upsert({
       where: { key: c.key },
@@ -21,9 +42,9 @@ async function main() {
       create: c,
     });
   }
-  console.log('✅ 系统配置已插入/更新 (6条)');
+  console.log(`✅ 系统配置已插入/更新 (${configs.length}条)${isInitialSetup ? ' ⚠️ 未设置管理员密码，请通过 ADMIN_PASSWORD 环境变量设置' : ''}`);
 
-  // 2. 材质 (36种) — 含 category 大类
+  // 2. 材质 (36种)
   const materials = [
     { name: '黄金', category: '贵金属', subType: 'k999', sortOrder: 1 },
     { name: '银', category: '贵金属', subType: '990', costPerGram: 25, sortOrder: 2 },
@@ -71,7 +92,7 @@ async function main() {
   }
   console.log('✅ 材质已插入/更新 (36种, 含大类)');
 
-  // 3. 器型 (9种) — 新 specFields 格式
+  // 3. 器型 (9种)
   const types = [
     { name: '手镯', specFields: JSON.stringify({ weight: { required: false }, braceletSize: { required: true } }), sortOrder: 1 },
     { name: '挂件', specFields: JSON.stringify({ weight: { required: false } }), sortOrder: 2 },
@@ -94,24 +115,20 @@ async function main() {
 
   // 4. 标签 (20个, 4组)
   const tags = [
-    // 种水
     { name: '玻璃种', groupName: '种水' },
     { name: '冰种', groupName: '种水' },
     { name: '糯冰种', groupName: '种水' },
     { name: '糯种', groupName: '种水' },
     { name: '豆种', groupName: '种水' },
-    // 颜色
     { name: '满绿', groupName: '颜色' },
     { name: '飘花', groupName: '颜色' },
     { name: '紫罗兰', groupName: '颜色' },
     { name: '黄翡', groupName: '颜色' },
     { name: '墨翠', groupName: '颜色' },
     { name: '无色', groupName: '颜色' },
-    // 工艺
     { name: '手工雕', groupName: '工艺' },
     { name: '机雕', groupName: '工艺' },
     { name: '素面', groupName: '工艺' },
-    // 题材
     { name: '观音', groupName: '题材' },
     { name: '佛公', groupName: '题材' },
     { name: '平安扣', groupName: '题材' },
@@ -128,7 +145,7 @@ async function main() {
   }
   console.log('✅ 标签已插入 (20个, 4组)');
 
-  // 5. 初始贵金属市价
+  // 5. 贵金属市价
   const silver = await prisma.dictMaterial.findUnique({ where: { name: '银' } });
   const gold18k = await prisma.dictMaterial.findUnique({ where: { name: '18K金' } });
   const today = new Date().toISOString().split('T')[0];
@@ -145,13 +162,20 @@ async function main() {
   }
   console.log('✅ 贵金属初始市价已插入 (2条)');
 
+  // --- Development-only demo data ---
+  if (!isDev) {
+    console.log('ℹ️  生产环境模式，跳过示例数据插入');
+    console.log('🎉 种子数据完成（仅基础配置）！');
+    return;
+  }
+
   // 6. 示例供应商
   const supplier1 = await prisma.supplier.create({ data: { name: '云南瑞丽翡翠行', contact: '张经理 13800001111', notes: '长期合作，主供翡翠' } });
   const supplier2 = await prisma.supplier.create({ data: { name: '广州华林银饰批发', contact: '李总 13900002222', notes: '银饰批发' } });
   const supplier3 = await prisma.supplier.create({ data: { name: '东海水晶城', contact: '王姐 13700003333', notes: '水晶手串类' } });
   console.log('✅ 示例供应商已插入 (3条)');
 
-  // 7. 示例批次 — 创建3个批次
+  // 7. 示例批次
   const jadeMat = await prisma.dictMaterial.findUnique({ where: { name: '翡翠' } });
   const hetianMat = await prisma.dictMaterial.findUnique({ where: { name: '和田玉' } });
   const pinkCrystalMat = await prisma.dictMaterial.findUnique({ where: { name: '粉晶' } });
@@ -209,10 +233,9 @@ async function main() {
 
   console.log('✅ 示例批次已插入 (3条)');
 
-  // 8. 创建货品 — 部分关联批次，部分独立高货
+  // 8. 示例货品
   const itemsData: any[] = [];
 
-  // Batch 1 items (翡翠手镯, 3/5 entered)
   if (batch1 && jadeMat) {
     itemsData.push(
       { skuCode: 'FC-20260101-001-01', name: '冰种飘花手镯', batchId: batch1.id, batchCode: batch1.batchCode, materialId: jadeMat.id, typeId: braceletType?.id || null, costPrice: 10000, allocatedCost: null, sellingPrice: 18000, counter: 1, purchaseDate: '2026-01-15', status: 'in_stock' },
@@ -221,7 +244,6 @@ async function main() {
     );
   }
 
-  // Batch 2 items (和田玉吊坠, 2/3 entered)
   if (batch2 && hetianMat) {
     itemsData.push(
       { skuCode: 'HTY-20260201-001-01', name: '和田玉籽料观音吊坠', batchId: batch2.id, batchCode: batch2.batchCode, materialId: hetianMat.id, typeId: pendantType?.id || null, costPrice: 6000, allocatedCost: null, sellingPrice: 12000, counter: 1, purchaseDate: '2026-02-10', status: 'in_stock' },
@@ -229,7 +251,6 @@ async function main() {
     );
   }
 
-  // Batch 3 items (粉晶手串, 5/10 entered)
   if (batch3 && pinkCrystalMat) {
     for (let i = 1; i <= 5; i++) {
       itemsData.push({
@@ -249,7 +270,6 @@ async function main() {
     }
   }
 
-  // Independent high-value items (no batch)
   if (jadeMat) {
     itemsData.push(
       { skuCode: 'HV-20260101-001', name: '帝王绿翡翠挂件', materialId: jadeMat.id, typeId: pendantType?.id || null, costPrice: 80000, sellingPrice: 150000, counter: 1, purchaseDate: '2025-12-20', status: 'in_stock', origin: '缅甸', certNo: 'NGTC-2026-001' },
@@ -282,7 +302,7 @@ async function main() {
   const customer3 = await prisma.customer.upsert({ where: { customerCode: 'C003' }, update: {}, create: { customerCode: 'C003', name: '王小姐', phone: '13900001003', notes: '年轻客户，喜欢水晶' } });
   console.log('✅ 示例客户已插入/更新 (3条)');
 
-  // 10. 示例销售记录 — 一些批次中的货品已售出
+  // 10. 示例销售记录
   const soldItems = await prisma.item.findMany({ where: { status: 'in_stock' }, take: 3 });
   for (let i = 0; i < Math.min(soldItems.length, 3); i++) {
     const item = soldItems[i];
