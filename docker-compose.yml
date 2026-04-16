@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   jade-inventory:
-    image: gg480/jade-inventory-next:latest
+    image: lrunningmjgoat/jade-inventory-next:latest
     build:
       context: .
       dockerfile: Dockerfile

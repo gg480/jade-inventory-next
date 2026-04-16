@@ -11,7 +11,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: gg480/jade-inventory-next
+  IMAGE_NAME: lrunningmjgoat/jade-inventory-next
 
 jobs:
   build-and-push:

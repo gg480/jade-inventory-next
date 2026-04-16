@@ -20,7 +20,7 @@
 
 ```bash
 # 1. 拉取镜像
-docker pull gg480/jade-inventory-next:latest
+docker pull lrunningmjgoat/jade-inventory-next:latest
 
 # 2. 启动服务
 docker run -d \
@@ -30,14 +30,14 @@ docker run -d \
   -v jade-db:/app/db \
   -v jade-uploads:/app/upload \
   --restart unless-stopped \
-  gg480/jade-inventory-next:latest
+  lrunningmjgoat/jade-inventory-next:latest
 ```
 
 ### Docker Compose
 
 ```bash
 # 克隆仓库
-git clone https://github.com/gg480/jade-inventory-next.git
+git clone https://github.com/lrunningmjgoat/jade-inventory-next.git
 cd jade-inventory-next
 
 # 设置密码并启动
@@ -50,7 +50,7 @@ ADMIN_PASSWORD=your_secure_password docker compose up -d
 
 ```bash
 # 克隆仓库
-git clone https://github.com/gg480/jade-inventory-next.git
+git clone https://github.com/lrunningmjgoat/jade-inventory-next.git
 cd jade-inventory-next
 
 # 安装依赖

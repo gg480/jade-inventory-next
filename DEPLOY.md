@@ -16,7 +16,7 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/gg480/jade-inventory-next.git
+git clone https://github.com/lrunningmjgoat/jade-inventory-next.git
 cd jade-inventory-next
 ```
 
