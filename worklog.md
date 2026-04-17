@@ -118,3 +118,27 @@
 - 镜像大小: ~608MB (amd64+arm64 双平台)
 - 部署命令: `docker pull lrunningmjgoat/jade-inventory-next:latest`
 - CI/CD: push main / tag v* 自动构建推送
+
+---
+
+## 2026-04-17 Sprint 6: 极空间NAS Docker Compose部署
+
+**任务ID**: 6
+**负责人**: 开发代理
+**状态**: 完成
+
+### 工作记录
+- 确认DockerHub镜像已成功推送：lrunningmjgoat/jade-inventory-next (latest/1.0.0/main)
+- 镜像支持 amd64 + arm64 双架构（极空间arm64兼容）
+- 创建 docker-compose-zspace.yml 极空间专用配置（含详细注释）
+- 更新 docker-compose.yml 使用本地绑定挂载（./data/db + ./data/upload）
+- 创建 docs/DEPLOY_ZSPACE.md 极空间详细部署指南
+- 支持三种部署方式：图形界面/SSH+Compose/项目模式
+- 包含数据备份恢复、外网访问、镜像加速、故障排查等完整运维文档
+- 提交推送至GitHub: `2a9535d feat: 添加极空间NAS Docker Compose部署方案`
+
+### 阶段总结
+- 极空间NAS部署方案完成，支持图形界面和SSH两种方式
+- Docker镜像: `lrunningmjgoat/jade-inventory-next:latest`
+- 极空间访问地址: `http://NAS_IP:3000`
+- 关键挂载: `/data/jade-inventory/db:/app/db` + `/data/jade-inventory/upload:/app/upload`
