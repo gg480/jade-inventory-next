@@ -83,6 +83,7 @@ export async function GET(req: Request) {
   const agingPerDay = new Map<string, number>();
   for (const item of itemsEnteringAging) {
     // An item enters aging on the day its age exceeds agingDays
+    if (!item.purchaseDate) continue;
     const entryDate = new Date(new Date(item.purchaseDate).getTime() + agingDays * 86400000).toISOString().slice(0, 10);
     if (entryDate >= startDateStr) {
       agingPerDay.set(entryDate, (agingPerDay.get(entryDate) || 0) + 1);
@@ -104,34 +105,28 @@ export async function GET(req: Request) {
     cumFromEnd += agingPerDay.get(d) || 0;
   }
 
-  // 4. Batch payback trend: count paid_back batches per day
-  const batchesWithPayback = await db.batch.findMany({
-    where: { status: { in: ['paid_back', 'cleared'] } },
-    select: { updatedAt: true, status: true },
+  // 4. Batch payback trend: count batches by creation date (approximation)
+  // Note: Batch model does not have status/updatedAt fields
+  const allBatches = await db.batch.findMany({
+    select: { createdAt: true },
   });
 
   const paybackPerDay = new Map<string, number>();
-  for (const b of batchesWithPayback) {
-    if (b.updatedAt) {
-      const day = b.updatedAt.toISOString().slice(0, 10);
-      if (day >= startDateStr) {
-        paybackPerDay.set(day, (paybackPerDay.get(day) || 0) + 1);
-      }
+  for (const b of allBatches) {
+    const day = b.createdAt.toISOString().slice(0, 10);
+    if (day >= startDateStr) {
+      paybackPerDay.set(day, (paybackPerDay.get(day) || 0) + 1);
     }
   }
 
-  const totalPaidBack = batchesWithPayback.length;
-  let cumPayback = 0;
-  const paybackTrend: { day: string; value: number }[] = dateLabels.map(d => {
-    cumPayback += paybackPerDay.get(d) || 0;
-    return { day: d, value: Math.max(0, totalPaidBack - cumPayback) };
-  });
-  // Same logic: earlier days had fewer paid-back batches
-  // Reverse: count from latest day backwards
+  const totalBatches = allBatches.length;
   let cumPaybackFromEnd = 0;
+  const paybackTrend: { day: string; value: number }[] = dateLabels.map(d => ({
+    day: d, value: 0,
+  }));
   for (let i = dateLabels.length - 1; i >= 0; i--) {
     const d = dateLabels[i];
-    paybackTrend[i] = { day: d, value: Math.max(0, totalPaidBack - cumPaybackFromEnd) };
+    paybackTrend[i] = { day: d, value: Math.max(0, totalBatches - cumPaybackFromEnd) };
     cumPaybackFromEnd += paybackPerDay.get(d) || 0;
   }
 

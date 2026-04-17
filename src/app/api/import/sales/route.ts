@@ -60,8 +60,7 @@ export async function POST(req: Request) {
     const parseResult = Papa.parse(csvText, {
       header: true,
       skipEmptyLines: true,
-      encoding: 'UTF-8',
-    });
+    }) as { errors: { message: string }[]; data: Record<string, string>[]; meta: { fields?: string[] } };
 
     if (parseResult.errors.length > 0 && parseResult.data.length === 0) {
       return NextResponse.json({

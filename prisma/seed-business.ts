@@ -73,13 +73,14 @@ async function main() {
   const batchMat = [silver, k18, jadeite];
   const batchType = [necklace, ring, bracelet];
   for (let i = 0; i < 3; i++) {
+    if (!batchMat[i] || !batchType[i]) continue;
     const totalCost = Math.round((5000 + Math.random() * 15000) * 100) / 100;
     const qty = 5 + i;
     await prisma.batch.create({
       data: {
         batchCode: `B2026${String(i + 1).padStart(3, '0')}`,
-        materialId: batchMat[i].id,
-        typeId: batchType[i].id,
+        materialId: batchMat[i]!.id,
+        typeId: batchType[i]!.id,
         quantity: qty,
         totalCost,
         costAllocMethod: ['equal', 'by_weight', 'by_price'][i],

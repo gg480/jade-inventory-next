@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     const prefix = skuPrefix || (material ? material.name.slice(0, 2) : 'XX');
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
-    const created = [];
+    const created: any[] = [];
     for (let i = 0; i < quantity; i++) {
       const seq = String(i + 1).padStart(3, '0');
       const skuCode = `${prefix}-${dateStr}-${seq}`;

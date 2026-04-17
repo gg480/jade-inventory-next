@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   const now = new Date();
   const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
-  const result = [];
+  const result: { yearMonth: string; cogs: number; avgInventoryValue: number; turnoverRate: number }[] = [];
 
   for (let i = months - 1; i >= 0; i--) {
     const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
