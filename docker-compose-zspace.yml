@@ -1,0 +1,50 @@
+# ============================================================
+# 极空间 NAS 专用 Docker Compose 配置
+# 翡翠珠宝进销存管理系统 (Jade Inventory)
+# ============================================================
+#
+# 使用方法：
+#   1. SSH 登录极空间 NAS
+#   2. 创建数据目录: mkdir -p /tmp/jade-data/db /tmp/jade-data/upload
+#   3. 将此文件上传到 NAS（例如 /tmp/jade-data/docker-compose.yml）
+#   4. 执行: cd /tmp/jade-data && docker compose -f docker-compose-zspace.yml up -d
+#   5. 浏览器访问: http://NAS的IP地址:3000
+#
+# 极空间图形界面方式：
+#   1. 打开「容器管理」→「项目/Compose」
+#   2. 新建项目，将此文件内容粘贴
+#   3. 修改下方 volumes 中的路径为你的实际路径
+#   4. 启动项目
+# ============================================================
+
+services:
+  jade-inventory:
+    image: lrunningmjgoat/jade-inventory-next:latest
+    container_name: jade-inventory
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/db/custom.db
+      # ⚠️ 请修改为你自己的安全密码！
+      - ADMIN_PASSWORD=admin123
+      - TZ=Asia/Shanghai
+    volumes:
+      # ============================================
+      # 重要：请将下方路径改为极空间上的实际路径
+      # 极空间常见路径格式：
+      #   /data/仓库名/文件夹/   (Z4S/Z4 Pro等)
+      #   /tmp/仓库名/文件夹/   (部分旧型号)
+      # 请先在极空间文件管理中创建 jade-inventory 文件夹
+      # ============================================
+      # 数据库文件（最重要！包含所有业务数据）
+      - /data/jade-inventory/db:/app/db
+      # 上传的货品图片
+      - /data/jade-inventory/upload:/app/upload
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/stats/quick"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

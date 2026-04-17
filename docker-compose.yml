@@ -1,33 +1,37 @@
-version: "3.8"
+# ============================================================
+# 翡翠珠宝进销存管理系统 — Docker Compose 部署配置
+# ============================================================
+#
+# 快速启动：
+#   1. mkdir -p ./data/db ./data/upload
+#   2. 修改 ADMIN_PASSWORD 为安全密码
+#   3. docker compose up -d
+#   4. 访问 http://localhost:3000
+#
+# 极空间 NAS 用户请参考 docs/DEPLOY_ZSPACE.md
+# ============================================================
 
 services:
   jade-inventory:
     image: lrunningmjgoat/jade-inventory-next:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
     container_name: jade-inventory
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=file:./db/custom.db
+      - DATABASE_URL=file:/app/db/custom.db
+      # ⚠️ 请修改为你自己的安全密码！首次启动后务必修改
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - TZ=Asia/Shanghai
     volumes:
-      # Persist database across container restarts
-      - jade-db:/app/db
-      # Persist uploaded images
-      - jade-uploads:/app/upload
+      # 数据库文件（所有业务数据，必须持久化）
+      - ./data/db:/app/db
+      # 上传的货品图片
+      - ./data/upload:/app/upload
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/stats/quick"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 15s
-
-volumes:
-  jade-db:
-    driver: local
-  jade-uploads:
-    driver: local
+      start_period: 30s
