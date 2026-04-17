@@ -39,11 +39,10 @@ RUN bun run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 
-# Install bun for seed script runtime + sqlite tools
-RUN apk add --no-cache sqlite && \
-    npm install -g bun prisma
+# Install sqlite tools for DB operations + su-exec for privilege dropping
+RUN apk add --no-cache sqlite su-exec
 
-# Security: run as non-root user
+# Security: create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
@@ -62,17 +61,15 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy prisma CLI from builder (needed for db push at runtime)
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Create data directories with proper ownership
-RUN mkdir -p /app/db /app/upload && \
-    chown -R nextjs:nodejs /app/db /app/upload /app/prisma
-
-# Switch to non-root user
-USER nextjs
+# Create data directories
+RUN mkdir -p /app/db /app/upload
 
 # Expose port
 EXPOSE 3000
@@ -84,5 +81,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # Data volumes
 VOLUME ["/app/db", "/app/upload"]
 
-# Entry point handles DB init on first run
+# IMPORTANT: Run entrypoint as ROOT to fix permissions on mounted volumes,
+# then drop to nextjs user for the server process
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
