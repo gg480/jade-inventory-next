@@ -5,6 +5,8 @@ const isDev = process.env.NODE_ENV === 'development';
 const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
   output: 'standalone',
+  // Enable instrumentation.ts for DB auto-init on server start
+  instrumentationHook: true,
   typescript: {
     // Ignore TS errors during build - existing type issues in generated/dashboard code
     // do not affect runtime behavior

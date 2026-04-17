@@ -1,6 +1,7 @@
 # ============================================================
 # Multi-stage Dockerfile for Jade Inventory (翡翠珠宝进销存)
 # Production-optimized with standalone Next.js output
+# DB init is handled by the app itself (instrumentation.ts)
 # ============================================================
 
 # ---- Stage 1: Dependencies ----
@@ -39,7 +40,7 @@ RUN bun run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 
-# Install sqlite tools for DB operations + su-exec for privilege dropping
+# Install sqlite for debugging, su-exec for privilege management
 RUN apk add --no-cache sqlite su-exec
 
 # Security: create non-root user
@@ -57,12 +58,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# Copy Prisma schema for runtime migrations
+# Copy Prisma schema and client (needed for db-init.ts at runtime)
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# Copy prisma CLI from builder (needed for db push at runtime)
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
@@ -75,12 +74,12 @@ RUN mkdir -p /app/db /app/upload
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/stats/quick || exit 1
 
 # Data volumes
 VOLUME ["/app/db", "/app/upload"]
 
-# IMPORTANT: Run entrypoint as ROOT to fix permissions on mounted volumes,
-# then drop to nextjs user for the server process
+# Entrypoint: fix permissions then start server
+# DB initialization is handled by Next.js instrumentation.ts
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
