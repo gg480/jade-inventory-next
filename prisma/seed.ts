@@ -13,8 +13,10 @@ async function main() {
   console.log('🌱 开始种子数据...');
 
   const isDev = process.env.NODE_ENV !== 'production';
-  const adminPassword = process.env.ADMIN_PASSWORD || (isDev ? 'admin123' : '');
-  const isInitialSetup = !adminPassword;
+  // Always use ADMIN_PASSWORD env var; fallback to 'admin123' in dev or as default in production
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  const isInitialSetup = false;
+  console.log(`📋 NODE_ENV=${process.env.NODE_ENV || 'undefined'}, ADMIN_PASSWORD is ${process.env.ADMIN_PASSWORD ? 'set from env' : 'using default'}`);
 
   // 1. 系统配置
   const configs = [

@@ -42,11 +42,18 @@ function resetAttempts(ip: string): void {
  * Get stored admin password and verify against input.
  * Supports both hashed format (salt:hash) and legacy plaintext.
  * On successful plaintext login, auto-upgrades to hashed format.
+ * Fallback: if no password in DB, check ADMIN_PASSWORD env var.
  */
 async function verifyAdminPassword(inputPassword: string): Promise<boolean> {
   try {
     const config = await db.sysConfig.findUnique({ where: { key: 'admin_password' } });
-    if (!config?.value) return false;
+
+    if (!config?.value) {
+      // No password in database yet — fallback to ADMIN_PASSWORD env var
+      const envPassword = process.env.ADMIN_PASSWORD || 'admin123';
+      console.log('⚠️  No admin_password in DB, using ADMIN_PASSWORD env var for verification');
+      return inputPassword === envPassword;
+    }
 
     const stored = config.value;
     const parsed = parseStoredPassword(stored);
@@ -67,8 +74,11 @@ async function verifyAdminPassword(inputPassword: string): Promise<boolean> {
       }
       return match;
     }
-  } catch {
-    return false;
+  } catch (error) {
+    // Last resort: try env var
+    const envPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    console.error('❌ Password verification error, falling back to env var:', error);
+    return inputPassword === envPassword;
   }
 }
 
