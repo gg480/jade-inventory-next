@@ -4,12 +4,14 @@
  * Called when the Next.js app starts. Checks if the database has been
  * initialized and, if not, creates the schema and seeds initial data.
  *
- * This is the RELIABLE way to initialize the DB in Docker — no dependency
- * on npx, bun, or prisma CLI being available in the container.
+ * Uses better-sqlite3 for DDL (table creation) because Prisma's
+ * $executeRawUnsafe doesn't reliably create tables in SQLite.
+ * After tables exist, Prisma is used for data seeding.
  */
 
-import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs';
 
 function hashPassword(password: string): { salt: string; hash: string } {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -23,46 +25,72 @@ export async function ensureDbInitialized(): Promise<void> {
   if (initialized) return;
 
   try {
-    const prisma = new PrismaClient();
+    // Resolve database file path from DATABASE_URL
+    const dbUrl = process.env.DATABASE_URL || 'file:./db/custom.db';
+    let dbPath: string;
 
-    // Quick check: does the SysConfig table exist and have data?
-    let needsInit = false;
-    try {
-      const count = await prisma.sysConfig.count();
-      if (count === 0) {
+    if (dbUrl.startsWith('file:')) {
+      dbPath = dbUrl.slice(5);
+      // Handle relative paths — resolve from process.cwd()
+      if (!path.isAbsolute(dbPath)) {
+        dbPath = path.resolve(process.cwd(), dbPath);
+      }
+    } else {
+      dbPath = dbUrl;
+    }
+
+    console.log(`📦 Database path: ${dbPath}`);
+
+    // Ensure directory exists
+    const dbDir = path.dirname(dbPath);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+
+    // Check if database already has data
+    const dbExists = fs.existsSync(dbPath);
+    let needsInit = true;
+
+    if (dbExists) {
+      try {
+        const Database = require('better-sqlite3');
+        const sqlite = new Database(dbPath, { readonly: true });
+        const row = sqlite.prepare('SELECT COUNT(*) as count FROM sys_config').get() as any;
+        sqlite.close();
+        if (row && row.count > 0) {
+          needsInit = false;
+          console.log('✅ Database already initialized');
+        }
+      } catch {
+        // Table doesn't exist or DB is empty
         needsInit = true;
       }
-    } catch {
-      // Table doesn't exist yet — DB schema needs to be created
-      needsInit = true;
     }
 
     if (!needsInit) {
       initialized = true;
-      await prisma.$disconnect();
       return;
     }
 
-    console.log('📦 Database not initialized. Running auto-init...');
+    console.log('📦 Initializing database...');
 
-    // Step 1: Push schema using Prisma Client's raw query approach
-    // Since we can't run `prisma db push` in standalone mode,
-    // we use Prisma's internal $executeRaw to create tables.
-    // But actually, Prisma will auto-create tables on first query if we use
-    // the right approach. Let's try a different method.
+    // Use better-sqlite3 to create tables (much more reliable than Prisma DDL)
+    const Database = require('better-sqlite3');
+    const sqlite = new Database(dbPath);
 
-    // The most reliable approach: use prisma.$executeRawUnsafe to create
-    // all tables directly via SQL.
+    // Enable WAL mode for better performance
+    sqlite.pragma('journal_mode = WAL');
 
-    console.log('📋 Creating database tables...');
-    const createTableSQLs = [
-      `CREATE TABLE IF NOT EXISTS sys_config (
+    // Create all tables
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS sys_config (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         key TEXT NOT NULL UNIQUE,
         value TEXT NOT NULL,
         description TEXT
-      )`,
-      `CREATE TABLE IF NOT EXISTS dict_material (
+      );
+
+      CREATE TABLE IF NOT EXISTS dict_material (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         category TEXT,
@@ -71,29 +99,33 @@ export async function ensureDbInitialized(): Promise<void> {
         cost_per_gram REAL,
         sort_order INTEGER NOT NULL DEFAULT 0,
         is_active BOOLEAN NOT NULL DEFAULT 1
-      )`,
-      `CREATE TABLE IF NOT EXISTS dict_type (
+      );
+
+      CREATE TABLE IF NOT EXISTS dict_type (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         spec_fields TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0,
         is_active BOOLEAN NOT NULL DEFAULT 1
-      )`,
-      `CREATE TABLE IF NOT EXISTS dict_tag (
+      );
+
+      CREATE TABLE IF NOT EXISTS dict_tag (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         group_name TEXT,
         is_active BOOLEAN NOT NULL DEFAULT 1
-      )`,
-      `CREATE TABLE IF NOT EXISTS suppliers (
+      );
+
+      CREATE TABLE IF NOT EXISTS suppliers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         contact TEXT,
         phone TEXT,
         notes TEXT,
         is_active BOOLEAN NOT NULL DEFAULT 1
-      )`,
-      `CREATE TABLE IF NOT EXISTS customers (
+      );
+
+      CREATE TABLE IF NOT EXISTS customers (
         customer_code TEXT NOT NULL UNIQUE,
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -104,8 +136,9 @@ export async function ensureDbInitialized(): Promise<void> {
         tags TEXT,
         is_active BOOLEAN NOT NULL DEFAULT 1,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )`,
-      `CREATE TABLE IF NOT EXISTS batches (
+      );
+
+      CREATE TABLE IF NOT EXISTS batches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         batch_code TEXT NOT NULL UNIQUE,
         material_id INTEGER NOT NULL,
@@ -120,8 +153,9 @@ export async function ensureDbInitialized(): Promise<void> {
         FOREIGN KEY (material_id) REFERENCES dict_material(id),
         FOREIGN KEY (type_id) REFERENCES dict_type(id),
         FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
-      )`,
-      `CREATE TABLE IF NOT EXISTS items (
+      );
+
+      CREATE TABLE IF NOT EXISTS items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sku_code TEXT NOT NULL UNIQUE,
         name TEXT,
@@ -147,15 +181,17 @@ export async function ensureDbInitialized(): Promise<void> {
         FOREIGN KEY (type_id) REFERENCES dict_type(id),
         FOREIGN KEY (batch_id) REFERENCES batches(id),
         FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
-      )`,
-      `CREATE TABLE IF NOT EXISTS item_tag (
+      );
+
+      CREATE TABLE IF NOT EXISTS item_tag (
         item_id INTEGER NOT NULL,
         tag_id INTEGER NOT NULL,
         PRIMARY KEY (item_id, tag_id),
         FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
         FOREIGN KEY (tag_id) REFERENCES dict_tag(id) ON DELETE CASCADE
-      )`,
-      `CREATE TABLE IF NOT EXISTS item_spec (
+      );
+
+      CREATE TABLE IF NOT EXISTS item_spec (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         item_id INTEGER NOT NULL UNIQUE,
         weight REAL,
@@ -166,8 +202,9 @@ export async function ensureDbInitialized(): Promise<void> {
         bead_diameter TEXT,
         ring_size TEXT,
         FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
-      )`,
-      `CREATE TABLE IF NOT EXISTS item_images (
+      );
+
+      CREATE TABLE IF NOT EXISTS item_images (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         item_id INTEGER NOT NULL,
         filename TEXT NOT NULL,
@@ -175,8 +212,22 @@ export async function ensureDbInitialized(): Promise<void> {
         is_cover BOOLEAN NOT NULL DEFAULT 0,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
-      )`,
-      `CREATE TABLE IF NOT EXISTS sale_records (
+      );
+
+      CREATE TABLE IF NOT EXISTS bundle_sales (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bundle_no TEXT NOT NULL UNIQUE,
+        total_price REAL NOT NULL,
+        alloc_method TEXT NOT NULL,
+        sale_date TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        customer_id INTEGER,
+        note TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS sale_records (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sale_no TEXT NOT NULL UNIQUE,
         item_id INTEGER NOT NULL,
@@ -192,36 +243,27 @@ export async function ensureDbInitialized(): Promise<void> {
         FOREIGN KEY (item_id) REFERENCES items(id),
         FOREIGN KEY (customer_id) REFERENCES customers(id),
         FOREIGN KEY (bundle_id) REFERENCES bundle_sales(id)
-      )`,
-      `CREATE TABLE IF NOT EXISTS bundle_sales (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        bundle_no TEXT NOT NULL UNIQUE,
-        total_price REAL NOT NULL,
-        alloc_method TEXT NOT NULL,
-        sale_date TEXT NOT NULL,
-        channel TEXT NOT NULL,
-        customer_id INTEGER,
-        note TEXT,
-        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (customer_id) REFERENCES customers(id)
-      )`,
-      `CREATE TABLE IF NOT EXISTS metal_prices (
+      );
+
+      CREATE TABLE IF NOT EXISTS metal_prices (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         material_id INTEGER NOT NULL,
         price_per_gram REAL NOT NULL,
         effective_date TEXT NOT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (material_id) REFERENCES dict_material(id)
-      )`,
-      `CREATE TABLE IF NOT EXISTS users (
+      );
+
+      CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
         must_change_pwd BOOLEAN NOT NULL DEFAULT 1,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )`,
-      `CREATE TABLE IF NOT EXISTS sale_returns (
+      );
+
+      CREATE TABLE IF NOT EXISTS sale_returns (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sale_id INTEGER NOT NULL,
         item_id INTEGER NOT NULL,
@@ -231,8 +273,9 @@ export async function ensureDbInitialized(): Promise<void> {
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (sale_id) REFERENCES sale_records(id),
         FOREIGN KEY (item_id) REFERENCES items(id)
-      )`,
-      `CREATE TABLE IF NOT EXISTS operation_log (
+      );
+
+      CREATE TABLE IF NOT EXISTS operation_log (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         action TEXT NOT NULL,
         target_type TEXT NOT NULL,
@@ -240,178 +283,149 @@ export async function ensureDbInitialized(): Promise<void> {
         detail TEXT,
         operator TEXT NOT NULL DEFAULT 'admin',
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )`,
-      `CREATE TABLE IF NOT EXISTS session (
+      );
+
+      CREATE TABLE IF NOT EXISTS session (
         id TEXT PRIMARY KEY,
         token TEXT NOT NULL UNIQUE,
         user_id TEXT NOT NULL DEFAULT 'admin',
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         expires_at DATETIME NOT NULL
-      )`,
-      // Indexes
-      `CREATE INDEX IF NOT EXISTS idx_items_status ON items(status)`,
-      `CREATE INDEX IF NOT EXISTS idx_items_material ON items(material_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_items_batch ON items(batch_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_sale_date ON sale_records(sale_date)`,
-      `CREATE INDEX IF NOT EXISTS idx_sale_channel ON sale_records(channel)`,
-      `CREATE INDEX IF NOT EXISTS idx_sale_payment ON sale_records(payment_status)`,
-      `CREATE INDEX IF NOT EXISTS idx_log_action ON operation_log(action)`,
-      `CREATE INDEX IF NOT EXISTS idx_log_target ON operation_log(target_type)`,
-      `CREATE INDEX IF NOT EXISTS idx_log_time ON operation_log(created_at)`,
-      `CREATE INDEX IF NOT EXISTS idx_session_token ON session(token)`,
-      `CREATE INDEX IF NOT EXISTS idx_session_expires ON session(expires_at)`,
-    ];
+      );
 
-    for (const sql of createTableSQLs) {
-      try {
-        await prisma.$executeRawUnsafe(sql);
-      } catch (e: any) {
-        // "already exists" errors are OK
-        if (!e.message?.includes('already exists')) {
-          console.error('SQL error:', e.message);
-        }
-      }
-    }
+      CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
+      CREATE INDEX IF NOT EXISTS idx_items_material ON items(material_id);
+      CREATE INDEX IF NOT EXISTS idx_items_batch ON items(batch_id);
+      CREATE INDEX IF NOT EXISTS idx_sale_date ON sale_records(sale_date);
+      CREATE INDEX IF NOT EXISTS idx_sale_channel ON sale_records(channel);
+      CREATE INDEX IF NOT EXISTS idx_sale_payment ON sale_records(payment_status);
+      CREATE INDEX IF NOT EXISTS idx_log_action ON operation_log(action);
+      CREATE INDEX IF NOT EXISTS idx_log_target ON operation_log(target_type);
+      CREATE INDEX IF NOT EXISTS idx_log_time ON operation_log(created_at);
+      CREATE INDEX IF NOT EXISTS idx_session_token ON session(token);
+      CREATE INDEX IF NOT EXISTS idx_session_expires ON session(expires_at);
+    `);
+
     console.log('✅ Database tables created');
 
-    // Step 2: Seed initial data
+    // Seed initial data using better-sqlite3 (no Prisma dependency)
     console.log('🌱 Seeding initial data...');
 
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const { salt, hash } = hashPassword(adminPassword);
+    const passwordHash = `${salt}:${hash}`;
 
-    // System config
-    const configs = [
-      { key: 'admin_password', value: `${salt}:${hash}`, description: '管理员密码(哈希)' },
-      { key: 'operating_cost_rate', value: '0.05', description: '经营成本率' },
-      { key: 'markup_rate', value: '0.30', description: '零售价上浮比例' },
-      { key: 'aging_threshold_days', value: '90', description: '压货预警天数(旧)' },
-      { key: 'warning_days', value: '90', description: '压货预警天数' },
-      { key: 'default_alloc_method', value: 'equal', description: '默认分摊算法' },
-    ];
+    const insertConfig = sqlite.prepare(
+      'INSERT OR REPLACE INTO sys_config (key, value, description) VALUES (?, ?, ?)'
+    );
 
-    for (const c of configs) {
-      await prisma.sysConfig.upsert({
-        where: { key: c.key },
-        update: { value: c.value, description: c.description },
-        create: c,
-      });
-    }
-    console.log(`✅ System config inserted (${configs.length} items), password = "${adminPassword.substring(0, 3)}***"`);
+    insertConfig.run('admin_password', passwordHash, '管理员密码(哈希)');
+    insertConfig.run('operating_cost_rate', '0.05', '经营成本率');
+    insertConfig.run('markup_rate', '0.30', '零售价上浮比例');
+    insertConfig.run('aging_threshold_days', '90', '压货预警天数(旧)');
+    insertConfig.run('warning_days', '90', '压货预警天数');
+    insertConfig.run('default_alloc_method', 'equal', '默认分摊算法');
+    console.log(`✅ System config inserted (6 items), password = "${adminPassword.substring(0, 3)}***"`);
 
     // Materials (36)
+    const insertMaterial = sqlite.prepare(
+      'INSERT OR IGNORE INTO dict_material (name, category, sub_type, origin, cost_per_gram, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
+    );
     const materials = [
-      { name: '黄金', category: '贵金属', subType: 'k999', sortOrder: 1 },
-      { name: '银', category: '贵金属', subType: '990', costPerGram: 25, sortOrder: 2 },
-      { name: 'k铂金', category: '贵金属', sortOrder: 3 },
-      { name: '铂金', category: '贵金属', sortOrder: 4 },
-      { name: '18K金', category: '贵金属', costPerGram: 780, sortOrder: 5 },
-      { name: '翡翠', category: '玉', origin: '缅甸', sortOrder: 6 },
-      { name: '和田玉', category: '玉', sortOrder: 7 },
-      { name: '珍珠', category: '其他', subType: '淡水珠', origin: '浙江', sortOrder: 8 },
-      { name: '朱砂', category: '文玩', sortOrder: 9 },
-      { name: '蜜蜡', category: '文玩', sortOrder: 10 },
-      { name: '碧玺', category: '水晶', sortOrder: 11 },
-      { name: '青金石', category: '水晶', sortOrder: 12 },
-      { name: '黑曜石', category: '水晶', sortOrder: 13 },
-      { name: '金曜石', category: '水晶', sortOrder: 14 },
-      { name: '玛瑙', category: '水晶', sortOrder: 15 },
-      { name: '琥珀', category: '文玩', sortOrder: 16 },
-      { name: '锆石', category: '其他', origin: '梧州', sortOrder: 17 },
-      { name: '斑彩螺', category: '其他', origin: '意大利', sortOrder: 18 },
-      { name: '金虎眼', category: '水晶', sortOrder: 19 },
-      { name: '虎眼', category: '水晶', sortOrder: 20 },
-      { name: '粉晶', category: '水晶', sortOrder: 21 },
-      { name: '紫水晶', category: '水晶', sortOrder: 22 },
-      { name: '莹石', category: '水晶', sortOrder: 23 },
-      { name: '绿幽灵', category: '水晶', sortOrder: 24 },
-      { name: '白幽灵', category: '水晶', sortOrder: 25 },
-      { name: '彩幽灵', category: '水晶', sortOrder: 26 },
-      { name: '金发晶', category: '水晶', sortOrder: 27 },
-      { name: '钛晶', category: '水晶', sortOrder: 28 },
-      { name: '巴西黄水晶', category: '水晶', sortOrder: 29 },
-      { name: '人工黄水晶', category: '水晶', sortOrder: 30 },
-      { name: '红幽灵', category: '水晶', sortOrder: 31 },
-      { name: '蓝晶石', category: '水晶', sortOrder: 32 },
-      { name: '海蓝宝', category: '水晶', sortOrder: 33 },
-      { name: '天河石', category: '水晶', sortOrder: 34 },
-      { name: '红绿宝石共生', category: '水晶', sortOrder: 35 },
-      { name: '车花透辉石', category: '水晶', sortOrder: 36 },
+      ['黄金', '贵金属', 'k999', null, null, 1],
+      ['银', '贵金属', '990', null, 25, 2],
+      ['k铂金', '贵金属', null, null, null, 3],
+      ['铂金', '贵金属', null, null, null, 4],
+      ['18K金', '贵金属', null, null, 780, 5],
+      ['翡翠', '玉', null, '缅甸', null, 6],
+      ['和田玉', '玉', null, null, null, 7],
+      ['珍珠', '其他', '淡水珠', '浙江', null, 8],
+      ['朱砂', '文玩', null, null, null, 9],
+      ['蜜蜡', '文玩', null, null, null, 10],
+      ['碧玺', '水晶', null, null, null, 11],
+      ['青金石', '水晶', null, null, null, 12],
+      ['黑曜石', '水晶', null, null, null, 13],
+      ['金曜石', '水晶', null, null, null, 14],
+      ['玛瑙', '水晶', null, null, null, 15],
+      ['琥珀', '文玩', null, null, null, 16],
+      ['锆石', '其他', null, '梧州', null, 17],
+      ['斑彩螺', '其他', null, '意大利', null, 18],
+      ['金虎眼', '水晶', null, null, null, 19],
+      ['虎眼', '水晶', null, null, null, 20],
+      ['粉晶', '水晶', null, null, null, 21],
+      ['紫水晶', '水晶', null, null, null, 22],
+      ['莹石', '水晶', null, null, null, 23],
+      ['绿幽灵', '水晶', null, null, null, 24],
+      ['白幽灵', '水晶', null, null, null, 25],
+      ['彩幽灵', '水晶', null, null, null, 26],
+      ['金发晶', '水晶', null, null, null, 27],
+      ['钛晶', '水晶', null, null, null, 28],
+      ['巴西黄水晶', '水晶', null, null, null, 29],
+      ['人工黄水晶', '水晶', null, null, null, 30],
+      ['红幽灵', '水晶', null, null, null, 31],
+      ['蓝晶石', '水晶', null, null, null, 32],
+      ['海蓝宝', '水晶', null, null, null, 33],
+      ['天河石', '水晶', null, null, null, 34],
+      ['红绿宝石共生', '水晶', null, null, null, 35],
+      ['车花透辉石', '水晶', null, null, null, 36],
     ];
-    for (const m of materials) {
-      await prisma.dictMaterial.upsert({
-        where: { name: m.name },
-        update: { category: m.category },
-        create: {
-          name: m.name,
-          category: m.category,
-          subType: m.subType,
-          origin: m.origin,
-          costPerGram: m.costPerGram,
-          sortOrder: m.sortOrder,
-        },
-      });
-    }
+    const insertManyMaterials = sqlite.transaction((items: any[][]) => {
+      for (const item of items) insertMaterial.run(...item);
+    });
+    insertManyMaterials(materials);
     console.log('✅ Materials inserted (36)');
 
     // Types (9)
+    const insertType = sqlite.prepare(
+      'INSERT OR IGNORE INTO dict_type (name, spec_fields, sort_order) VALUES (?, ?, ?)'
+    );
     const types = [
-      { name: '手镯', specFields: '{"weight":{"required":false},"braceletSize":{"required":true}}', sortOrder: 1 },
-      { name: '挂件', specFields: '{"weight":{"required":false}}', sortOrder: 2 },
-      { name: '吊坠', specFields: '{"weight":{"required":false}}', sortOrder: 3 },
-      { name: '手串/手链', specFields: '{"weight":{"required":false},"beadCount":{"required":false},"beadDiameter":{"required":true}}', sortOrder: 4 },
-      { name: '项链', specFields: '{"weight":{"required":false},"beadDiameter":{"required":true}}', sortOrder: 5 },
-      { name: '脚链', specFields: '{"weight":{"required":false},"beadCount":{"required":false},"beadDiameter":{"required":false}}', sortOrder: 6 },
-      { name: '戒指', specFields: '{"weight":{"required":false},"metalWeight":{"required":false},"ringSize":{"required":true}}', sortOrder: 7 },
-      { name: '耳饰', specFields: '{"weight":{"required":false}}', sortOrder: 8 },
-      { name: '摆件', specFields: '{"weight":{"required":false},"size":{"required":false}}', sortOrder: 9 },
+      ['手镯', '{"weight":{"required":false},"braceletSize":{"required":true}}', 1],
+      ['挂件', '{"weight":{"required":false}}', 2],
+      ['吊坠', '{"weight":{"required":false}}', 3],
+      ['手串/手链', '{"weight":{"required":false},"beadCount":{"required":false},"beadDiameter":{"required":true}}', 4],
+      ['项链', '{"weight":{"required":false},"beadDiameter":{"required":true}}', 5],
+      ['脚链', '{"weight":{"required":false},"beadCount":{"required":false},"beadDiameter":{"required":false}}', 6],
+      ['戒指', '{"weight":{"required":false},"metalWeight":{"required":false},"ringSize":{"required":true}}', 7],
+      ['耳饰', '{"weight":{"required":false}}', 8],
+      ['摆件', '{"weight":{"required":false},"size":{"required":false}}', 9],
     ];
-    for (const t of types) {
-      await prisma.dictType.upsert({
-        where: { name: t.name },
-        update: { specFields: t.specFields },
-        create: { name: t.name, specFields: t.specFields, sortOrder: t.sortOrder },
-      });
-    }
+    const insertManyTypes = sqlite.transaction((items: any[][]) => {
+      for (const item of items) insertType.run(...item);
+    });
+    insertManyTypes(types);
     console.log('✅ Types inserted (9)');
 
     // Tags (20)
+    const insertTag = sqlite.prepare(
+      'INSERT OR IGNORE INTO dict_tag (name, group_name) VALUES (?, ?)'
+    );
     const tags = [
-      { name: '玻璃种', groupName: '种水' }, { name: '冰种', groupName: '种水' },
-      { name: '糯冰种', groupName: '种水' }, { name: '糯种', groupName: '种水' },
-      { name: '豆种', groupName: '种水' }, { name: '满绿', groupName: '颜色' },
-      { name: '飘花', groupName: '颜色' }, { name: '紫罗兰', groupName: '颜色' },
-      { name: '黄翡', groupName: '颜色' }, { name: '墨翠', groupName: '颜色' },
-      { name: '无色', groupName: '颜色' }, { name: '手工雕', groupName: '工艺' },
-      { name: '机雕', groupName: '工艺' }, { name: '素面', groupName: '工艺' },
-      { name: '观音', groupName: '题材' }, { name: '佛公', groupName: '题材' },
-      { name: '平安扣', groupName: '题材' }, { name: '如意', groupName: '题材' },
-      { name: '山水', groupName: '题材' }, { name: '花鸟', groupName: '题材' },
+      ['玻璃种', '种水'], ['冰种', '种水'], ['糯冰种', '种水'], ['糯种', '种水'], ['豆种', '种水'],
+      ['满绿', '颜色'], ['飘花', '颜色'], ['紫罗兰', '颜色'], ['黄翡', '颜色'], ['墨翠', '颜色'],
+      ['无色', '颜色'], ['手工雕', '工艺'], ['机雕', '工艺'], ['素面', '工艺'],
+      ['观音', '题材'], ['佛公', '题材'], ['平安扣', '题材'], ['如意', '题材'], ['山水', '题材'], ['花鸟', '题材'],
     ];
-    for (const t of tags) {
-      await prisma.dictTag.upsert({
-        where: { name: t.name },
-        update: {},
-        create: { name: t.name, groupName: t.groupName },
-      });
-    }
+    const insertManyTags = sqlite.transaction((items: any[][]) => {
+      for (const item of items) insertTag.run(...item);
+    });
+    insertManyTags(tags);
     console.log('✅ Tags inserted (20)');
 
     // Metal prices
-    const silver = await prisma.dictMaterial.findUnique({ where: { name: '银' } });
-    const gold18k = await prisma.dictMaterial.findUnique({ where: { name: '18K金' } });
     const today = new Date().toISOString().split('T')[0];
-    if (silver) {
-      await prisma.metalPrice.create({ data: { materialId: silver.id, pricePerGram: 25, effectiveDate: today } });
-    }
-    if (gold18k) {
-      await prisma.metalPrice.create({ data: { materialId: gold18k.id, pricePerGram: 780, effectiveDate: today } });
-    }
+    const silverRow = sqlite.prepare("SELECT id FROM dict_material WHERE name = '银'").get() as any;
+    const gold18kRow = sqlite.prepare("SELECT id FROM dict_material WHERE name = '18K金'").get() as any;
+    const insertMetalPrice = sqlite.prepare(
+      'INSERT INTO metal_prices (material_id, price_per_gram, effective_date) VALUES (?, ?, ?)'
+    );
+    if (silverRow) insertMetalPrice.run(silverRow.id, 25, today);
+    if (gold18kRow) insertMetalPrice.run(gold18kRow.id, 780, today);
     console.log('✅ Metal prices inserted');
 
+    sqlite.close();
     console.log('🎉 Database initialization complete!');
     initialized = true;
-    await prisma.$disconnect();
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
     // Don't throw — let the app try to start anyway

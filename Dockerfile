@@ -6,14 +6,14 @@
 
 # ---- Stage 1: Dependencies ----
 FROM node:22-alpine AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat python3 make g++
 WORKDIR /app
 
 # Copy dependency manifests
 COPY package.json bun.lock ./
 COPY prisma ./prisma/
 
-# Install bun and dependencies
+# Install bun and dependencies (better-sqlite3 needs native build)
 RUN npm install -g bun && \
     bun install --frozen-lockfile && \
     bun run db:generate
@@ -22,7 +22,7 @@ RUN npm install -g bun && \
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-RUN npm install -g bun
+RUN npm install -g bun && apk add --no-cache python3 make g++
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
@@ -31,7 +31,7 @@ COPY . .
 # Set production environment for build
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL=file:./db/custom.db
+ENV DATABASE_URL=file:/app/db/custom.db
 
 # Build Next.js (standalone output)
 RUN bun run build
@@ -41,7 +41,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 # Install sqlite for debugging, su-exec for privilege management
-RUN apk add --no-cache sqlite su-exec
+RUN apk add --no-cache sqlite su-exec python3 make g++
 
 # Security: create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
@@ -52,6 +52,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+# Use absolute path — relative paths break in standalone mode
+ENV DATABASE_URL=file:/app/db/custom.db
 
 # Copy built application from builder
 COPY --from=builder /app/public ./public
@@ -62,6 +64,12 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy better-sqlite3 native module for db-init
+COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
+COPY --from=builder /app/node_modules/bindings ./node_modules/bindings
+COPY --from=builder /app/node_modules/file-uri-to-path ./node_modules/file-uri-to-path
+COPY --from=builder /app/node_modules/node-addon-api ./node_modules/node-addon-api
+COPY --from=builder /app/node_modules/prebuild-install ./node_modules/prebuild-install
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
